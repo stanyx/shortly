@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
-	"flag"
+	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
@@ -13,7 +13,10 @@ import (
 	"syscall"
 	"time"
 
+	"shortly/config"
 	"shortly/handlers"
+	"shortly/server"
+	"shortly/storage"
 
 	_ "github.com/lib/pq"
 )
@@ -46,15 +49,26 @@ func main() {
 
 	rand.Seed(time.Now().UnixNano())
 
-	flag.Parse()
-
-	// TODO - read from config
-	var err error
-	connString := "host=localhost port=5432 user=shortly_user password=1 dbname=shortly sslmode=disable"
-
 	logger := log.New(os.Stdout, "", log.LstdFlags)
 
-	db, err = sql.Open("postgres", connString)
+	serverConfig := server.ParseServerOptions()
+	appConfig, err := config.ReadConfig(serverConfig.ConfigPath)
+	if err != nil {
+		logger.Fatal(err)
+	}
+
+	dbConfig := appConfig.Database
+
+	connString := fmt.Sprintf("host=%v port=%v user=%v password=%v dbname=%v sslmode=%v",
+		dbConfig.Host,
+		dbConfig.Port,
+		dbConfig.User,
+		dbConfig.Password,
+		dbConfig.Database,
+		dbConfig.SSLMode,
+	)
+
+	db, err = storage.StartDB(connString)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -68,7 +82,8 @@ func main() {
 	handlers.RemoveShortURL(db, cache, logger)
 	handlers.RedirectToFullURL(db, cache, logger)
 
-	srv := http.Server{Addr: ":5000"}
+	// запуск сервера
+	srv := http.Server{Addr: fmt.Sprintf(":%v", serverConfig.Port)}
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {
