@@ -7,28 +7,43 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 
 	"shortly/utils"
+	"shortly/cache"
+	"shortly/db"
 )
 
-func GetURLList(db *sql.DB, cache sync.Map, logger *log.Logger) {
+func GetURLList(database *sql.DB, logger *log.Logger) {
 
-	http.HandleFunc("/v1/urls", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/api/v1/urls", func(w http.ResponseWriter, r *http.Request) {
+
+		rows, err := db.GetAllUrls(database)
+		if err != nil {
+			logger.Println(err)
+			// TODO - логгирование асинхронное
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Write([]byte("<!DOCTYPE html><html><body><ul>Urls:\n"))
-		cache.Range(func(shortUrl interface{}, fullUrl interface{}) bool {
-			w.Write([]byte(fmt.Sprintf("<li>%s - %s</li>\n", shortUrl.(string), fullUrl.(string))))
-			return true
-		})
+
+		for _, r := range rows {
+			w.Write([]byte(fmt.Sprintf("<li>%s - %s</li>\n", r.Short, r.Long)))
+		}
 		w.Write([]byte("</ul></body></html>\n"))
 	})
 
 }
 
-func CreateShortURL(db *sql.DB, cache sync.Map, logger *log.Logger) {
+func CreateShortURL(db *sql.DB, urlCache cache.UrlCache, logger *log.Logger) {
 
-	http.HandleFunc("/v1/urls/create", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/api/v1/urls/create", func(w http.ResponseWriter, r *http.Request) {
+
+		if r.Method != "POST" {
+			http.Error(w, "method not allowed", http.StatusBadRequest)
+			return
+		}
 
 		urlArg := r.URL.Query()["url"]
 		if len(urlArg) != 1 {
@@ -51,7 +66,7 @@ func CreateShortURL(db *sql.DB, cache sync.Map, logger *log.Logger) {
 			// TODO - логгирование асинхронное
 			http.Error(w, "internal error", http.StatusInternalServerError)
 		} else {
-			cache.Store(shortURL, validFullURL.String())
+			urlCache.Store(shortURL, validFullURL.String())
 			// TODO - определять хост
 			w.Write([]byte("http://localhost:5000/" + shortURL))
 		}
@@ -59,9 +74,15 @@ func CreateShortURL(db *sql.DB, cache sync.Map, logger *log.Logger) {
 
 }
 
-func RemoveShortURL(db *sql.DB, cache sync.Map, logger *log.Logger) {
+func RemoveShortURL(db *sql.DB, urlCache cache.UrlCache, logger *log.Logger) {
 
-	http.HandleFunc("/v1/urls/remove", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/api/v1/urls/remove", func(w http.ResponseWriter, r *http.Request) {
+
+		if r.Method != "DELETE" {
+			http.Error(w, "method not allowed", http.StatusBadRequest)
+			return
+		}
+
 		urlArg := r.URL.Query()["url"]
 		if len(urlArg) != 1 {
 			http.Error(w, "invalid number of query values for parameter <url>, must be 1", http.StatusBadRequest)
@@ -74,19 +95,18 @@ func RemoveShortURL(db *sql.DB, cache sync.Map, logger *log.Logger) {
 			// TODO - логгирование асинхронное
 			http.Error(w, "internal error", http.StatusInternalServerError)
 		} else {
-			cache.Delete(shortUrl)
+			urlCache.Delete(shortUrl)
 			w.Write([]byte("removed"))
 		}
 	})
 }
 
-func RedirectToFullURL(db *sql.DB, cache sync.Map, logger *log.Logger) {
+func RedirectToFullURL(db *sql.DB, urlCache cache.UrlCache, logger *log.Logger) {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 
 		shortURL := strings.TrimPrefix(r.URL.Path, "/")
 
-		log.Println("get path", shortURL)
-		if cacheURLValue, ok := cache.Load(shortURL); ok {
+		if cacheURLValue, ok := urlCache.Load(shortURL); ok {
 
 			fullURL, ok := cacheURLValue.(string)
 			if !ok {

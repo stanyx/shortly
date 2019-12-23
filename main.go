@@ -9,37 +9,28 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
+	"shortly/cache"
 	"shortly/config"
 	"shortly/handlers"
 	"shortly/server"
 	"shortly/storage"
+	"shortly/db"
 
 	_ "github.com/lib/pq"
 )
 
-var (
-	db    *sql.DB
-	cache = sync.Map{}
-)
+func LoadCacheFromDatabase(database *sql.DB, urlCache cache.UrlCache) error {
 
-func LoadCacheFromDatabase() error {
-
-	rows, err := db.Query("select short_url, full_url from urls")
+	rows, err := db.GetAllUrls(database)
 	if err != nil {
 		return err
 	}
 
-	for rows.Next() {
-		var shortURL, fullURL string
-		err := rows.Scan(&shortURL, &fullURL)
-		if err != nil {
-			return err
-		}
-		cache.Store(shortURL, fullURL)
+	for _, r := range rows {
+		urlCache.Store(r.Short, r.Long)
 	}
 
 	return nil
@@ -68,19 +59,21 @@ func main() {
 		dbConfig.SSLMode,
 	)
 
-	db, err = storage.StartDB(connString)
+	database, err := storage.StartDB(connString)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	if err := LoadCacheFromDatabase(); err != nil {
+	urlCache := cache.NewMemoryCache()
+	err = LoadCacheFromDatabase(database, urlCache)
+	if err != nil {
 		logger.Fatal(err)
 	}
 
-	handlers.GetURLList(db, cache, logger)
-	handlers.CreateShortURL(db, cache, logger)
-	handlers.RemoveShortURL(db, cache, logger)
-	handlers.RedirectToFullURL(db, cache, logger)
+	handlers.GetURLList(database, logger)
+	handlers.CreateShortURL(database, urlCache, logger)
+	handlers.RemoveShortURL(database, urlCache, logger)
+	handlers.RedirectToFullURL(database, urlCache, logger)
 
 	// запуск сервера
 	srv := http.Server{Addr: fmt.Sprintf(":%v", serverConfig.Port)}
@@ -98,7 +91,7 @@ func main() {
 
 	go func() {
 		<-shutdownCh
-		if err := db.Close(); err != nil {
+		if err := database.Close(); err != nil {
 			logger.Printf("database close error, cause: %+v", err)
 		}
 
