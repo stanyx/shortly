@@ -1,0 +1,5 @@
+Cache:
+  CacheType: "memcached"
+  Memcached:
+    ServerList: 
+      - localhost:11211

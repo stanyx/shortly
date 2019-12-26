@@ -7,9 +7,19 @@ import (
 	"github.com/spf13/viper"
 )
 
+type MemcachedConfig struct {
+ 	ServerList []string
+}
+
+type CacheConfig struct {
+	CacheType string
+	Memcached MemcachedConfig
+}
+
 type ApplicationConfig struct {
 	Server   ServerConfig
 	Database DatabaseConfig
+	Cache    CacheConfig 
 }
 
 type ServerConfig struct {

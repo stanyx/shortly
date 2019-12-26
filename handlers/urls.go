@@ -17,6 +17,7 @@ func GetURLList(database *sql.DB, logger *log.Logger) {
 
 	http.HandleFunc("/api/v1/urls", func(w http.ResponseWriter, r *http.Request) {
 
+		// TODO - rate limiting
 		rows, err := db.GetAllUrls(database)
 		if err != nil {
 			logger.Println(err)
@@ -40,8 +41,9 @@ func CreateShortURL(db *sql.DB, urlCache cache.UrlCache, logger *log.Logger) {
 
 	http.HandleFunc("/api/v1/urls/create", func(w http.ResponseWriter, r *http.Request) {
 
+		// TODO - rate limiting
 		if r.Method != "POST" {
-			http.Error(w, "method not allowed", http.StatusBadRequest)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -78,6 +80,7 @@ func RemoveShortURL(db *sql.DB, urlCache cache.UrlCache, logger *log.Logger) {
 
 	http.HandleFunc("/api/v1/urls/remove", func(w http.ResponseWriter, r *http.Request) {
 
+		// TODO - rate limiting
 		if r.Method != "DELETE" {
 			http.Error(w, "method not allowed", http.StatusBadRequest)
 			return

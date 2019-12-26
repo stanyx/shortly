@@ -19,6 +19,8 @@ import (
 	"shortly/storage"
 	"shortly/db"
 
+	"shortly/billing"
+
 	_ "github.com/lib/pq"
 )
 
@@ -64,7 +66,21 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	urlCache := cache.NewMemoryCache()
+	var urlCache cache.UrlCache
+
+	cacheConfig := appConfig.Cache
+
+	fmt.Printf("\n\napp config: %+v\n\n", appConfig)
+
+	switch cacheConfig.CacheType {
+	case "memory", "":
+		log.Println("CACHE: use MEMORY")
+		urlCache = cache.NewMemoryCache()
+	case "memcached":
+		log.Println("CACHE: use MEMCACHED")
+		urlCache = cache.NewMemcachedCache(cacheConfig.Memcached.ServerList, logger)
+	}
+
 	err = LoadCacheFromDatabase(database, urlCache)
 	if err != nil {
 		logger.Fatal(err)
@@ -74,6 +90,9 @@ func main() {
 	handlers.CreateShortURL(database, urlCache, logger)
 	handlers.RemoveShortURL(database, urlCache, logger)
 	handlers.RedirectToFullURL(database, urlCache, logger)
+
+	billingRepository := &billing.BillingRepository{DB: database}
+	handlers.ApplyBillingPlan(billingRepository, logger)
 
 	// запуск сервера
 	srv := http.Server{Addr: fmt.Sprintf(":%v", serverConfig.Port)}
