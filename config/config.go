@@ -8,7 +8,7 @@ import (
 )
 
 type MemcachedConfig struct {
- 	ServerList []string
+	ServerList []string
 }
 
 type CacheConfig struct {
@@ -19,7 +19,7 @@ type CacheConfig struct {
 type ApplicationConfig struct {
 	Server   ServerConfig
 	Database DatabaseConfig
-	Cache    CacheConfig 
+	Cache    CacheConfig
 }
 
 type ServerConfig struct {
@@ -43,7 +43,7 @@ func ReadConfig(configFilePath string) (*ApplicationConfig, error) {
 
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
-	cfg.BindPFlags(pflag.CommandLine)
+	_ = cfg.BindPFlags(pflag.CommandLine)
 
 	cfg.SetDefault("Database.Host", "localhost")
 	cfg.SetDefault("Database.Port", 5432)

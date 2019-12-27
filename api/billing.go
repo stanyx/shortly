@@ -30,7 +30,7 @@ func ApplyBillingPlan(repo *billing.BillingRepository, logger *log.Logger) {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok"))
 
 	})
 }

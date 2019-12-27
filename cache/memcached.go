@@ -2,11 +2,12 @@ package cache
 
 import (
 	"log"
+
 	"github.com/bradfitz/gomemcache/memcache"
 )
 
 type MemcachedCache struct {
-	c *memcache.Client
+	c      *memcache.Client
 	logger *log.Logger
 }
 
@@ -34,7 +35,10 @@ func (ch *MemcachedCache) Store(key interface{}, value interface{}) {
 }
 
 func (ch *MemcachedCache) Delete(key interface{}) {
-	ch.c.Delete(key.(string))
+	err := ch.c.Delete(key.(string))
+	if err != nil {
+		ch.logger.Printf("cache delete(key=%s) error, cause: %+v\n", key, err)
+	}
 }
 
 func (ch *MemcachedCache) Range(f func(key interface{}, value interface{}) bool) {

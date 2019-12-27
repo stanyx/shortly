@@ -27,12 +27,12 @@ func GetURLList(database *sql.DB, logger *log.Logger) {
 		}
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write([]byte("<!DOCTYPE html><html><body><ul>Urls:\n"))
+		_, _ = w.Write([]byte("<!DOCTYPE html><html><body><ul>Urls:\n"))
 
 		for _, r := range rows {
-			w.Write([]byte(fmt.Sprintf("<li>%s - %s</li>\n", r.Short, r.Long)))
+			_, _ = w.Write([]byte(fmt.Sprintf("<li>%s - %s</li>\n", r.Short, r.Long)))
 		}
-		w.Write([]byte("</ul></body></html>\n"))
+		_, _ = w.Write([]byte("</ul></body></html>\n"))
 	})
 
 }
@@ -70,7 +70,7 @@ func CreateShortURL(db *sql.DB, urlCache cache.UrlCache, logger *log.Logger) {
 		} else {
 			urlCache.Store(shortURL, validFullURL.String())
 			// TODO - определять хост
-			w.Write([]byte("http://localhost:5000/" + shortURL))
+			_, _ = w.Write([]byte("http://localhost:5000/" + shortURL))
 		}
 	})
 
@@ -100,7 +100,7 @@ func RemoveShortURL(db *sql.DB, urlCache cache.UrlCache, logger *log.Logger) {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 		} else {
 			urlCache.Delete(shortURL)
-			w.Write([]byte("removed"))
+			_, _ = w.Write([]byte("removed"))
 		}
 	})
 }
@@ -131,7 +131,7 @@ func RedirectToFullURL(db *sql.DB, urlCache cache.UrlCache, logger *log.Logger) 
 			http.Redirect(w, r, validURL.String(), http.StatusSeeOther)
 		} else {
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("not found"))
+			_, _ = w.Write([]byte("not found"))
 		}
 	})
 }
