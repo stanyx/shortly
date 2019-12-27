@@ -88,15 +88,17 @@ func main() {
 		logger.Fatal(err)
 	}
 
+	// route declaration
 	api.GetURLList(database, logger)
 	api.CreateShortURL(database, urlCache, logger)
 	api.RemoveShortURL(database, urlCache, logger)
 	api.RedirectToFullURL(database, urlCache, logger)
 
 	billingRepository := &billing.BillingRepository{DB: database}
+	api.ListBillingPlans(billingRepository, logger)
 	api.ApplyBillingPlan(billingRepository, logger)
 
-	// запуск сервера
+	// server running
 	srv := http.Server{Addr: fmt.Sprintf(":%v", serverConfig.Port)}
 
 	go func() {

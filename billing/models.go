@@ -5,8 +5,12 @@ import (
 )
 
 type BillingPlan struct {
-	PeriodType string
-	Price 	   string
+	ID          int64
+	Name        string
+	Description string
+	PeriodType  string
+	Price 	    string
+	Options     []BillingOption
 }
 
 type UserBilling struct {
@@ -15,6 +19,7 @@ type UserBilling struct {
 }
 
 type BillingOption struct {
+	ID          int64
 	Name        string
 	Description string
 	Value       string

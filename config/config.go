@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+	"strings"
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -41,10 +42,15 @@ func ReadConfig(configFilePath string) (*ApplicationConfig, error) {
 
 	cfg := viper.New()
 
+	cfg.SetEnvPrefix("shortly")
+	cfg.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	cfg.AutomaticEnv()
+
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
 	_ = cfg.BindPFlags(pflag.CommandLine)
 
+	// database default settings
 	cfg.SetDefault("Database.Host", "localhost")
 	cfg.SetDefault("Database.Port", 5432)
 	cfg.SetDefault("Database.User", "shortly_user")
