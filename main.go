@@ -12,12 +12,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kr/pretty"
+
+	"shortly/api"
 	"shortly/cache"
 	"shortly/config"
-	"shortly/handlers"
+	"shortly/db"
 	"shortly/server"
 	"shortly/storage"
-	"shortly/db"
 
 	"shortly/billing"
 
@@ -70,7 +72,7 @@ func main() {
 
 	cacheConfig := appConfig.Cache
 
-	fmt.Printf("\n\napp config: %+v\n\n", appConfig)
+	pretty.Printf("\n\nCONFIG\n======\n\n%# v\n\n", appConfig)
 
 	switch cacheConfig.CacheType {
 	case "memory", "":
@@ -86,18 +88,19 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	handlers.GetURLList(database, logger)
-	handlers.CreateShortURL(database, urlCache, logger)
-	handlers.RemoveShortURL(database, urlCache, logger)
-	handlers.RedirectToFullURL(database, urlCache, logger)
+	api.GetURLList(database, logger)
+	api.CreateShortURL(database, urlCache, logger)
+	api.RemoveShortURL(database, urlCache, logger)
+	api.RedirectToFullURL(database, urlCache, logger)
 
 	billingRepository := &billing.BillingRepository{DB: database}
-	handlers.ApplyBillingPlan(billingRepository, logger)
+	api.ApplyBillingPlan(billingRepository, logger)
 
 	// запуск сервера
 	srv := http.Server{Addr: fmt.Sprintf(":%v", serverConfig.Port)}
 
 	go func() {
+		logger.Printf("starting web server at port: %v\n", serverConfig.Port)
 		if err := srv.ListenAndServe(); err != nil {
 			logger.Fatalf("server stop unexpectedly, cause: %+v", err)
 		}

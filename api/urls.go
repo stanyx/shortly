@@ -1,4 +1,4 @@
-package handlers
+package api
 
 import (
 	"database/sql"
@@ -8,9 +8,9 @@ import (
 	"net/url"
 	"strings"
 
-	"shortly/utils"
 	"shortly/cache"
 	"shortly/db"
+	"shortly/utils"
 )
 
 func GetURLList(database *sql.DB, logger *log.Logger) {
@@ -91,14 +91,15 @@ func RemoveShortURL(db *sql.DB, urlCache cache.UrlCache, logger *log.Logger) {
 			http.Error(w, "invalid number of query values for parameter <url>, must be 1", http.StatusBadRequest)
 			return
 		}
-		shortUrl := urlArg[0]
-		_, err := db.Exec("DELETE FROM urls WHERE short_url = $1", shortUrl)
+
+		shortURL := urlArg[0]
+		_, err := db.Exec("DELETE FROM urls WHERE short_url = $1", shortURL)
 		if err != nil {
 			logger.Println(err)
 			// TODO - логгирование асинхронное
 			http.Error(w, "internal error", http.StatusInternalServerError)
 		} else {
-			urlCache.Delete(shortUrl)
+			urlCache.Delete(shortURL)
 			w.Write([]byte("removed"))
 		}
 	})

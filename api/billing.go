@@ -1,9 +1,9 @@
-package handlers
+package api
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
-	"encoding/json"
 
 	"shortly/billing"
 )
