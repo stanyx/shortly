@@ -21,7 +21,7 @@ import (
 	"shortly/server"
 	"shortly/storage"
 
-	"shortly/billing"
+	"shortly/app/billing"
 
 	_ "github.com/lib/pq"
 )
