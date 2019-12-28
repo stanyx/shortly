@@ -143,8 +143,13 @@ func main() {
 	api.RegisterUser(usersRepository, logger)
 	api.LoginUser(usersRepository, logger, appConfig.Auth)
 
+	serverPort := os.Getenv("PORT")
+	if serverPort == "" {
+		serverPort = fmt.Sprintf("%v", serverConfig.Port)
+	}
+
 	// server running
-	srv := http.Server{Addr: fmt.Sprintf(":%v", serverConfig.Port)}
+	srv := http.Server{Addr: fmt.Sprintf(":%v", serverPort)}
 
 	go func() {
 		logger.Printf("starting web server at port: %v\n", serverConfig.Port)
