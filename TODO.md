@@ -1,7 +1,7 @@
 # TODO
+
  - Simple api tests
  - Statistics for urls
- - Authorization with JWT
  - Authorization with Outh2
  - SQLLite support
  - HTTPS support
@@ -9,6 +9,9 @@
  - Docker integration
  - CI/CD integration
  - DI support
+
+ - Tagging
+ - Campaigns
 
  - RBAC with Casbin
  - Bulk csv upload

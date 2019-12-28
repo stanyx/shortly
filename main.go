@@ -54,17 +54,21 @@ func main() {
 	}
 
 	dbConfig := appConfig.Database
+	
+	dbConnString := os.Getenv("DATABASE_URL")
 
-	connString := fmt.Sprintf("host=%v port=%v user=%v password=%v dbname=%v sslmode=%v",
-		dbConfig.Host,
-		dbConfig.Port,
-		dbConfig.User,
-		dbConfig.Password,
-		dbConfig.Database,
-		dbConfig.SSLMode,
-	)
+	if dbConnString == "" {
+		dbConnString = fmt.Sprintf("host=%v port=%v user=%v password=%v dbname=%v sslmode=%v",
+			dbConfig.Host,
+			dbConfig.Port,
+			dbConfig.User,
+			dbConfig.Password,
+			dbConfig.Database,
+			dbConfig.SSLMode,
+		)
+	}
 
-	database, err := storage.StartDB(connString)
+	database, err := storage.StartDB(dbConnString)
 	if err != nil {
 		logger.Fatal(err)
 	}

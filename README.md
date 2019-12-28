@@ -1,9 +1,8 @@
 [![Build Status](https://travis-ci.com/stanyx/shortly.svg?branch=master)](https://travis-ci.com/stanyx/shortly)
 
 ## SHORTLY
-=============
 
-Simple project implementing urlshortener functionality, like Google urlshortener api
+Simple project implementing urlshortener functionality, like Bit.ly, TinyURL, Google urlshorteners
 
 ### Project goals
 
@@ -32,7 +31,7 @@ TODO
 
 ### Installing from Docker
 
-TODO
+docker pull stanyx/shortly
 
 ### CONTRIBUTING
 
