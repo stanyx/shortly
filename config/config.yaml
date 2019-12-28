@@ -3,3 +3,5 @@ Cache:
   Memcached:
     ServerList: 
       - localhost:11211
+Auth:
+  Secret: "secret"

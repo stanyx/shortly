@@ -17,10 +17,21 @@ type CacheConfig struct {
 	Memcached MemcachedConfig
 }
 
+type JWTConfig struct {
+	Secret string
+}
+
+type BillingConfig struct {
+	Dir string
+}
+
 type ApplicationConfig struct {
 	Server   ServerConfig
 	Database DatabaseConfig
 	Cache    CacheConfig
+	Auth     JWTConfig
+
+	Billing  BillingConfig
 }
 
 type ServerConfig struct {
@@ -57,6 +68,8 @@ func ReadConfig(configFilePath string) (*ApplicationConfig, error) {
 	cfg.SetDefault("Database.Password", "1")
 	cfg.SetDefault("Database.Database", "shortly")
 	cfg.SetDefault("Database.SSLMode", "disable")
+
+	cfg.SetDefault("Billing.Dir", ".")
 
 	cfg.SetConfigFile(configFilePath)
 

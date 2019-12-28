@@ -2,7 +2,6 @@ package api
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -11,28 +10,65 @@ import (
 	"shortly/cache"
 	"shortly/db"
 	"shortly/utils"
+
+	"shortly/app/billing"
 )
+
+// Public API
+
+// TODO - auto expired urls
+
+type UrlResponse struct {
+	Short string `json:"short"`
+	Long  string `json:"long"`
+}
 
 func GetURLList(database *sql.DB, logger *log.Logger) {
 
 	http.HandleFunc("/api/v1/urls", func(w http.ResponseWriter, r *http.Request) {
 
-		// TODO - rate limiting
 		rows, err := db.GetAllUrls(database)
 		if err != nil {
-			logger.Println(err)
-			// TODO - логгирование асинхронное
-			http.Error(w, "internal error", http.StatusInternalServerError)
+			logError(logger, err)
+			apiError(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte("<!DOCTYPE html><html><body><ul>Urls:\n"))
-
+		var urls []UrlResponse
 		for _, r := range rows {
-			_, _ = w.Write([]byte(fmt.Sprintf("<li>%s - %s</li>\n", r.Short, r.Long)))
+			urls = append(urls, UrlResponse{
+				Short: r.Short,
+				Long:  r.Long,
+			})
 		}
-		_, _ = w.Write([]byte("</ul></body></html>\n"))
+		
+		response(w, urls, http.StatusOK)
+	})
+
+}
+
+func GetUserURLList(database *sql.DB, logger *log.Logger) http.Handler {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		userID := r.Context().Value("user").(*JWTClaims).UserID
+
+		rows, err := db.GetUserUrls(database, userID)
+		if err != nil {
+			logError(logger, err)
+			apiError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		var urls []UrlResponse
+		for _, r := range rows {
+			urls = append(urls, UrlResponse{
+				Short: r.Short,
+				Long:  r.Long,
+			})
+		}
+		
+		response(w, urls, http.StatusOK)
 	})
 
 }
@@ -41,15 +77,14 @@ func CreateShortURL(db *sql.DB, urlCache cache.UrlCache, logger *log.Logger) {
 
 	http.HandleFunc("/api/v1/urls/create", func(w http.ResponseWriter, r *http.Request) {
 
-		// TODO - rate limiting
 		if r.Method != "POST" {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			apiError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		urlArg := r.URL.Query()["url"]
 		if len(urlArg) != 1 {
-			http.Error(w, "invalid number of query values for parameter <url>, must be 1", http.StatusBadRequest)
+			apiError(w, "invalid number of query values for parameter <url>, must be 1", http.StatusBadRequest)
 			return
 		}
 
@@ -57,55 +92,24 @@ func CreateShortURL(db *sql.DB, urlCache cache.UrlCache, logger *log.Logger) {
 
 		validFullURL, err := url.Parse(fullURL)
 		if err != nil {
-			http.Error(w, "url has incorrect format", http.StatusBadRequest)
+			apiError(w, "url has incorrect format", http.StatusBadRequest)
 			return
 		}
 
 		shortURL := utils.RandomString(5)
 		_, err = db.Exec("INSERT INTO urls (short_url, full_url) VALUES ($1, $2)", shortURL, validFullURL.String())
 		if err != nil {
-			logger.Println(err)
-			// TODO - логгирование асинхронное
-			http.Error(w, "internal error", http.StatusInternalServerError)
+			logError(logger, err)
+			apiError(w, "internal error", http.StatusInternalServerError)
 		} else {
 			urlCache.Store(shortURL, validFullURL.String())
-			// TODO - определять хост
-			_, _ = w.Write([]byte("http://localhost:5000/" + shortURL))
+			response(w, &UrlResponse{Short: r.Host + "/" + shortURL, Long: fullURL}, http.StatusOK)
 		}
 	})
 
 }
 
-func RemoveShortURL(db *sql.DB, urlCache cache.UrlCache, logger *log.Logger) {
-
-	http.HandleFunc("/api/v1/urls/remove", func(w http.ResponseWriter, r *http.Request) {
-
-		// TODO - rate limiting
-		if r.Method != "DELETE" {
-			http.Error(w, "method not allowed", http.StatusBadRequest)
-			return
-		}
-
-		urlArg := r.URL.Query()["url"]
-		if len(urlArg) != 1 {
-			http.Error(w, "invalid number of query values for parameter <url>, must be 1", http.StatusBadRequest)
-			return
-		}
-
-		shortURL := urlArg[0]
-		_, err := db.Exec("DELETE FROM urls WHERE short_url = $1", shortURL)
-		if err != nil {
-			logger.Println(err)
-			// TODO - логгирование асинхронное
-			http.Error(w, "internal error", http.StatusInternalServerError)
-		} else {
-			urlCache.Delete(shortURL)
-			_, _ = w.Write([]byte("removed"))
-		}
-	})
-}
-
-func RedirectToFullURL(db *sql.DB, urlCache cache.UrlCache, logger *log.Logger) {
+func Redirect(db *sql.DB, urlCache cache.UrlCache, logger *log.Logger) {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 
 		shortURL := strings.TrimPrefix(r.URL.Path, "/")
@@ -114,7 +118,7 @@ func RedirectToFullURL(db *sql.DB, urlCache cache.UrlCache, logger *log.Logger) 
 
 			fullURL, ok := cacheURLValue.(string)
 			if !ok {
-				http.Error(w, "url is not a string", http.StatusBadRequest)
+				apiError(w, "url is not a string", http.StatusBadRequest)
 				return
 			}
 
@@ -124,7 +128,7 @@ func RedirectToFullURL(db *sql.DB, urlCache cache.UrlCache, logger *log.Logger) 
 
 			validURL, err := url.Parse(fullURL)
 			if err != nil {
-				http.Error(w, "url has incorrect format", http.StatusBadRequest)
+				apiError(w, "url has incorrect format", http.StatusBadRequest)
 				return
 			}
 
@@ -132,6 +136,81 @@ func RedirectToFullURL(db *sql.DB, urlCache cache.UrlCache, logger *log.Logger) 
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = w.Write([]byte("not found"))
+		}
+	})
+}
+
+func CreateUserShortURL(db *sql.DB, urlCache cache.UrlCache, billingLimiter *billing.BillingLimiter, logger *log.Logger) http.Handler {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		userID := r.Context().Value("user").(*JWTClaims).UserID
+
+		if r.Method != "POST" {
+			apiError(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		urlArg := r.URL.Query()["url"]
+		if len(urlArg) != 1 {
+			apiError(w, "invalid number of query values for parameter <url>, must be 1", http.StatusBadRequest)
+			return
+		}
+
+		fullURL := urlArg[0]
+
+		validFullURL, err := url.Parse(fullURL)
+		if err != nil {
+			apiError(w, "url has incorrect format", http.StatusBadRequest)
+			return
+		}
+
+		shortURL := utils.RandomString(5)
+		_, err = db.Exec("INSERT INTO urls (short_url, full_url, user_id) VALUES ($1, $2, $3)", 
+			shortURL, validFullURL.String(), userID)
+		if err != nil {
+			logError(logger, err)
+			apiError(w, "(create url) - internal error", http.StatusInternalServerError)
+		} else {
+			urlCache.Store(shortURL, validFullURL.String())
+
+			if err := billingLimiter.Reduce("url_limit", userID); err != nil {
+				logError(logger, err)
+				apiError(w, "(create url) - internal error", http.StatusInternalServerError)
+				return
+			}
+
+			response(w, &UrlResponse{Short: r.Host + "/" + shortURL, Long: fullURL}, http.StatusOK)
+		}
+	})
+
+}
+
+func RemoveUserShortURL(db *sql.DB, urlCache cache.UrlCache, logger *log.Logger) http.Handler {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		userID := r.Context().Value("user").(*JWTClaims).UserID
+
+		if r.Method != "DELETE" {
+			apiError(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		urlArg := r.URL.Query()["url"]
+		if len(urlArg) != 1 {
+			apiError(w, "invalid number of query values for parameter <url>, must be 1", http.StatusBadRequest)
+			return
+		}
+
+		shortURL := urlArg[0]
+		_, err := db.Exec("DELETE FROM urls WHERE short_url = $1 AND user_id = $2", shortURL, userID)
+		if err != nil {
+			logError(logger, err)
+			apiError(w, "internal error", http.StatusInternalServerError)
+		} else {
+			urlCache.Delete(shortURL)
+			ok(w)
 		}
 	})
 }

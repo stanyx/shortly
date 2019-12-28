@@ -1,11 +1,12 @@
 package api
 
 import (
+	"errors"
 	"encoding/json"
 	"log"
 	"net/http"
 
-	"shortly/billing"
+	"shortly/app/billing"
 )
 
 type BillingOptionResponse struct {
@@ -23,13 +24,13 @@ type BillingPlanResponse struct {
 	Options     []BillingOptionResponse `json:"options"`
 }
 
-func ListBillingPlans(repo *billing.BillingRepository, logger *log.Logger) {
-	http.HandleFunc("/api/v1/billing/plans", func(w http.ResponseWriter, r *http.Request) {
+func ListBillingPlans(repo *billing.BillingRepository, logger *log.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		plans, err := repo.GetAllBillingPlans()
 		if err != nil {
-			logger.Println(err)
-			http.Error(w, "list plan error", http.StatusInternalServerError)
+			logError(logger, err)
+			apiError(w, "list plan error", http.StatusInternalServerError)
 			return
 		}
 
@@ -56,39 +57,72 @@ func ListBillingPlans(repo *billing.BillingRepository, logger *log.Logger) {
 			})
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-
-		if err := json.NewEncoder(w).Encode(&list); err != nil {
-			http.Error(w, "list plan error", http.StatusInternalServerError)
-		}
+		response(w, &list, http.StatusOK)
 
 	})
 }
 
 
 type ApplyBillingPlanForm struct {
-	UserID int64
-	PlanID int64
+	PlanID int64 `json:"plan_id"`
 }
 
-func ApplyBillingPlan(repo *billing.BillingRepository, logger *log.Logger) {
-	http.HandleFunc("/api/v1/billing/apply", func(w http.ResponseWriter, r *http.Request) {
+func ApplyBillingPlan(repo *billing.BillingRepository, billingLimiter *billing.BillingLimiter, logger *log.Logger) http.Handler {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		var form ApplyBillingPlanForm
 
 		err := json.NewDecoder(r.Body).Decode(&form)
 		if err != nil {
-			http.Error(w, "decode form error", http.StatusBadRequest)
+			logError(logger, err)
+			apiError(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
-		if err := repo.ApplyBillingPlan(form.UserID, form.PlanID); err != nil {
-			http.Error(w, "apply plan error", http.StatusBadRequest)
+		claims := r.Context().Value("user").(*JWTClaims)
+
+		if err := repo.ApplyBillingPlan(claims.UserID, form.PlanID); err != nil {
+			logError(logger, err)
+			apiError(w, "apply plan error", http.StatusInternalServerError)
 			return
 		}
 
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("ok"))
+		options, err := repo.GetBillingPlanOptions(claims.UserID, form.PlanID)
+		if err != nil {
+			logError(logger, err)
+			apiError(w, "get plan error", http.StatusInternalServerError)
+			return
+		}
+
+		if err := billingLimiter.SetPlanOptions(claims.UserID, options); err != nil {
+			logError(logger, err)
+			apiError(w, "set plan error", http.StatusInternalServerError)
+			return
+		}
+
+		ok(w)
 
 	})
+}
+
+func BillingLimitMiddleware(optionName string, billingLimiter *billing.BillingLimiter, logger *log.Logger) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+			claims := r.Context().Value("user").(*JWTClaims)
+
+			if err := billingLimiter.CheckLimits(optionName, claims.UserID); err == billing.LimitExceededError {
+				logError(logger, errors.New("plan limit exceeded"))
+				apiError(w, "plan limit exceeded", http.StatusBadRequest)
+				return
+			} else if err != nil {
+				logError(logger, err)
+				apiError(w, "internal server error", http.StatusInternalServerError)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }

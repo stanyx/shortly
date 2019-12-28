@@ -21,6 +21,6 @@ script:
   - go test -v -race ./...
 
 after_success:
-  - docker build -t stanyx/shortly -f ./deploy/Dockerfile ./deploy
+  - docker build -t stanyx/shortly -f ./deploy/Dockerfile .
   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   - docker push stanyx/shortly

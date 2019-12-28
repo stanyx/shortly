@@ -11,6 +11,7 @@ type BillingPlan struct {
 	PeriodType  string
 	Price 	    string
 	Options     []BillingOption
+	UserID      int64
 }
 
 type UserBilling struct {
