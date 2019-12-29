@@ -25,6 +25,7 @@ import (
 
 	"shortly/app/billing"
 	"shortly/app/users"
+	"shortly/app/urls"
 )
 
 func LoadCacheFromDatabase(database *sql.DB, urlCache cache.UrlCache) error {
@@ -115,9 +116,13 @@ func main() {
 	// ** route declaration
 
 	// public api
-	api.GetURLList(database, logger)
-	api.CreateShortURL(database, urlCache, logger)
-	api.Redirect(database, urlCache, logger)
+
+	urlsRepository := &urls.UrlsRepository{DB: database, Logger: logger}
+
+	http.Handle("/api/v1/urls", api.GetURLList(urlsRepository, logger))
+	http.Handle("/api/v1/urls/create", api.CreateShortURL(urlsRepository, urlCache, logger))
+
+	api.Redirect(urlCache, logger)
 
 	err = billingDataStorage.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte("billing"))
@@ -148,7 +153,7 @@ func main() {
 	http.Handle("/api/v1/billing/plans",     api.ListBillingPlans(billingRepository, logger))
 	http.Handle("/api/v1/billing/apply",     auth(api.ApplyBillingPlan(billingRepository, billingLimiter, logger)))
 
-	http.Handle("/api/v1/users/urls",        auth(api.GetUserURLList(database, logger)))
+	http.Handle("/api/v1/users/urls",        auth(api.GetUserURLList(urlsRepository, logger)))
 	http.Handle("/api/v1/users/urls/create", auth(urlBillingLimit(api.CreateUserShortURL(database, urlCache, billingLimiter, logger))))
 	http.Handle("/api/v1/users/urls/delete", auth(api.RemoveUserShortURL(database, urlCache, logger)))
 

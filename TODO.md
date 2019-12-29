@@ -14,6 +14,7 @@
  - Custom Domain integration
  - Tagging
  - Campaigns
+ - Search by links tags
 
  - RBAC with Casbin
  - Bulk csv upload

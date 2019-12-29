@@ -25,6 +25,14 @@ Simple project implementing urlshortener functionality, like Bit.ly, TinyURL, Go
  - Prometheus integration (not ready)
  - Kubernetes ready (not ready)
 
+### Prerequisites
+
+Using TLS with server
+
+    openssl genrsa -out server.key 2048
+    openssl ecparam -genkey -name secp384r1 -out server.key
+    openssl req -new -x509 -sha256 -key server.key -out server.crt -days 3650
+
 ### Installing from source
 
 TODO
@@ -32,6 +40,7 @@ TODO
 ### Installing from Docker
 
 docker pull stanyx/shortly
+docker run --expose=[port] -p [port]:[port] shortly
 
 ### CONTRIBUTING
 

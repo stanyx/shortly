@@ -8,10 +8,10 @@ import (
 	"strings"
 
 	"shortly/cache"
-	"shortly/db"
 	"shortly/utils"
 
 	"shortly/app/billing"
+	"shortly/app/urls"
 )
 
 // Public API
@@ -23,11 +23,11 @@ type UrlResponse struct {
 	Long  string `json:"long"`
 }
 
-func GetURLList(database *sql.DB, logger *log.Logger) {
+func GetURLList(repo urls.IUrlsRepository, logger *log.Logger) http.Handler {
 
-	http.HandleFunc("/api/v1/urls", func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		rows, err := db.GetAllUrls(database)
+		rows, err := repo.GetAllUrls()
 		if err != nil {
 			logError(logger, err)
 			apiError(w, "internal error", http.StatusInternalServerError)
@@ -47,13 +47,13 @@ func GetURLList(database *sql.DB, logger *log.Logger) {
 
 }
 
-func GetUserURLList(database *sql.DB, logger *log.Logger) http.Handler {
+func GetUserURLList(repo urls.IUrlsRepository, logger *log.Logger) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		userID := r.Context().Value("user").(*JWTClaims).UserID
 
-		rows, err := db.GetUserUrls(database, userID)
+		rows, err := repo.GetUserUrls(userID)
 		if err != nil {
 			logError(logger, err)
 			apiError(w, "internal error", http.StatusInternalServerError)
@@ -73,9 +73,9 @@ func GetUserURLList(database *sql.DB, logger *log.Logger) http.Handler {
 
 }
 
-func CreateShortURL(db *sql.DB, urlCache cache.UrlCache, logger *log.Logger) {
+func CreateShortURL(repo urls.IUrlsRepository, urlCache cache.UrlCache, logger *log.Logger) http.Handler {
 
-	http.HandleFunc("/api/v1/urls/create", func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		if r.Method != "POST" {
 			apiError(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -97,7 +97,7 @@ func CreateShortURL(db *sql.DB, urlCache cache.UrlCache, logger *log.Logger) {
 		}
 
 		shortURL := utils.RandomString(5)
-		_, err = db.Exec("INSERT INTO urls (short_url, full_url) VALUES ($1, $2)", shortURL, validFullURL.String())
+		err = repo.CreateUrl(shortURL, validFullURL.String())
 		if err != nil {
 			logError(logger, err)
 			apiError(w, "internal error", http.StatusInternalServerError)
@@ -109,7 +109,7 @@ func CreateShortURL(db *sql.DB, urlCache cache.UrlCache, logger *log.Logger) {
 
 }
 
-func Redirect(db *sql.DB, urlCache cache.UrlCache, logger *log.Logger) {
+func Redirect(urlCache cache.UrlCache, logger *log.Logger) {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 
 		shortURL := strings.TrimPrefix(r.URL.Path, "/")
