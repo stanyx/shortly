@@ -1,7 +1,9 @@
 Cache:
-  CacheType: "memory"
+  CacheType: "boltdb"
   Memcached:
-    ServerList: 
+    ServerList:
       - localhost:11211
+  BoltDB:
+    Dir: .
 Auth:
   Secret: "secret"

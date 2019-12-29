@@ -1,0 +1,11 @@
+Cache:
+  CacheType: "memory"
+  Memcached:
+    ServerList:
+      - localhost:11211
+Auth:
+  Secret: "secret"
+
+Server:
+  Port: 443
+  UseTLS: true

@@ -12,9 +12,14 @@ type MemcachedConfig struct {
 	ServerList []string
 }
 
+type BoltDBConfig struct {
+	Dir string
+}
+
 type CacheConfig struct {
 	CacheType string
 	Memcached MemcachedConfig
+	BoltDB    BoltDBConfig
 }
 
 type JWTConfig struct {
@@ -35,7 +40,8 @@ type ApplicationConfig struct {
 }
 
 type ServerConfig struct {
-	Port int
+	Port   int
+	UseTLS bool
 }
 
 type DatabaseConfig struct {

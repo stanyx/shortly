@@ -68,10 +68,19 @@ func main() {
 		)
 	}
 
+	// connection to databases
+
 	database, err := storage.StartDB(dbConnString)
 	if err != nil {
 		logger.Fatal(err)
 	}
+
+	billingDataStorage, err := bolt.Open(appConfig.Billing.Dir + "/billing.db", 0666, nil)
+	if err != nil {
+		logger.Fatal(err)
+	}
+
+	// cache initialization
 
 	var urlCache cache.UrlCache
 
@@ -86,6 +95,16 @@ func main() {
 	case "memcached":
 		log.Println("CACHE: use MEMCACHED")
 		urlCache = cache.NewMemcachedCache(cacheConfig.Memcached.ServerList, logger)
+	case "boltdb":
+		log.Println("CACHE: use BOLT_DB")
+		urlDataStorage, err := bolt.Open(cacheConfig.BoltDB.Dir + "/urls.db", 0666, nil)
+		if err != nil {
+			logger.Fatal(err)
+		}
+		urlCache, err = cache.NewBoltDBCache(urlDataStorage, logger)
+		if err != nil {
+			logger.Fatal(err)
+		}
 	}
 
 	err = LoadCacheFromDatabase(database, urlCache)
@@ -99,11 +118,6 @@ func main() {
 	api.GetURLList(database, logger)
 	api.CreateShortURL(database, urlCache, logger)
 	api.Redirect(database, urlCache, logger)
-
-	billingDataStorage, err := bolt.Open(appConfig.Billing.Dir + "/billing.db", 0666, nil)
-	if err != nil {
-		logger.Fatal(err)
-	}
 
 	err = billingDataStorage.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte("billing"))
@@ -148,13 +162,20 @@ func main() {
 		serverPort = fmt.Sprintf("%v", serverConfig.Port)
 	}
 
+	var srv *http.Server
 	// server running
-	srv := http.Server{Addr: fmt.Sprintf(":%v", serverPort)}
-
 	go func() {
-		logger.Printf("starting web server at port: %v\n", serverConfig.Port)
-		if err := srv.ListenAndServe(); err != nil {
-			logger.Fatalf("server stop unexpectedly, cause: %+v", err)
+		logger.Printf("starting web server at port: %v, tls: %v\n", serverConfig.Port, appConfig.Server.UseTLS)
+		if appConfig.Server.UseTLS {
+			srv = &http.Server{Addr: fmt.Sprintf(":%v", serverPort)}
+			if err := srv.ListenAndServeTLS("./server.crt", "./server.key"); err != nil {
+				logger.Fatalf("server stop unexpectedly, cause: %+v", err)
+			}
+		} else {
+			srv = &http.Server{Addr: fmt.Sprintf(":%v", serverPort)}
+			if err := srv.ListenAndServe(); err != nil {
+				logger.Fatalf("server stop unexpectedly, cause: %+v", err)
+			}
 		}
 	}()
 

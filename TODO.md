@@ -1,15 +1,17 @@
 # TODO
 
  - Simple api tests
+ - OpenAPI Swagger documentation
  - Statistics for urls
  - Authorization with Outh2
- - SQLLite support
- - HTTPS support
+ - SQLLite support for testing purposes
  - BoltDB cache implementation
- - Docker integration
- - CI/CD integration
+ - Payment processing with Stripe integration
+ - Minimalistic frontend with dashboard
  - DI support
-
+ 
+ - Hiding Links
+ - Custom Domain integration
  - Tagging
  - Campaigns
 

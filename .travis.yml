@@ -13,6 +13,11 @@ env: GO111MODULE=on
 git:
   depth: 1
 
+branches:
+  only:
+    - master
+    - release
+
 before_script:
   - go install github.com/golangci/golangci-lint/cmd/golangci-lint
 
