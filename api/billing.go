@@ -2,10 +2,14 @@ package api
 
 import (
 	"errors"
-	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 
+	"github.com/stripe/stripe-go"
+	"github.com/stripe/stripe-go/charge"
+
+	"shortly/config"
 	"shortly/app/billing"
 )
 
@@ -64,23 +68,58 @@ func ListBillingPlans(repo *billing.BillingRepository, logger *log.Logger) http.
 
 
 type ApplyBillingPlanForm struct {
-	PlanID int64 `json:"plan_id"`
+	PlanID int64       `json:"plan_id"`
+	StripeToken string `json:"paymentToken"`
 }
 
-func ApplyBillingPlan(repo *billing.BillingRepository, billingLimiter *billing.BillingLimiter, logger *log.Logger) http.Handler {
+func ApplyBillingPlan(repo *billing.BillingRepository, billingLimiter *billing.BillingLimiter, paymentConfig config.PaymentConfig, logger *log.Logger) http.Handler {
+
+	createPaymentCharge := func(planCost string, r *http.Request) error {
+		stripe.Key = paymentConfig.Key
+
+		token := r.FormValue("stripeToken")
+
+		price, _ := strconv.ParseInt(planCost, 0, 64)
+
+		params := &stripe.ChargeParams{
+			Amount: stripe.Int64(price),
+			Currency: stripe.String(string(stripe.CurrencyUSD)),
+			Description: stripe.String("billing plan charge"),
+		}
+
+		_ = params.SetSource(token)
+
+		_, err := charge.New(params)
+		return err
+	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		var form ApplyBillingPlanForm
+		form := &ApplyBillingPlanForm{}
 
-		err := json.NewDecoder(r.Body).Decode(&form)
+		planID, err := strconv.ParseInt(r.FormValue("planId"), 0, 64)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			apiError(w, "plan id not specified", http.StatusBadRequest)
 			return
 		}
 
+		form.PlanID = planID
+
 		claims := r.Context().Value("user").(*JWTClaims)
+
+		planCost, err := repo.GetBillingPlanCost(form.PlanID)
+		if err != nil {
+			logError(logger, err)
+			apiError(w, "get billing plan error", http.StatusInternalServerError)
+			return
+		}
+
+		if err := createPaymentCharge(planCost, r); err != nil {
+			logError(logger, err)
+			apiError(w, "payment error", http.StatusInternalServerError)
+			return
+		}
 
 		if err := repo.ApplyBillingPlan(claims.UserID, form.PlanID); err != nil {
 			logError(logger, err)

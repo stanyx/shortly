@@ -114,6 +114,11 @@ func Redirect(urlCache cache.UrlCache, logger *log.Logger) {
 
 		shortURL := strings.TrimPrefix(r.URL.Path, "/")
 
+		if shortURL == "/" || shortURL == "" {
+			http.ServeFile(w, r, "./static/index.html")
+			return
+		}
+
 		if cacheURLValue, ok := urlCache.Load(shortURL); ok {
 
 			fullURL, ok := cacheURLValue.(string)

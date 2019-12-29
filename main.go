@@ -117,6 +117,9 @@ func main() {
 
 	// public api
 
+	fs := http.FileServer(http.Dir("static"))
+    http.Handle("/static", http.StripPrefix("/static", fs))
+
 	urlsRepository := &urls.UrlsRepository{DB: database, Logger: logger}
 
 	http.Handle("/api/v1/urls", api.GetURLList(urlsRepository, logger))
@@ -151,7 +154,7 @@ func main() {
 	urlBillingLimit := api.BillingLimitMiddleware("url_limit", billingLimiter, logger)
 
 	http.Handle("/api/v1/billing/plans",     api.ListBillingPlans(billingRepository, logger))
-	http.Handle("/api/v1/billing/apply",     auth(api.ApplyBillingPlan(billingRepository, billingLimiter, logger)))
+	http.Handle("/api/v1/billing/apply",     auth(api.ApplyBillingPlan(billingRepository, billingLimiter, appConfig.Billing.Payment, logger)))
 
 	http.Handle("/api/v1/users/urls",        auth(api.GetUserURLList(urlsRepository, logger)))
 	http.Handle("/api/v1/users/urls/create", auth(urlBillingLimit(api.CreateUserShortURL(database, urlCache, billingLimiter, logger))))

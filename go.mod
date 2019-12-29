@@ -11,6 +11,7 @@ require (
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.6.1
+	github.com/stripe/stripe-go v68.4.0+incompatible
 	go.etcd.io/bbolt v1.3.2
 	golang.org/x/crypto v0.0.0-20190923035154-9ee001bba392
 )

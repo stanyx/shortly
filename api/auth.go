@@ -17,6 +17,10 @@ func AuthMiddleware(authConfig config.JWTConfig) func(http.Handler) http.Handler
 
 			var header = r.Header.Get("x-access-token")
 
+			if header == "" {
+				header = r.FormValue("x-access-token");
+			}
+
 			header = strings.TrimSpace(header)
 
 			if header == "" {

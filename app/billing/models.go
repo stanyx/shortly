@@ -12,6 +12,7 @@ type BillingPlan struct {
 	Price 	    string
 	Options     []BillingOption
 	UserID      int64
+	IsAnnual    bool
 }
 
 type UserBilling struct {

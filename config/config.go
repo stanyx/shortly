@@ -26,8 +26,13 @@ type JWTConfig struct {
 	Secret string
 }
 
+type PaymentConfig struct {
+	Key string
+}
+
 type BillingConfig struct {
-	Dir string
+	Dir     string
+	Payment PaymentConfig
 }
 
 type ApplicationConfig struct {
