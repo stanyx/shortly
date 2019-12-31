@@ -51,7 +51,11 @@ func GetUserURLList(repo urls.IUrlsRepository, logger *log.Logger) http.Handler 
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		userID := r.Context().Value("user").(*JWTClaims).UserID
+		claims := r.Context().Value("user").(*JWTClaims)
+		userID := claims.AdminID
+		if userID == 0 {
+			userID = claims.UserID
+		}
 
 		rows, err := repo.GetUserUrls(userID)
 		if err != nil {
@@ -149,7 +153,11 @@ func CreateUserShortURL(db *sql.DB, urlCache cache.UrlCache, billingLimiter *bil
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		userID := r.Context().Value("user").(*JWTClaims).UserID
+		claims := r.Context().Value("user").(*JWTClaims)
+		userID := claims.AdminID
+		if userID == 0 {
+			userID = claims.UserID
+		}
 
 		if r.Method != "POST" {
 			apiError(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -195,7 +203,11 @@ func RemoveUserShortURL(db *sql.DB, urlCache cache.UrlCache, logger *log.Logger)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		userID := r.Context().Value("user").(*JWTClaims).UserID
+		claims := r.Context().Value("user").(*JWTClaims)
+		userID := claims.AdminID
+		if userID == 0 {
+			userID = claims.UserID
+		}
 
 		if r.Method != "DELETE" {
 			apiError(w, "method not allowed", http.StatusMethodNotAllowed)

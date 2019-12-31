@@ -26,6 +26,10 @@ type JWTConfig struct {
 	Secret string
 }
 
+type CasbinConfig struct {
+	CasbinConfigFile string
+}
+
 type PaymentConfig struct {
 	Key string
 }
@@ -40,6 +44,7 @@ type ApplicationConfig struct {
 	Database DatabaseConfig
 	Cache    CacheConfig
 	Auth     JWTConfig
+	Casbin   CasbinConfig
 
 	Billing  BillingConfig
 }

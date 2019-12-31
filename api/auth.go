@@ -7,12 +7,17 @@ import (
 	"context"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/casbin/casbin/v2"
 
 	"shortly/config"
+	"shortly/app/rbac"
 )
 
-func AuthMiddleware(authConfig config.JWTConfig) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
+func AuthMiddleware(enforcer *casbin.Enforcer, authConfig config.JWTConfig, permissions map[string]rbac.Permission) func(rbac.Permission, http.Handler) http.Handler {
+	return func(permission rbac.Permission, next http.Handler) http.Handler {
+
+		permissions[permission.Name] = permission
+
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 			var header = r.Header.Get("x-access-token")
@@ -41,7 +46,17 @@ func AuthMiddleware(authConfig config.JWTConfig) func(http.Handler) http.Handler
 
 			ctx := context.WithValue(r.Context(), "user", claims)
 
-			fmt.Println("logged request", claims)
+			// authorization
+			// admin users by default has all previlegies
+			if claims.IsStaff {
+				if ok, _ := enforcer.Enforce(fmt.Sprintf("user:%v", claims.UserID, permission.Name, permission.Method)); !ok {
+					if ok, _ :=  enforcer.Enforce(fmt.Sprintf("role:%v", claims.RoleID, permission.Name, permission.Method)); !ok {
+						apiError(w, "access denied", http.StatusForbidden)
+						return
+					}
+				}
+			}
+			
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

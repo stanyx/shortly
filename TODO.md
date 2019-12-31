@@ -5,7 +5,6 @@
  - Statistics for urls
  - Authorization with Outh2
  - SQLLite support for testing purposes
- - BoltDB cache implementation
  - Payment processing with Stripe integration
  - Minimalistic frontend with dashboard
  - DI support
@@ -16,7 +15,6 @@
  - Campaigns
  - Search by links tags
 
- - RBAC with Casbin
  - Bulk csv upload
  - Simple reports
 

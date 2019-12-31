@@ -19,7 +19,7 @@ type UrlsRepository struct {
 
 func (repo *UrlsRepository) GetAllUrls() ([]UrlPair, error) {
 
-	rows, err := repo.DB.Query("select short_url, full_url from urls")
+	rows, err := repo.DB.Query("select short_url, full_url from urls where user_id is null")
 	if err != nil {
 		return nil, err
 	}
@@ -35,6 +35,12 @@ func (repo *UrlsRepository) GetAllUrls() ([]UrlPair, error) {
 		urls = append(urls, UrlPair{Short: shortURL, Long: fullURL})
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
 	return urls, nil
 }
 
@@ -45,7 +51,17 @@ func (repo *UrlsRepository) CreateUrl(short, long string) error {
 
 func (repo *UrlsRepository) GetUserUrls(userID int64) ([]UrlPair, error) {
 
-	rows, err := repo.DB.Query("select short_url, full_url from urls where user_id = $1", userID)
+	rows, err := repo.DB.Query(`
+		select short_url, full_url from urls where user_id = $1
+		or exists (
+			select short_url, full_url from urls u
+			inner join urls_groups ug ON ug.url_id = u.id AND ug.group_id IN (
+				select id from users_groups where users_groups.user_id = $1
+			)
+			where user_id = $1
+		)
+	`, userID)
+
 	if err != nil {
 		return nil, err
 	}
@@ -73,4 +89,18 @@ func (repo *UrlsRepository) GetUserUrlsCount(userID int64) (int, error) {
 	}
 
 	return count, nil
+}
+
+func (repo *UrlsRepository) AddUrlToGroup(groupID, urlID int64) error {
+	_, err := repo.DB.Exec(`
+		insert into urls_groups (group_id, url_id) values ($1, $2)
+	`, groupID, urlID)
+	return err
+}
+
+func (repo *UrlsRepository) DeleteUrlFromGroup(groupID, urlID int64) error {
+	_, err := repo.DB.Exec(`
+		delete from urls_groups where group_id = $1 and url_id = $2
+	`, groupID, urlID)
+	return err
 }

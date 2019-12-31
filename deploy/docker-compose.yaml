@@ -1,0 +1,28 @@
+services:
+  web:
+    container_name: shortly
+    image: stanyx/shortly
+    depends_on:
+      - db
+      - cache
+    environment:
+      - SHORTLY_SERVER_PORT: "5000"
+      - SHORTLY_DATABASE_HOST: dbpg
+      - SHORTLY_DATABASE_PORT: "5432"
+    expose:
+      - "5000"
+    ports:
+      - "5000:5000"
+    restart: on-failure
+  dbpg:
+    container_name: dbpg
+    image: postgres:11
+    volumes:
+      - /db/data:/var/lib/postgresql/data
+    restart: on-failure
+  cache:
+    container_name: cache
+    image: memcached
+    ports:
+      - "11211:11211"
+    restart: on-failure
