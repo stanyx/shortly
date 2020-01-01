@@ -39,6 +39,10 @@ type BillingConfig struct {
 	Payment PaymentConfig
 }
 
+type LinksDBConfig struct {
+	Dir string
+}
+
 type ApplicationConfig struct {
 	Server   ServerConfig
 	Database DatabaseConfig
@@ -47,6 +51,7 @@ type ApplicationConfig struct {
 	Casbin   CasbinConfig
 
 	Billing  BillingConfig
+	LinkDB   LinksDBConfig
 }
 
 type ServerConfig struct {

@@ -25,8 +25,9 @@ import (
 
 	"shortly/app/billing"
 	"shortly/app/rbac"
-	"shortly/app/users"
+	"shortly/app/users" //TODO - rename to accounts
 	"shortly/app/urls"
+	"shortly/app/data"
 )
 
 func LoadCacheFromDatabase(database *sql.DB, urlCache cache.UrlCache) error {
@@ -82,6 +83,26 @@ func main() {
 		logger.Fatal(err)
 	}
 
+	linksStorage, err := bolt.Open(appConfig.LinkDB.Dir + "/links.db", 0666, nil)
+	if err != nil {
+		logger.Fatal(err)
+	}
+
+	billingRepository := &billing.BillingRepository{DB: database}
+	billingLimiter := &billing.BillingLimiter{
+		Repo:   billingRepository, 
+		DB:     billingDataStorage,
+		UrlDB:  database,
+		Logger: logger,
+	}
+	if err := billingLimiter.LoadData(); err != nil {
+		logger.Fatal(err)
+	}
+
+	urlBillingLimit := api.BillingLimitMiddleware("url_limit", billingLimiter, logger)
+
+	historyDB := &data.HistoryDB{DB: linksStorage, Limiter: billingLimiter}
+
 	// cache initialization
 
 	var urlCache cache.UrlCache
@@ -123,13 +144,12 @@ func main() {
 
 	urlsRepository := &urls.UrlsRepository{DB: database, Logger: logger}
 
+	http.Handle("/", api.Redirect(historyDB, urlCache, logger))
+
 	http.Handle("/api/v1/urls", api.GetURLList(urlsRepository, logger))
 	http.Handle("/api/v1/urls/create", api.CreateShortURL(urlsRepository, urlCache, logger))
 
-	api.Redirect(urlCache, logger)
-
-	// private api
-
+	// storage metadata preparation
 	err = billingDataStorage.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte("billing"))
 		if err != nil {
@@ -142,6 +162,19 @@ func main() {
 		logger.Fatal(err)
 	}
 
+	err = historyDB.Update(func(tx *bolt.Tx) error {
+		_, err := tx.CreateBucketIfNotExists([]byte("details"))
+		if err != nil {
+			return fmt.Errorf("create buket error, cause: %+v", err)
+		}
+		return nil
+	})
+
+	if err != nil {
+		logger.Fatal(err)
+	}
+
+	// private api (with authorized access)
 	enforcer, err := rbac.NewEnforcer(database, appConfig.Casbin)
 	if err != nil {
 		logger.Fatal(err)
@@ -156,19 +189,8 @@ func main() {
 	}
 
 	//   billing api
-	billingRepository := &billing.BillingRepository{DB: database}
-	billingLimiter := &billing.BillingLimiter{
-		Repo:   billingRepository, 
-		DB:     billingDataStorage,
-		UrlDB:  database,
-		Logger: logger,
-	}
-	if err := billingLimiter.LoadData(); err != nil {
-		logger.Fatal(err)
-	}
-	urlBillingLimit := api.BillingLimitMiddleware("url_limit", billingLimiter, logger)
 
-	http.Handle("/api/v1/billing/plans",     api.ListBillingPlans(billingRepository, logger))
+	http.Handle("/api/v1/billing/plans", api.ListBillingPlans(billingRepository, logger))
 
 	http.Handle("/api/v1/billing/apply", auth(
 		rbac.NewPermission("/api/v1/billing/apply", "apply_billingplan", "POST"), 
@@ -177,14 +199,14 @@ func main() {
 
 	// TODO remove to routes.go
 	// links api
-	http.Handle("/api/v1/users/urls",        auth(
+	http.Handle("/api/v1/users/urls", auth(
 		rbac.NewPermission("/api/v1/users/urls", "read_urls", "GET"), 
 		api.GetUserURLList(urlsRepository, logger),
 	))
 
-	http.Handle("/api/v1/users/urls/create", auth(
-		rbac.NewPermission("/api/v1/users/urls/create", "create_url", "POST"), 
-		urlBillingLimit(api.CreateUserShortURL(database, urlCache, billingLimiter, logger)),
+	http.Handle("/api/v1/users/urls/clicks", auth(
+		rbac.NewPermission("/api/v1/users/urls/clicks", "get_links_clicks", "GET"), 
+		api.GetClicksData(historyDB, logger),
 	))
 
 	http.Handle("/api/v1/users/urls/add_group", auth(
@@ -197,11 +219,17 @@ func main() {
 		api.DeleteUrlFromGroup(urlsRepository, logger),
 	))
 
-	// users api
+	// account api
 	usersRepository := &users.UsersRepository{DB: database}
-	api.RegisterUser(usersRepository, logger)
-	api.LoginUser(usersRepository, logger, appConfig.Auth)
 
+	http.Handle("/api/v1/registration", api.RegisterAccount(usersRepository, logger))
+	http.Handle("/api/v1/login", api.Login(usersRepository, logger, appConfig.Auth))
+
+	http.Handle("/api/v1/users/urls/create", auth(
+		rbac.NewPermission("/api/v1/users/urls/create", "create_url", "POST"), 
+		urlBillingLimit(api.CreateUserShortURL(historyDB, database, urlCache, billingLimiter, logger)),
+	))
+		
 	http.Handle("/api/v1/users/urls/delete", auth(
 		rbac.NewPermission("/api/v1/users/urls/delete", "delete_url", "DELETE"), 
 		api.RemoveUserShortURL(database, urlCache, logger),

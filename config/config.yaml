@@ -10,3 +10,5 @@ Auth:
 Billing:
   Payment:
     Key: ''
+LinkDB:
+  Dir: .

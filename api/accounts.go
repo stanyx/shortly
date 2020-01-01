@@ -49,9 +49,9 @@ type LoginResponse struct {
 	Token string       `json:"token"`
 }
 
-func RegisterUser(repo *users.UsersRepository, logger *log.Logger) {
+func RegisterAccount(repo *users.UsersRepository, logger *log.Logger) http.Handler {
 
-	http.HandleFunc("/api/v1/users/registration", func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		if r.Method != "POST" {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -91,7 +91,7 @@ func RegisterUser(repo *users.UsersRepository, logger *log.Logger) {
 			Email:    user.Email,
 			Company:  user.Company,
 		}, http.StatusOK)
-	}) 
+	})
 }
 
 type LoginForm struct {
@@ -99,8 +99,8 @@ type LoginForm struct {
 	Password string `json:"password"`
 }
 
-func LoginUser(repo *users.UsersRepository, logger *log.Logger, authConfig config.JWTConfig) {
-	http.HandleFunc("/api/v1/login", func(w http.ResponseWriter, r *http.Request) {
+func Login(repo *users.UsersRepository, logger *log.Logger, authConfig config.JWTConfig) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		if r.Method != "POST" {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)

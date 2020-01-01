@@ -59,6 +59,7 @@ func (l *BillingLimiter) LoadData() error {
 				topCount, _ := strconv.ParseInt(p.Options[i].Value, 0, 64)
 				l.Logger.Printf("(user=%v) set billing value(%s) to %v, max=%v, value=%v", p.UserID, opt.Name, topCount - int64(userUrlsCount), topCount, userUrlsCount)
 				p.Options[i].Value = fmt.Sprintf("%v", topCount - int64(userUrlsCount))
+			case "timedata_limit":
 			default:
 				return errors.New("billing option is not supported")
 			}
@@ -72,40 +73,60 @@ func (l *BillingLimiter) LoadData() error {
 	return nil
 }
 
+var OptionNotFound = errors.New("option not found")
+
+func (l *BillingLimiter) GetOptionValue(optionName string, accountID int64) (*BillingOption, error) {
+	var optionValue *BillingOption
+	err := l.DB.View(func(tx *bolt.Tx) error {
+		v, err := l.GetValue(tx, optionName, accountID)
+		if err == nil {
+			optionValue = v
+		}
+		return err
+	})
+	return optionValue, err
+}
+
+func (l *BillingLimiter) GetValue(tx *bolt.Tx, optionName string, accountID int64) (*BillingOption, error) {
+
+	b := tx.Bucket([]byte("billing"))
+	v := b.Get([]byte(fmt.Sprintf("%v", accountID)))
+
+	if len(v) == 0 {
+		return nil, OptionNotFound
+	}
+
+	buff := bytes.NewBuffer(v)
+
+	var options []BillingOption
+	if err := json.NewDecoder(buff).Decode(&options); err != nil {
+		return nil, err
+	}
+
+	for _, option := range options {
+		fmt.Println("Get option", option, optionName)
+		if option.Name == optionName {
+			return &option, nil
+		}
+	}
+
+	return nil, OptionNotFound
+}
+
 func (l *BillingLimiter) CheckLimits(optionName string, userID int64) error {
 
 	return l.DB.Update(func(tx *bolt.Tx) error {
 
-		b := tx.Bucket([]byte("billing"))
-		v := b.Get([]byte(fmt.Sprintf("%v", userID)))
-
-		if len(v) == 0 {
+		targetOption, err := l.GetValue(tx, optionName, userID)
+		if err == OptionNotFound {
 			return LimitExceededError
-		}
-
-		buff := bytes.NewBuffer(v)
-
-		var options []BillingOption
-		if err := json.NewDecoder(buff).Decode(&options); err != nil {
+		} else if err != nil {
 			return err
 		}
 
-		var targetOption *BillingOption
-
-		for _, option := range options {
-			if option.Name == optionName {
-				targetOption = &option
-				break
-			}
-		}
-
-		if targetOption != nil {
-			value, _ := strconv.ParseInt(targetOption.Value, 0, 64)
-			l.Logger.Printf("(user=%v) current billing value(%s) value: %v\n", userID, optionName, value)
-			if value <= 0 {
-				return LimitExceededError
-			}
-		} else {
+		value, _ := strconv.ParseInt(targetOption.Value, 0, 64)
+		l.Logger.Printf("(user=%v) current billing value(%s) value: %v\n", userID, optionName, value)
+		if value <= 0 {
 			return LimitExceededError
 		}
 

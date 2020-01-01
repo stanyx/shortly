@@ -1,5 +1,7 @@
 # TODO
 
+ - Move to multi-tenant structure (accounts with users)
+
  - Simple api tests
  - OpenAPI Swagger documentation
  - Statistics for urls
@@ -9,14 +11,18 @@
  - Minimalistic frontend with dashboard
  - DI support
  
+ - Beauty-naming for links
  - Hiding Links
- - Custom Domain integration
  - Tagging
- - Campaigns
+ - Campaigns, UTM customization
  - Search by links tags
-
+ 
  - Bulk csv upload
  - Simple reports
+
+ - Social posting
+
+ - Custom Domain integration
 
  Postgres
  - audit
