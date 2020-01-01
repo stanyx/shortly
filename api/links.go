@@ -58,12 +58,13 @@ func GetUserURLList(repo urls.IUrlsRepository, logger *log.Logger) http.Handler 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		claims := r.Context().Value("user").(*JWTClaims)
-		userID := claims.AdminID
-		if userID == 0 {
-			userID = claims.UserID
+
+		accountID := claims.AdminID
+		if accountID == 0 {
+			accountID = claims.UserID
 		}
 
-		rows, err := repo.GetUserUrls(userID)
+		rows, err := repo.GetUserUrls(accountID, claims.UserID)
 		if err != nil {
 			logError(logger, err)
 			apiError(w, "internal error", http.StatusInternalServerError)

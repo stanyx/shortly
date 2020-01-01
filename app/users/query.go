@@ -115,7 +115,7 @@ func (repo *UsersRepository) AddGroup(g Group) (int64, error) {
 	
 	var groupID int64
 	err := repo.DB.QueryRow(`
-		INSERT INTO group(name, description, user_id) 
+		INSERT INTO groups (name, description, user_id) 
 		VALUES( $1, $2, $3)
 		RETURNING id`,
 		g.Name,

@@ -244,38 +244,6 @@ func GrantAccessForRole(userRepo *users.UsersRepository, repo *rbac.RbacReposito
 	})
 }
 
-type GrantUserForm struct {
-	UserID   int64  `json:"userId"`
-	Method   string `json:"method"`
-}
-
-func GrantAccessForUser(userRepo *users.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var form GrantUserForm
-
-		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
-			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
-			return
-		}
-
-		user, err := userRepo.GetUserByID(form.UserID)
-		if err != nil {
-			logError(logger, err)
-			apiError(w, "get user error", http.StatusInternalServerError)
-			return
-		}
-
-		if err := repo.GrantAccessForUser(user.ID, form.Method); err != nil {
-			logError(logger, err)
-			apiError(w, "grant access for user error", http.StatusInternalServerError)
-			return
-		}
-
-		ok(w)
-	})
-}
-
 type RevokeRoleForm struct {
 	RoleID   int64  `json:"roleId"`
 	Resource string `json:"resource"`
@@ -302,38 +270,6 @@ func RevokeAccessForRole(userRepo *users.UsersRepository, repo *rbac.RbacReposit
 		if err := repo.RevokeAccessForRole(role.ID, rbac.Permission{Url: form.Resource, Method: form.Method}); err != nil {
 			logError(logger, err)
 			apiError(w, "revoke access for role error", http.StatusInternalServerError)
-			return
-		}
-
-		ok(w)
-	})
-}
-
-type RevokeUserForm struct {
-	UserID   int64  `json:"userId"`
-	Method   string `json:"method"`
-}
-
-func RevokeAccessForUser(userRepo *users.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var form RevokeUserForm
-
-		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
-			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
-			return
-		}
-
-		user, err := userRepo.GetUserByID(form.UserID)
-		if err != nil {
-			logError(logger, err)
-			apiError(w, "get user error", http.StatusInternalServerError)
-			return
-		}
-
-		if err := repo.RevokeAccessForUser(user.ID, form.Method); err != nil {
-			logError(logger, err)
-			apiError(w, "revoke access for user error", http.StatusInternalServerError)
 			return
 		}
 

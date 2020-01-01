@@ -78,7 +78,7 @@ func (ch *BoltDBCache) Delete(key interface{}) {
 }
 
 func (ch *BoltDBCache) Range(f func(key interface{}, value interface{}) bool) {
-	ch.db.View(func(tx *bolt.Tx) error {
+	err := ch.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(cacheBucketName))
 		c := b.Cursor()
 		for k, v := c.First(); k != nil; k, v = c.Next() {
@@ -86,4 +86,7 @@ func (ch *BoltDBCache) Range(f func(key interface{}, value interface{}) bool) {
 		}
 		return nil
 	})
+	if err != nil {
+		ch.logger.Printf("cache range error, cause: %+v\n", err)
+	}
 }

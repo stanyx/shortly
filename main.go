@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"math/rand"
@@ -16,7 +15,6 @@ import (
 	bolt "go.etcd.io/bbolt"
 	"github.com/kr/pretty"
 
-	"shortly/db"
 	"shortly/api"
 	"shortly/cache"
 	"shortly/config"
@@ -30,9 +28,9 @@ import (
 	"shortly/app/data"
 )
 
-func LoadCacheFromDatabase(database *sql.DB, urlCache cache.UrlCache) error {
+func LoadCacheFromDatabase(repo *urls.UrlsRepository, urlCache cache.UrlCache) error {
 
-	rows, err := db.GetAllUrls(database)
+	rows, err := repo.GetAllUrls()
 	if err != nil {
 		return err
 	}
@@ -88,12 +86,14 @@ func main() {
 		logger.Fatal(err)
 	}
 
+	urlsRepository := &urls.UrlsRepository{DB: database, Logger: logger}
+
 	billingRepository := &billing.BillingRepository{DB: database}
 	billingLimiter := &billing.BillingLimiter{
-		Repo:   billingRepository, 
-		DB:     billingDataStorage,
-		UrlDB:  database,
-		Logger: logger,
+		Repo:    billingRepository, 
+		DB:      billingDataStorage,
+		UrlRepo: urlsRepository,
+		Logger:  logger,
 	}
 	if err := billingLimiter.LoadData(); err != nil {
 		logger.Fatal(err)
@@ -130,7 +130,7 @@ func main() {
 		}
 	}
 
-	err = LoadCacheFromDatabase(database, urlCache)
+	err = LoadCacheFromDatabase(urlsRepository, urlCache)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -141,8 +141,6 @@ func main() {
 
 	fs := http.FileServer(http.Dir("static"))
     http.Handle("/static", http.StripPrefix("/static", fs))
-
-	urlsRepository := &urls.UrlsRepository{DB: database, Logger: logger}
 
 	http.Handle("/", api.Redirect(historyDB, urlCache, logger))
 

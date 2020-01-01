@@ -49,25 +49,14 @@ func AuthMiddleware(enforcer *casbin.Enforcer, authConfig config.JWTConfig, perm
 			// authorization
 			// admin users by default has all previlegies
 			if claims.IsStaff {
-
-				ok, err := enforcer.Enforce(fmt.Sprintf("user:%v", claims.UserID), permission.Method)
+				ok, err := enforcer.Enforce(fmt.Sprintf("role:%v", claims.RoleID), permission.Url, permission.Method)
 				if err != nil {
 					apiError(w, err.Error(), http.StatusInternalServerError)
 					return
 				}
-
 				if !ok {
-
-					ok, err =  enforcer.Enforce(fmt.Sprintf("role:%v", claims.RoleID), permission.Url, permission.Method)
-					if err != nil {
-						apiError(w, err.Error(), http.StatusInternalServerError)
-						return
-					}
-
-					if !ok {
-						apiError(w, "access denied", http.StatusForbidden)
-						return
-					}
+					apiError(w, "access denied", http.StatusForbidden)
+					return
 				}
 			}
 			

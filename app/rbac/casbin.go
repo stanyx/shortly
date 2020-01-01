@@ -29,7 +29,9 @@ func NewEnforcer(db *sql.DB, authConfig config.CasbinConfig) (*casbin.Enforcer, 
 		return nil, err
 	}
 
-	e.LoadPolicy()
+	if err := e.LoadPolicy(); err != nil {
+		return nil, err
+	}
 
 	return e, nil
 }

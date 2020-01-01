@@ -8,7 +8,7 @@ import (
 type IUrlsRepository interface {
 	GetAllUrls() ([]UrlPair, error)
 	CreateUrl(short, long string) error
-	GetUserUrls(userID int64) ([]UrlPair, error)
+	GetUserUrls(accountID, userID int64) ([]UrlPair, error)
 	GetUserUrlsCount(userID int64) (int, error)
 }
 
@@ -49,18 +49,22 @@ func (repo *UrlsRepository) CreateUrl(short, long string) error {
 	return err
 }
 
-func (repo *UrlsRepository) GetUserUrls(userID int64) ([]UrlPair, error) {
+func (repo *UrlsRepository) GetUserUrls(accountID, userID int64) ([]UrlPair, error) {
 
 	rows, err := repo.DB.Query(`
-		select short_url, full_url from urls where user_id = $1
-		or exists (
-			select short_url, full_url from urls u
-			inner join urls_groups ug ON ug.url_id = u.id AND ug.group_id IN (
-				select id from users_groups where users_groups.user_id = $1
-			)
-			where user_id = $1
+	with url_group as (
+		select distinct(ug.url_id) as url_id from urls_groups ug where ug.group_id IN (
+			select group_id from users_groups where users_groups.user_id = $2
 		)
-	`, userID)
+	)
+	select u.short_url, u.full_url 
+	from (
+		select * from urls
+		left join url_group ug on ug.url_id = urls.id
+		where (urls.user_id = $1 and not exists (select 1 from url_group)) 
+		or (ug.url_id is not null and exists (select 1 from url_group))
+	) u
+	`, accountID, userID)
 
 	if err != nil {
 		return nil, err

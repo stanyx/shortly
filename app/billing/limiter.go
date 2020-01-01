@@ -5,19 +5,18 @@ import (
 	"log"
 	"bytes"
 	"errors"
-	"database/sql"
 	"encoding/json"
 	"strconv"
 
-	"shortly/db"
-
 	bolt "go.etcd.io/bbolt"
+
+	"shortly/app/urls"
 )
 
 var LimitExceededError = errors.New("limit exceeded error")
 
 type BillingLimiter struct {
-	UrlDB   *sql.DB
+	UrlRepo *urls.UrlsRepository
 	Repo    *BillingRepository
 	DB      *bolt.DB
 	Logger  *log.Logger
@@ -52,7 +51,7 @@ func (l *BillingLimiter) LoadData() error {
 			switch opt.Name {
 			case "url_limit":
 
-				userUrlsCount, err := db.GetUserUrlsCount(l.UrlDB, p.UserID)
+				userUrlsCount, err := l.UrlRepo.GetUserUrlsCount(p.UserID)
 				if err != nil {
 					return err
 				}
