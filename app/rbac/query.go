@@ -17,14 +17,14 @@ type RbacRepository struct {
 func (repo *RbacRepository) GetRole(roleID int64) (Role, error) {
 	var row Role
 	err := repo.DB.QueryRow(`
-		select name, description from roles where id = $1
-	`, roleID).Scan(&row.Name, &row.Description)
+		select id, name, description from roles where id = $1
+	`, roleID).Scan(&row.ID, &row.Name, &row.Description)
 	return row, err
 }
 
 func (repo *RbacRepository) GetUserRoles(ownerID int64) ([]Role, error) {
 
-	rows, err := repo.DB.Query("select id, name, description from roles where owner_id = $2")
+	rows, err := repo.DB.Query("select id, name, description from roles where owner_id = $1", ownerID)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func (repo *RbacRepository) GetUserRoles(ownerID int64) ([]Role, error) {
 func (repo *RbacRepository) CreateRole(ownerID int64, r Role) (int64, error) {
 	var roleID int64
 	err := repo.DB.QueryRow(`
-		insert into roles(name, description, owner_id) values ($1, $2, $3)`, 
+		insert into roles(name, description, owner_id) values ($1, $2, $3) returning id`, 
 		r.Name, r.Description, ownerID,
 	).Scan(&roleID)
 
@@ -70,37 +70,32 @@ func (repo *RbacRepository) DeleteRole(r Role) error {
 
 func (repo *RbacRepository) AddRoleForUser(userID int64, roleID int64) error {
 	repo.Enforcer.AddRoleForUser(fmt.Sprintf("user:%v", userID), fmt.Sprintf("role:%v", roleID))
-	return nil
+	return repo.Enforcer.SavePolicy()
 }
 
 func (repo *RbacRepository) DeleteRoleForUser(userID int64, roleID int64) error {
 	repo.Enforcer.DeleteRoleForUser(fmt.Sprintf("user:%v", userID), fmt.Sprintf("role:%v", roleID))
-	repo.Enforcer.SavePolicy()
-	return nil
+	return repo.Enforcer.SavePolicy()
 }
 
 func (repo *RbacRepository) GrantAccessForUser(userID int64, method string) error {
 	repo.Enforcer.AddPermissionForUser(fmt.Sprintf("user:%v", userID), method)
-	repo.Enforcer.SavePolicy()
-	return nil
+	return repo.Enforcer.SavePolicy()
 }
 
 func (repo *RbacRepository) RevokeAccessForUser(userID int64, method string) error {
 	repo.Enforcer.DeletePermissionForUser(fmt.Sprintf("user:%v", userID), method)
-	repo.Enforcer.SavePolicy()
-	return nil
+	return repo.Enforcer.SavePolicy()
 }
 
 func (repo *RbacRepository) GrantAccessForRole(roleID int64, permission Permission) error {
 	repo.Enforcer.AddNamedPolicy("p", fmt.Sprintf("role:%v", roleID), permission.Url, permission.Method)
-	repo.Enforcer.SavePolicy()
-	return nil
+	return repo.Enforcer.SavePolicy()
 }
 
 func (repo *RbacRepository) RevokeAccessForRole(roleID int64, permission Permission) error {
-	repo.Enforcer.RemovePolicy(fmt.Sprintf("role:%v", roleID), permission.Name, permission.Method)
-	repo.Enforcer.SavePolicy()
-	return nil
+	repo.Enforcer.RemovePolicy(fmt.Sprintf("role:%v", roleID), permission.Url, permission.Method)
+	return repo.Enforcer.SavePolicy()
 }
 
 func (repo *RbacRepository) GetPermissionsForRole(roleID int64) ([]Permission, error) {

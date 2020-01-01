@@ -27,6 +27,11 @@ func RbacRoutes(auth func(rbac.Permission, http.Handler) http.Handler, permissio
 		DeleteUserRole(userRepo, repo, logger),
 	))
 
+	http.Handle("/api/v1/users/roles/set", auth(
+		rbac.NewPermission("/api/v1/users/roles/set", "set_user_role", "POST"), 
+		SetUserRole(userRepo, repo, logger),
+	))
+
 	http.Handle("/api/v1/users/roles/grant", auth(
 		rbac.NewPermission("/api/v1/users/roles/grant", "grant_permission", "POST"), 
 		GrantAccessForRole(userRepo, repo, logger),
@@ -117,8 +122,8 @@ func CreateUserRole(userRepo *users.UsersRepository, repo *rbac.RbacRepository, 
 }
 
 type SetRoleForm struct {
-	UserID int64 `json:"user_id"`
-	RoleID int64 `json:"role_id"`
+	UserID int64 `json:"userId"`
+	RoleID int64 `json:"roleId"`
 }
 
 func SetUserRole(userRepo *users.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.Handler {
@@ -129,6 +134,16 @@ func SetUserRole(userRepo *users.UsersRepository, repo *rbac.RbacRepository, log
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
 			apiError(w, "decode form error", http.StatusBadRequest)
+			return
+		}
+
+		if form.RoleID == 0 {
+			apiError(w, "roleId is required", http.StatusBadRequest)
+			return
+		}
+
+		if form.UserID == 0 {
+			apiError(w, "userId is required", http.StatusBadRequest)
 			return
 		}
 
@@ -157,8 +172,8 @@ func SetUserRole(userRepo *users.UsersRepository, repo *rbac.RbacRepository, log
 }
 
 type DeleteRoleForm struct {
-	UserID int64 `json:"user_id"`
-	RoleID int64 `json:"role_id"`
+	UserID int64 `json:"userId"`
+	RoleID int64 `json:"roleId"`
 }
 
 func DeleteUserRole(userRepo *users.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.Handler {
@@ -197,7 +212,7 @@ func DeleteUserRole(userRepo *users.UsersRepository, repo *rbac.RbacRepository, 
 }
 
 type GrantRoleForm struct {
-	RoleID   int64  `json:"role_id"`
+	RoleID   int64  `json:"roleId"`
 	Resource string `json:"resource"`
 	Method   string `json:"method"`
 }
@@ -230,7 +245,7 @@ func GrantAccessForRole(userRepo *users.UsersRepository, repo *rbac.RbacReposito
 }
 
 type GrantUserForm struct {
-	UserID   int64  `json:"user_id"`
+	UserID   int64  `json:"userId"`
 	Method   string `json:"method"`
 }
 
@@ -262,7 +277,7 @@ func GrantAccessForUser(userRepo *users.UsersRepository, repo *rbac.RbacReposito
 }
 
 type RevokeRoleForm struct {
-	RoleID   int64  `json:"role_id"`
+	RoleID   int64  `json:"roleId"`
 	Resource string `json:"resource"`
 	Method   string `json:"method"`
 }
@@ -280,7 +295,7 @@ func RevokeAccessForRole(userRepo *users.UsersRepository, repo *rbac.RbacReposit
 		role, err := repo.GetRole(form.RoleID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "get user error", http.StatusInternalServerError)
+			apiError(w, "get role error", http.StatusInternalServerError)
 			return
 		}
 
@@ -295,7 +310,7 @@ func RevokeAccessForRole(userRepo *users.UsersRepository, repo *rbac.RbacReposit
 }
 
 type RevokeUserForm struct {
-	UserID   int64  `json:"user_id"`
+	UserID   int64  `json:"userId"`
 	Method   string `json:"method"`
 }
 
