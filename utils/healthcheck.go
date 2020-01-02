@@ -76,7 +76,7 @@ func HealthCheck(checkers []HealthChecker, logger *log.Logger) http.Handler {
 		}
 		
 		if err := json.NewEncoder(w).Encode(&response); err != nil {
-			w.Write([]byte("error"))
+			_ = w.Write([]byte("error"))
 		}
 	})
 

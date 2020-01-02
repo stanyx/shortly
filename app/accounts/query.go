@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"database/sql"
 	"golang.org/x/crypto/bcrypt"
+
+	"shortly/utils"
 )
 
 type UsersRepository struct {
+	utils.AuditQuery
 	DB *sql.DB
 }
 
@@ -17,13 +20,10 @@ func (r *UsersRepository) CreateAccount(u User) (int64, error) {
 		return 0, err
 	}
 
-	var accountID int64
-	err = tx.QueryRow(`
+	accountID, err := r.Create("accounts", tx, `
 		insert into accounts (name, created_at, confirmed, verified) 
 		values ( $1 , now(), false, false )
-		returning id`,
-		u.Company,
-	).Scan(&accountID)
+		returning id`, u.Company)
 
 	if err != nil {
 		return 0, err
@@ -35,12 +35,10 @@ func (r *UsersRepository) CreateAccount(u User) (int64, error) {
 		return 0, err
 	}
 
-	var userID int64
-
-	err = tx.QueryRow(`
-		INSERT INTO users(username, password, phone, email, company, is_staff, account_id, role_id) 
-		VALUES ( $1, $2, $3, $4, $5, $6, $7, $8 )
-		RETURNING id`,
+	userID, err := r.Create("users", tx, `
+		insert into "users" (username, password, phone, email, company, is_staff, account_id, role_id) 
+		values ( $1, $2, $3, $4, $5, $6, $7, $8 )
+		returning id`,
 		u.Username,
 		password,
 		u.Phone,
@@ -49,7 +47,7 @@ func (r *UsersRepository) CreateAccount(u User) (int64, error) {
 		u.IsStaff,
 		accountID,
 		u.RoleID,
-	).Scan(&userID)
+	)
 
 	if err != nil {
 		_ = tx.Rollback()
@@ -70,12 +68,10 @@ func (r *UsersRepository) CreateUser(accountID int64, u User) (int64, error) {
 		return 0, err
 	}
 
-	var userID int64
-
-	err = r.DB.QueryRow(`
-		INSERT INTO users (username, password, phone, email, company, is_staff, account_id, role_id) 
-		VALUES( $1, $2, $3, $4, $5, $6, $7, $8 )
-		RETURNING id`,
+	return r.CreateTx("users", r.DB, `
+		insert into "users" (username, password, phone, email, company, is_staff, account_id, role_id) 
+		values ( $1, $2, $3, $4, $5, $6, $7, $8 )
+		returning id`,
 		u.Username,
 		password,
 		u.Phone,
@@ -84,13 +80,7 @@ func (r *UsersRepository) CreateUser(accountID int64, u User) (int64, error) {
 		u.IsStaff,
 		accountID,
 		u.RoleID,
-	).Scan(&userID)
-
-	if err != nil {
-		return 0, err
-	}
-
-	return userID, nil
+	)
 }
 
 func (r *UsersRepository) GetUser(username string) (*User, error) {
@@ -102,8 +92,8 @@ func (r *UsersRepository) GetUser(username string) (*User, error) {
 	var isStaff *bool
 
 	err := r.DB.QueryRow(`
-		SELECT id, username, password, phone, email, company, is_staff, account_id, role_id 
-		FROM users WHERE username = $1`,
+		select id, username, password, phone, email, company, is_staff, account_id, role_id 
+		from "users" where username = $1`,
 		username,
 	).Scan(
 		&user.ID, 
@@ -141,8 +131,8 @@ func (r *UsersRepository) getUserFiltered(fieldName string, value interface{}) (
 	var user User
 
 	err := r.DB.QueryRow(fmt.Sprintf(`
-		SELECT id, username, password, phone, email, company, is_staff, account_id, role_id
-		FROM users WHERE %s = $1`, fieldName),
+		select id, username, password, phone, email, company, is_staff, account_id, role_id
+		from "users" WHERE %s = $1`, fieldName),
 		value,
 	).Scan(
 		&user.ID, 
@@ -172,42 +162,37 @@ func (r *UsersRepository) GetUserByAccountID(accountID int64) (*User, error) {
 }
 
 func (repo *UsersRepository) AddGroup(g Group) (int64, error) {
-	
-	var groupID int64
-	err := repo.DB.QueryRow(`
-		INSERT INTO groups (name, description, account_id) 
-		VALUES( $1, $2, $3)
-		RETURNING id`,
+	return repo.CreateTx("groups", repo.DB, `
+		insert into "groups" (name, description, account_id) 
+		values ( $1, $2, $3 )
+		returning id`,
 		g.Name,
 		g.Description,
 		g.AccountID,
-	).Scan(&groupID)
-
-	if err != nil {
-		return 0, err
-	}
-
-	return groupID, nil
+	)
 }
 
 func (repo *UsersRepository) DeleteGroup(groupID, accountID int64) error {
 	//TODO - cascade delete
-	_, err := repo.DB.Exec(`delete from groups where id = $1 and account_id = $2`, groupID, accountID)
+	_, err := repo.DeleteTx("groups", repo.DB, 
+		`delete from groups e where id = $1 and account_id = $2
+		returning id`, 
+		groupID, accountID)
 	return err
 }
 
 func (repo *UsersRepository) AddUserToGroup(groupID, userID int64) error {
-	_, err := repo.DB.Exec(`
-		insert into users_groups (group_id, user_id) values ( $1, $2 )`,
-		groupID, userID,
-	)
+	_, err := repo.CreateTx("users_groups", repo.DB, `
+		insert into users_groups (group_id, user_id) values ( $1, $2 )
+		returning id`,
+		groupID, userID)
 	return err
 }
 
 func (repo *UsersRepository) DeleteUserFromGroup(groupID int64, userID int64) error {
-	_, err := repo.DB.Exec(`
-		delete from users_groups where group_id = $1 and user_id = $2`,
-		userID, groupID,
-	)
+	_, err := repo.DeleteTx("users_groups", repo.DB, `
+		delete from users_groups e where group_id = $1 and user_id = $2
+		returning id`,
+		groupID, userID)
 	return err
 }

@@ -1,10 +1,8 @@
 # TODO
 
- - Move to multi-tenant structure (accounts with users)
-
  - Simple api tests
  - OpenAPI Swagger documentation
- - Statistics for urls
+ - Logging requests
  - Authorization with Outh2
  - SQLLite support for testing purposes
  - Payment processing with Stripe integration
