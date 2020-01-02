@@ -1,6 +1,6 @@
 # TODO
 
- - Simple api tests
+ - Api tests
  - OpenAPI Swagger documentation
  - Logging requests
  - Authorization with Outh2
@@ -11,9 +11,8 @@
  
  - Beauty-naming for links
  - Hiding Links
- - Tagging
+ - Geolocation
  - Campaigns, UTM customization
- - Search by links tags
  
  - Bulk csv upload
  - Simple reports

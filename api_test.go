@@ -32,7 +32,7 @@ func (repo *MockUrlsRepository) CreateUrl(short, long string) error {
 	return nil
 }
 
-func (repo *MockUrlsRepository) GetUserUrls(_, _ int64) ([]urls.UrlPair, error) {
+func (repo *MockUrlsRepository) GetUserUrls(_, _ int64, filters ...urls.LinkFilter) ([]urls.UrlPair, error) {
 	return []urls.UrlPair{
 		{Short: "12345", Long: "www.facebook.com"},
 		{Short: "ABCDE", Long: "www.netflix.com"},

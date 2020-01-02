@@ -27,6 +27,7 @@ import (
 	"shortly/app/accounts"
 	"shortly/app/urls"
 	"shortly/app/data"
+	"shortly/app/tags"
 )
 
 func LoadCacheFromDatabase(repo *urls.UrlsRepository, urlCache cache.UrlCache) error {
@@ -208,6 +209,22 @@ func main() {
 	))
 
 	// TODO remove to routes.go
+
+	tagsRepository := &tags.TagsRepository{
+		DB:     database,
+		Logger: logger,
+	}
+
+	http.Handle("/api/v1/tags/create", auth(
+		rbac.NewPermission("/api/v1/tags/create", "create_tag", "POST"), 
+		api.AddTagToLink(tagsRepository, logger),
+	))
+
+	http.Handle("/api/v1/tags/delete", auth(
+		rbac.NewPermission("/api/v1/tags/delete", "delete_tag", "POST"), 
+		api.DeleteTagFromLink(tagsRepository, logger),
+	))
+
 	// links api
 	http.Handle("/api/v1/users/urls", auth(
 		rbac.NewPermission("/api/v1/users/urls", "read_urls", "GET"), 
@@ -233,7 +250,7 @@ func main() {
 	usersRepository := &users.UsersRepository{DB: database}
 
 	http.Handle("/api/v1/registration", api.RegisterAccount(usersRepository, logger))
-	http.Handle("/api/v1/account/users", api.AddUser(usersRepository, logger))
+	http.Handle("/api/v1/accounts/users", api.AddUser(usersRepository, logger))
 	http.Handle("/api/v1/login", api.Login(usersRepository, logger, appConfig.Auth))
 
 	http.Handle("/api/v1/users/urls/create", auth(

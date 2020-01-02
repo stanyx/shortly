@@ -59,7 +59,29 @@ func GetUserURLList(repo urls.IUrlsRepository, logger *log.Logger) http.Handler 
 
 		claims := r.Context().Value("user").(*JWTClaims)
 
-		rows, err := repo.GetUserUrls(claims.AccountID, claims.UserID)
+		tagsFilter := r.URL.Query()["tags"]
+		shortUrlFilter := r.URL.Query()["shortUrl"]
+		longUrlFilter := r.URL.Query()["longUrl"]
+		fullTextFilter := r.URL.Query()["fullText"]
+
+		var filters []urls.LinkFilter
+		if len(tagsFilter) > 0 {
+			filters = append(filters, urls.LinkFilter{Tags: tagsFilter})
+		}
+
+		if len(shortUrlFilter) > 0 {
+			filters = append(filters, urls.LinkFilter{ShortUrl: shortUrlFilter})
+		}
+
+		if len(longUrlFilter) > 0 {
+			filters = append(filters, urls.LinkFilter{FullUrl: longUrlFilter})
+		}
+
+		if len(fullTextFilter) > 0 {
+			filters = append(filters, urls.LinkFilter{FullText: fullTextFilter[0]})
+		}
+
+		rows, err := repo.GetUserUrls(claims.AccountID, claims.UserID, filters...)
 		if err != nil {
 			logError(logger, err)
 			apiError(w, "internal error", http.StatusInternalServerError)
