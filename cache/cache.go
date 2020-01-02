@@ -5,4 +5,5 @@ type UrlCache interface {
 	Store(key interface{}, value interface{})
 	Delete(key interface{})
 	Range(func(key interface{}, value interface{}) bool)
+	Ping() error
 }

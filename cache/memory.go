@@ -27,3 +27,7 @@ func (ch *MemoryCache) Delete(key interface{}) {
 func (ch *MemoryCache) Range(f func(key interface{}, value interface{}) bool) {
 	ch.c.Range(f)
 }
+
+func (ch *MemoryCache) Ping() error {
+	return nil
+}

@@ -20,6 +20,7 @@ import (
 	"shortly/config"
 	"shortly/server"
 	"shortly/storage"
+	"shortly/utils"
 
 	"shortly/app/billing"
 	"shortly/app/rbac"
@@ -143,6 +144,17 @@ func main() {
     http.Handle("/static", http.StripPrefix("/static", fs))
 
 	http.Handle("/", api.Redirect(historyDB, urlCache, logger))
+	http.Handle("/health", utils.HealthCheck(
+		[]utils.HealthChecker{
+			utils.HealthCheckFunc(func(_ context.Context) error {
+				return database.Ping()
+			}),
+			utils.HealthCheckFunc(func(_ context.Context) error {
+				return urlCache.Ping()
+			}),
+		},
+		logger,
+	))
 
 	http.Handle("/api/v1/urls", api.GetURLList(urlsRepository, logger))
 	http.Handle("/api/v1/urls/create", api.CreateShortURL(urlsRepository, urlCache, logger))
@@ -267,13 +279,13 @@ func main() {
 		logger.Printf("starting web server at port: %v, tls: %v\n", serverConfig.Port, appConfig.Server.UseTLS)
 		if appConfig.Server.UseTLS {
 			srv = &http.Server{Addr: fmt.Sprintf(":%v", serverPort)}
-			if err := srv.ListenAndServeTLS("./server.crt", "./server.key"); err != nil {
-				logger.Fatalf("server stop unexpectedly, cause: %+v", err)
+			if err := srv.ListenAndServeTLS("./server.crt", "./server.key"); err != nil && err != http.ErrServerClosed {
+				logger.Printf("server stop unexpectedly, cause: %+v\n", err)
 			}
 		} else {
 			srv = &http.Server{Addr: fmt.Sprintf(":%v", serverPort)}
-			if err := srv.ListenAndServe(); err != nil {
-				logger.Fatalf("server stop unexpectedly, cause: %+v", err)
+			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				logger.Printf("server stop unexpectedly, cause: %+v\n", err)
 			}
 		}
 	}()

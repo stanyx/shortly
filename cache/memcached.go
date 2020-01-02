@@ -45,3 +45,7 @@ func (ch *MemcachedCache) Range(f func(key interface{}, value interface{}) bool)
 	// TODO - not implemented
 	panic("memcached - not implemented range method")
 }
+
+func (ch *MemcachedCache) Ping() error {
+	return ch.c.Ping()
+}

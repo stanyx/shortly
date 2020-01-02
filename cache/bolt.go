@@ -90,3 +90,7 @@ func (ch *BoltDBCache) Range(f func(key interface{}, value interface{}) bool) {
 		ch.logger.Printf("cache range error, cause: %+v\n", err)
 	}
 }
+
+func (ch *BoltDBCache) Ping() error {
+	return nil
+}
