@@ -1,9 +1,5 @@
 package billing
 
-import (
-	"time"
-)
-
 type BillingPlan struct {
 	ID          int64
 	Name        string
@@ -11,13 +7,8 @@ type BillingPlan struct {
 	PeriodType  string
 	Price 	    string
 	Options     []BillingOption
-	UserID      int64
+	AccountID   int64
 	IsAnnual    bool
-}
-
-type UserBilling struct {
-	PlanID int64
-	UserID int64
 }
 
 type BillingOption struct {
@@ -26,15 +17,4 @@ type BillingOption struct {
 	Description string
 	Value       string
 	PlanID      int64
-}
-
-type UserBillingOption struct {
-	UserBillingID   int64
-	BillingOptionID int64
-}
-
-type BillingPlanHistory struct {
-	UserID    int64
-	StartedAt time.Time
-	StoppedAt time.Time
 }

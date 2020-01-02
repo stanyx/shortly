@@ -78,6 +78,19 @@ func (ch *BoltDBCache) Delete(key interface{}) {
 }
 
 func (ch *BoltDBCache) Range(f func(key interface{}, value interface{}) bool) {
-	// TODO - not implemented
-	panic("memcached - not implemented range method")
+	err := ch.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(cacheBucketName))
+		c := b.Cursor()
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			f(k, v)
+		}
+		return nil
+	})
+	if err != nil {
+		ch.logger.Printf("cache range error, cause: %+v\n", err)
+	}
+}
+
+func (ch *BoltDBCache) Ping() error {
+	return nil
 }

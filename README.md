@@ -39,8 +39,8 @@ TODO
 
 ### Installing from Docker
 
-docker pull stanyx/shortly
-docker run --expose=[port] -p [port]:[port] shortly
+    docker pull stanyx/shortly
+    docker run --expose=[port] -p [port]:[port] shortly
 
 ### CONTRIBUTING
 

@@ -1,24 +1,25 @@
 # TODO
 
- - Simple api tests
+ - Api tests
  - OpenAPI Swagger documentation
- - Statistics for urls
+ - Logging requests
  - Authorization with Outh2
  - SQLLite support for testing purposes
- - BoltDB cache implementation
  - Payment processing with Stripe integration
  - Minimalistic frontend with dashboard
  - DI support
  
+ - Beauty-naming for links
  - Hiding Links
- - Custom Domain integration
- - Tagging
- - Campaigns
- - Search by links tags
-
- - RBAC with Casbin
+ - Geolocation
+ - Campaigns, UTM customization
+ 
  - Bulk csv upload
  - Simple reports
+
+ - Social posting
+
+ - Custom Domain integration
 
  Postgres
  - audit

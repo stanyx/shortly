@@ -32,14 +32,14 @@ func (repo *MockUrlsRepository) CreateUrl(short, long string) error {
 	return nil
 }
 
-func (repo *MockUrlsRepository) GetUserUrls(userID int64) ([]urls.UrlPair, error) {
+func (repo *MockUrlsRepository) GetUserUrls(_, _ int64, filters ...urls.LinkFilter) ([]urls.UrlPair, error) {
 	return []urls.UrlPair{
 		{Short: "12345", Long: "www.facebook.com"},
 		{Short: "ABCDE", Long: "www.netflix.com"},
 	}, nil
 }
 
-func (repo *MockUrlsRepository) GetUserUrlsCount(userID int64) (int, error) {
+func (repo *MockUrlsRepository) GetUserUrlsCount(accountID int64) (int, error) {
 	return 2, nil
 }
 

@@ -23,29 +23,29 @@ func (r *BillingRepository) GetBillingPlanCost(planID int64) (string, error) {
 	return cost, nil
 }
 
-func (r *BillingRepository) ApplyBillingPlan(userID, planID int64) error {
+func (r *BillingRepository) ApplyBillingPlan(accountID, planID int64) error {
 
-	if _, err := r.DB.Exec("UPDATE billing_users SET active = false WHERE user_id = $1", userID); err != nil {
+	if _, err := r.DB.Exec("UPDATE billing_accounts SET active = false WHERE account_id = $1", accountID); err != nil {
 		return err
 	}
 
-	if _, err := r.DB.Exec("INSERT INTO billing_users (user_id, plan_id, active) VALUES ($1, $2, true)", userID, planID); err != nil {
+	if _, err := r.DB.Exec("INSERT INTO billing_accounts (account_id, plan_id, active) VALUES ($1, $2, true)", accountID, planID); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (r *BillingRepository) GetBillingPlanOptions(userID, planID int64) ([]BillingOption, error) {
+func (r *BillingRepository) GetBillingPlanOptions(accountID, planID int64) ([]BillingOption, error) {
 
 	rows, err := r.DB.Query(`
 		SELECT bp.id, opts.id, opts.name, opts.description, opts.value 
-		FROM billing_users ubp
+		FROM billing_accounts ubp
 		INNER JOIN billing_plans bp ON ubp.plan_id = bp.id
 		INNER JOIN billing_options opts ON bp.id = opts.plan_id
-		WHERE ubp.user_id = $1 AND ubp.plan_id = $2
+		WHERE ubp.account_id = $1 AND ubp.plan_id = $2
 		AND ubp.active = true
-	`, userID, planID)
+	`, accountID, planID)
 
 	if err != nil {
 		return nil, err
@@ -126,8 +126,8 @@ func (r *BillingRepository) GetAllBillingPlans() ([]BillingPlan, error) {
 func (r *BillingRepository) GetAllUserBillingPlans() ([]BillingPlan, error) {
 
 	rows1, err := r.DB.Query(`
-		SELECT ubp.user_id, opts.id, opts.name, opts.description, opts.value 
-		FROM billing_users ubp
+		SELECT ubp.account_id, opts.id, opts.name, opts.description, opts.value 
+		FROM billing_accounts ubp
 		INNER JOIN billing_options opts ON opts.plan_id = ubp.plan_id
 		INNER JOIN billing_plans bp ON bp.id = opts.plan_id
 		WHERE ubp.active = true
@@ -139,15 +139,15 @@ func (r *BillingRepository) GetAllUserBillingPlans() ([]BillingPlan, error) {
 
 	defer rows1.Close()
 
-	optionByUser := make(map[int64][]BillingOption)
+	optionByAccount := make(map[int64][]BillingOption)
 
 	for rows1.Next() {
-		var userID int64
+		var accountID int64
 		var bp BillingOption
-		if err := rows1.Scan(&userID, &bp.ID, &bp.Name, &bp.Description, &bp.Value); err != nil {
+		if err := rows1.Scan(&accountID, &bp.ID, &bp.Name, &bp.Description, &bp.Value); err != nil {
 			return nil, err
 		}
-		optionByUser[userID] = append(optionByUser[userID], bp)
+		optionByAccount[accountID] = append(optionByAccount[accountID], bp)
 	}
 
 	if err := rows1.Err(); err != nil {
@@ -155,8 +155,8 @@ func (r *BillingRepository) GetAllUserBillingPlans() ([]BillingPlan, error) {
 	}
 
 	rows2, err := r.DB.Query(`
-		SELECT ubp.user_id, bp.id, bp.name, bp.description, bp.price 
-		FROM billing_users ubp
+		SELECT ubp.account_id, bp.id, bp.name, bp.description, bp.price 
+		FROM billing_accounts ubp
 		INNER JOIN billing_plans bp ON bp.id = ubp.plan_id
 		WHERE ubp.active = true
 	`)
@@ -170,10 +170,10 @@ func (r *BillingRepository) GetAllUserBillingPlans() ([]BillingPlan, error) {
 	var plans []BillingPlan
 	for rows2.Next() {
 		var bp BillingPlan
-		if err := rows2.Scan(&bp.UserID, &bp.ID, &bp.Name, &bp.Description, &bp.Price); err != nil {
+		if err := rows2.Scan(&bp.AccountID, &bp.ID, &bp.Name, &bp.Description, &bp.Price); err != nil {
 			return nil, err
 		}
-		bp.Options = optionByUser[bp.UserID]
+		bp.Options = optionByAccount[bp.AccountID]
 		plans = append(plans, bp)
 	}
 

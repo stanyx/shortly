@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"math/rand"
@@ -16,21 +15,24 @@ import (
 	bolt "go.etcd.io/bbolt"
 	"github.com/kr/pretty"
 
-	"shortly/db"
 	"shortly/api"
 	"shortly/cache"
 	"shortly/config"
 	"shortly/server"
 	"shortly/storage"
+	"shortly/utils"
 
 	"shortly/app/billing"
-	"shortly/app/users"
+	"shortly/app/rbac"
+	"shortly/app/accounts"
 	"shortly/app/urls"
+	"shortly/app/data"
+	"shortly/app/tags"
 )
 
-func LoadCacheFromDatabase(database *sql.DB, urlCache cache.UrlCache) error {
+func LoadCacheFromDatabase(repo *urls.UrlsRepository, urlCache cache.UrlCache) error {
 
-	rows, err := db.GetAllUrls(database)
+	rows, err := repo.GetAllUrls()
 	if err != nil {
 		return err
 	}
@@ -81,6 +83,28 @@ func main() {
 		logger.Fatal(err)
 	}
 
+	linksStorage, err := bolt.Open(appConfig.LinkDB.Dir + "/links.db", 0666, nil)
+	if err != nil {
+		logger.Fatal(err)
+	}
+
+	urlsRepository := &urls.UrlsRepository{DB: database, Logger: logger}
+
+	billingRepository := &billing.BillingRepository{DB: database}
+	billingLimiter := &billing.BillingLimiter{
+		Repo:    billingRepository, 
+		DB:      billingDataStorage,
+		UrlRepo: urlsRepository,
+		Logger:  logger,
+	}
+	if err := billingLimiter.LoadData(); err != nil {
+		logger.Fatal(err)
+	}
+
+	urlBillingLimit := api.BillingLimitMiddleware("url_limit", billingLimiter, logger)
+
+	historyDB := &data.HistoryDB{DB: linksStorage, Limiter: billingLimiter}
+
 	// cache initialization
 
 	var urlCache cache.UrlCache
@@ -108,7 +132,7 @@ func main() {
 		}
 	}
 
-	err = LoadCacheFromDatabase(database, urlCache)
+	err = LoadCacheFromDatabase(urlsRepository, urlCache)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -120,13 +144,23 @@ func main() {
 	fs := http.FileServer(http.Dir("static"))
     http.Handle("/static", http.StripPrefix("/static", fs))
 
-	urlsRepository := &urls.UrlsRepository{DB: database, Logger: logger}
+	http.Handle("/", api.Redirect(historyDB, urlCache, logger))
+	http.Handle("/health", utils.HealthCheck(
+		[]utils.HealthChecker{
+			utils.HealthCheckFunc(func(_ context.Context) error {
+				return database.Ping()
+			}),
+			utils.HealthCheckFunc(func(_ context.Context) error {
+				return urlCache.Ping()
+			}),
+		},
+		logger,
+	))
 
 	http.Handle("/api/v1/urls", api.GetURLList(urlsRepository, logger))
 	http.Handle("/api/v1/urls/create", api.CreateShortURL(urlsRepository, urlCache, logger))
 
-	api.Redirect(urlCache, logger)
-
+	// storage metadata preparation
 	err = billingDataStorage.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte("billing"))
 		if err != nil {
@@ -139,31 +173,117 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	auth := api.AuthMiddleware(appConfig.Auth)
-	//   billing api
-	billingRepository := &billing.BillingRepository{DB: database}
-	billingLimiter := &billing.BillingLimiter{
-		Repo:   billingRepository, 
-		DB:     billingDataStorage,
-		UrlDB:  database,
-		Logger: logger,
-	}
-	if err := billingLimiter.LoadData(); err != nil {
+	err = historyDB.Update(func(tx *bolt.Tx) error {
+		_, err := tx.CreateBucketIfNotExists([]byte("details"))
+		if err != nil {
+			return fmt.Errorf("create buket error, cause: %+v", err)
+		}
+		return nil
+	})
+
+	if err != nil {
 		logger.Fatal(err)
 	}
-	urlBillingLimit := api.BillingLimitMiddleware("url_limit", billingLimiter, logger)
 
-	http.Handle("/api/v1/billing/plans",     api.ListBillingPlans(billingRepository, logger))
-	http.Handle("/api/v1/billing/apply",     auth(api.ApplyBillingPlan(billingRepository, billingLimiter, appConfig.Billing.Payment, logger)))
+	// private api (with authorized access)
+	enforcer, err := rbac.NewEnforcer(database, appConfig.Casbin)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	permissionRegistry := make(map[string]rbac.Permission)
+	auth := api.AuthMiddleware(enforcer, appConfig.Auth, permissionRegistry)
 
-	http.Handle("/api/v1/users/urls",        auth(api.GetUserURLList(urlsRepository, logger)))
-	http.Handle("/api/v1/users/urls/create", auth(urlBillingLimit(api.CreateUserShortURL(database, urlCache, billingLimiter, logger))))
-	http.Handle("/api/v1/users/urls/delete", auth(api.RemoveUserShortURL(database, urlCache, logger)))
+	rbacRepository := &rbac.RbacRepository{
+		DB:       database,
+		Logger:   logger,
+		Enforcer: enforcer,
+	}
 
-	// users api
+	//   billing api
+
+	http.Handle("/api/v1/billing/plans", api.ListBillingPlans(billingRepository, logger))
+
+	http.Handle("/api/v1/billing/apply", auth(
+		rbac.NewPermission("/api/v1/billing/apply", "apply_billingplan", "POST"), 
+		api.ApplyBillingPlan(billingRepository, billingLimiter, appConfig.Billing.Payment, logger),
+	))
+
+	// TODO remove to routes.go
+
+	tagsRepository := &tags.TagsRepository{
+		DB:     database,
+		Logger: logger,
+	}
+
+	http.Handle("/api/v1/tags/create", auth(
+		rbac.NewPermission("/api/v1/tags/create", "create_tag", "POST"), 
+		api.AddTagToLink(tagsRepository, logger),
+	))
+
+	http.Handle("/api/v1/tags/delete", auth(
+		rbac.NewPermission("/api/v1/tags/delete", "delete_tag", "POST"), 
+		api.DeleteTagFromLink(tagsRepository, logger),
+	))
+
+	// links api
+	http.Handle("/api/v1/users/urls", auth(
+		rbac.NewPermission("/api/v1/users/urls", "read_urls", "GET"), 
+		api.GetUserURLList(urlsRepository, logger),
+	))
+
+	http.Handle("/api/v1/users/urls/clicks", auth(
+		rbac.NewPermission("/api/v1/users/urls/clicks", "get_links_clicks", "GET"), 
+		api.GetClicksData(historyDB, logger),
+	))
+
+	http.Handle("/api/v1/users/urls/add_group", auth(
+		rbac.NewPermission("/api/v1/users/urls/add_group", "add_url_to_group", "POST"), 
+		api.AddUrlToGroup(urlsRepository, logger),
+	))
+
+	http.Handle("/api/v1/users/urls/delete_group", auth(
+		rbac.NewPermission("/api/v1/users/urls/delete_group", "delete_url_to_group", "DELETE"), 
+		api.DeleteUrlFromGroup(urlsRepository, logger),
+	))
+
+	// account api
 	usersRepository := &users.UsersRepository{DB: database}
-	api.RegisterUser(usersRepository, logger)
-	api.LoginUser(usersRepository, logger, appConfig.Auth)
+
+	http.Handle("/api/v1/registration", api.RegisterAccount(usersRepository, logger))
+	http.Handle("/api/v1/accounts/users", api.AddUser(usersRepository, logger))
+	http.Handle("/api/v1/login", api.Login(usersRepository, logger, appConfig.Auth))
+
+	http.Handle("/api/v1/users/urls/create", auth(
+		rbac.NewPermission("/api/v1/users/urls/create", "create_url", "POST"), 
+		urlBillingLimit(api.CreateUserShortURL(historyDB, database, urlCache, billingLimiter, logger)),
+	))
+		
+	http.Handle("/api/v1/users/urls/delete", auth(
+		rbac.NewPermission("/api/v1/users/urls/delete", "delete_url", "DELETE"), 
+		api.RemoveUserShortURL(database, urlCache, logger),
+	))
+
+	http.Handle("/api/v1/users/groups/create", auth(
+		rbac.NewPermission("/api/v1/users/groups/create", "create_group", "POST"), 
+		api.AddGroup(usersRepository, logger),
+	))
+
+	http.Handle("/api/v1/users/groups/delete", auth(
+		rbac.NewPermission("/api/v1/users/groups/delete", "delete_group", "DELETE"), 
+		api.DeleteGroup(usersRepository, logger),
+	))
+
+	http.Handle("/api/v1/users/groups/add_user", auth(
+		rbac.NewPermission("/api/v1/users/groups/add_user", "add_group_user", "POST"), 
+		api.AddUserToGroup(usersRepository, logger),
+	))
+
+	http.Handle("/api/v1/users/groups/delete_user", auth(
+		rbac.NewPermission("/api/v1/users/groups/delete_user", "delete_group_user", "DELETE"), 
+		api.DeleteUserFromGroup(usersRepository, logger),
+	))
+
+	api.RbacRoutes(auth, permissionRegistry, usersRepository, rbacRepository, logger)
 
 	serverPort := os.Getenv("PORT")
 	if serverPort == "" {
@@ -176,13 +296,13 @@ func main() {
 		logger.Printf("starting web server at port: %v, tls: %v\n", serverConfig.Port, appConfig.Server.UseTLS)
 		if appConfig.Server.UseTLS {
 			srv = &http.Server{Addr: fmt.Sprintf(":%v", serverPort)}
-			if err := srv.ListenAndServeTLS("./server.crt", "./server.key"); err != nil {
-				logger.Fatalf("server stop unexpectedly, cause: %+v", err)
+			if err := srv.ListenAndServeTLS("./server.crt", "./server.key"); err != nil && err != http.ErrServerClosed {
+				logger.Printf("server stop unexpectedly, cause: %+v\n", err)
 			}
 		} else {
 			srv = &http.Server{Addr: fmt.Sprintf(":%v", serverPort)}
-			if err := srv.ListenAndServe(); err != nil {
-				logger.Fatalf("server stop unexpectedly, cause: %+v", err)
+			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				logger.Printf("server stop unexpectedly, cause: %+v\n", err)
 			}
 		}
 	}()
