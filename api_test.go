@@ -39,7 +39,7 @@ func (repo *MockUrlsRepository) GetUserUrls(_, _ int64) ([]urls.UrlPair, error) 
 	}, nil
 }
 
-func (repo *MockUrlsRepository) GetUserUrlsCount(userID int64) (int, error) {
+func (repo *MockUrlsRepository) GetUserUrlsCount(accountID int64) (int, error) {
 	return 2, nil
 }
 

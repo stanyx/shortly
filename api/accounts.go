@@ -11,7 +11,7 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 
 	"shortly/config"
-	"shortly/app/users"
+	"shortly/app/accounts"
 )
 
 type JWTClaims struct {
@@ -20,24 +20,23 @@ type JWTClaims struct {
 	Phone     string  `json:"phone"`
 	Email     string  `json:"email"`
 	IsStaff   bool    `json:"isStaff"`
-	AdminID   int64   `json:"adminId"`
+	AccountID int64   `json:"accountId"`
 	RoleID    int64	  `json:"roleId"`
 	jwt.StandardClaims
 }
 
-type RegistrationForm struct {
+type AccountRegistrationForm struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 	Phone    string `json:"phone"`
 	Email    string `json:"email"`
 	Company  string	`json:"company"`
-	AdminID  int64  `json:"adminId"`
 	IsStaff  bool   `json:"isStaff"`
 	RoleID   int64  `json:"roleId"`
 }
 
 type UserResponse struct {
-	ID       int64  `json:"id"`
+	ID       int64  `json:"id,omitempty"`
 	Username string `json:"username"`
 	Phone    string `json:"phone"`
 	Email    string `json:"email"`
@@ -58,7 +57,7 @@ func RegisterAccount(repo *users.UsersRepository, logger *log.Logger) http.Handl
 			return
 		}
 
-		var form RegistrationForm
+		var form AccountRegistrationForm
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logger.Println(err)
@@ -72,12 +71,11 @@ func RegisterAccount(repo *users.UsersRepository, logger *log.Logger) http.Handl
 			Phone:    form.Phone,
 			Email:    form.Email,
 			Company:  form.Company,
-			AdminID:  form.AdminID,
 			IsStaff:  form.IsStaff,
 			RoleID:   form.RoleID,
 		}
 
-		userID, err := repo.CreateUser(user)
+		userID, err := repo.CreateAccount(user)
 		if err != nil {
 			logger.Println(err)
 			http.Error(w, "save user error", http.StatusInternalServerError)
@@ -90,6 +88,56 @@ func RegisterAccount(repo *users.UsersRepository, logger *log.Logger) http.Handl
 			Phone:    user.Phone,
 			Email:    user.Email,
 			Company:  user.Company,
+		}, http.StatusOK)
+	})
+}
+
+type UserRegistrationForm struct {
+	Username  string `json:"username"`
+	Password  string `json:"password"`
+	Phone     string `json:"phone"`
+	Email     string `json:"email"`
+	AccountID int64  `json:"accountId"`
+	RoleID    int64  `json:"roleId"`
+}
+
+func AddUser(repo *users.UsersRepository, logger *log.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		if r.Method != "POST" {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var form UserRegistrationForm
+
+		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
+			logger.Println(err)
+			http.Error(w, "decode form error", http.StatusInternalServerError)
+			return
+		}
+
+		user := users.User{
+			IsStaff:   true,
+			Username:  form.Username,
+			Password:  form.Password,
+			Phone:     form.Phone,
+			Email:     form.Email,
+			RoleID:    form.RoleID,
+		}
+
+		userID, err := repo.CreateUser(form.AccountID, user)
+		if err != nil {
+			logger.Println(err)
+			http.Error(w, "save user error", http.StatusInternalServerError)
+			return
+		}
+
+		response(w, &UserResponse{
+			ID:       userID,
+			Username: user.Username,
+			Phone:    user.Phone,
+			Email:    user.Email,
 		}, http.StatusOK)
 	})
 }
@@ -134,12 +182,12 @@ func Login(repo *users.UsersRepository, logger *log.Logger, authConfig config.JW
 				ExpiresAt: int64(time.Duration(time.Millisecond * 1000 * 3600)),
 				Issuer:    fmt.Sprintf("%v", user.ID),
 			},
+			UserID:    user.ID,
 			Name:      user.Username,
 			Email:     user.Email,
 			Phone:     user.Phone,
-			UserID:    user.ID,
 			IsStaff:   user.IsStaff,
-			AdminID:   user.AdminID,
+			AccountID: user.AccountID,
 			RoleID:    user.RoleID,
 		}
 
@@ -181,10 +229,7 @@ func AddGroup(repo *users.UsersRepository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		claims := r.Context().Value("user").(*JWTClaims)
-		userID := claims.AdminID
-		if userID == 0 {
-			userID = claims.UserID
-		}
+		accountID := claims.AccountID
 
 		var form CreateGroupForm
 
@@ -195,7 +240,7 @@ func AddGroup(repo *users.UsersRepository, logger *log.Logger) http.Handler {
 		}
 
 		groupID, err := repo.AddGroup(users.Group{
-			UserID:      userID,
+			AccountID:   accountID,
 			Name:        form.Name,
 			Description: form.Description,
 		})
@@ -224,10 +269,7 @@ func DeleteGroup(repo *users.UsersRepository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		claims := r.Context().Value("user").(*JWTClaims)
-		userID := claims.AdminID
-		if userID == 0 {
-			userID = claims.UserID
-		}
+		accountID := claims.AccountID
 
 		var form DeleteGroupForm
 
@@ -237,7 +279,7 @@ func DeleteGroup(repo *users.UsersRepository, logger *log.Logger) http.Handler {
 			return
 		}
 
-		err := repo.DeleteGroup(form.GroupID, userID)
+		err := repo.DeleteGroup(form.GroupID, accountID)
 		if err != nil {
 			logError(logger, err)
 			apiError(w, "delete group error", http.StatusInternalServerError)
@@ -258,6 +300,8 @@ func AddUserToGroup(repo *users.UsersRepository, logger *log.Logger) http.Handle
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
+		accountID := r.Context().Value("user").(*JWTClaims).AccountID
+
 		var form AddUserToGroupForm
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
@@ -266,7 +310,11 @@ func AddUserToGroup(repo *users.UsersRepository, logger *log.Logger) http.Handle
 			return
 		}
 
-		// TODO - check user by admin_id
+		if _, err := repo.GetUserByAccountID(accountID); err != nil {
+			logError(logger, err)
+			apiError(w, "internal server error", http.StatusBadRequest)
+			return
+		}
 
 		if err := repo.AddUserToGroup(form.GroupID, form.UserID); err != nil {
 			logError(logger, err)
@@ -288,6 +336,8 @@ func DeleteUserFromGroup(repo *users.UsersRepository, logger *log.Logger) http.H
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
+		accountID := r.Context().Value("user").(*JWTClaims).AccountID
+
 		var form DeleteUserFromGroupForm
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
@@ -296,7 +346,11 @@ func DeleteUserFromGroup(repo *users.UsersRepository, logger *log.Logger) http.H
 			return
 		}
 
-		// TODO - check user by admin_id
+		if _, err := repo.GetUserByAccountID(accountID); err != nil {
+			logError(logger, err)
+			apiError(w, "internal server error", http.StatusBadRequest)
+			return
+		}
 
 		if err := repo.DeleteUserFromGroup(form.GroupID, form.UserID); err != nil {
 			logError(logger, err)

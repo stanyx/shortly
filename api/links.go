@@ -59,12 +59,7 @@ func GetUserURLList(repo urls.IUrlsRepository, logger *log.Logger) http.Handler 
 
 		claims := r.Context().Value("user").(*JWTClaims)
 
-		accountID := claims.AdminID
-		if accountID == 0 {
-			accountID = claims.UserID
-		}
-
-		rows, err := repo.GetUserUrls(accountID, claims.UserID)
+		rows, err := repo.GetUserUrls(claims.AccountID, claims.UserID)
 		if err != nil {
 			logError(logger, err)
 			apiError(w, "internal error", http.StatusInternalServerError)
@@ -125,10 +120,7 @@ func CreateUserShortURL(historyDB *data.HistoryDB, db *sql.DB, urlCache cache.Ur
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		claims := r.Context().Value("user").(*JWTClaims)
-		userID := claims.AdminID
-		if userID == 0 {
-			userID = claims.UserID
-		}
+		accountID := claims.AccountID
 
 		if r.Method != "POST" {
 			apiError(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -150,8 +142,8 @@ func CreateUserShortURL(historyDB *data.HistoryDB, db *sql.DB, urlCache cache.Ur
 		}
 
 		shortURL := utils.RandomString(5)
-		_, err = db.Exec("INSERT INTO urls (short_url, full_url, user_id) VALUES ($1, $2, $3)", 
-			shortURL, validFullURL.String(), userID)
+		_, err = db.Exec("INSERT INTO urls (short_url, full_url, account_id) VALUES ($1, $2, $3)", 
+			shortURL, validFullURL.String(), accountID)
 		if err != nil {
 			logError(logger, err)
 			apiError(w, "(create url) - internal error", http.StatusInternalServerError)
@@ -160,13 +152,13 @@ func CreateUserShortURL(historyDB *data.HistoryDB, db *sql.DB, urlCache cache.Ur
 
 		urlCache.Store(shortURL, validFullURL.String())
 
-		if err := billingLimiter.Reduce("url_limit", userID); err != nil {
+		if err := billingLimiter.Reduce("url_limit", accountID); err != nil {
 			logError(logger, err)
 			apiError(w, "(create url) - internal error", http.StatusInternalServerError)
 			return
 		}
 
-		if err := historyDB.InsertDetail(shortURL, userID); err != nil {
+		if err := historyDB.InsertDetail(shortURL, accountID); err != nil {
 			logError(logger, err)
 			apiError(w, "(create url) - internal error", http.StatusInternalServerError)
 			return
@@ -182,10 +174,7 @@ func RemoveUserShortURL(db *sql.DB, urlCache cache.UrlCache, logger *log.Logger)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		claims := r.Context().Value("user").(*JWTClaims)
-		userID := claims.AdminID
-		if userID == 0 {
-			userID = claims.UserID
-		}
+		accountID := claims.AccountID
 
 		if r.Method != "DELETE" {
 			apiError(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -199,7 +188,7 @@ func RemoveUserShortURL(db *sql.DB, urlCache cache.UrlCache, logger *log.Logger)
 		}
 
 		shortURL := urlArg[0]
-		_, err := db.Exec("DELETE FROM urls WHERE short_url = $1 AND user_id = $2", shortURL, userID)
+		_, err := db.Exec("DELETE FROM urls WHERE short_url = $1 AND account_id = $2", shortURL, accountID)
 		if err != nil {
 			logError(logger, err)
 			apiError(w, "internal error", http.StatusInternalServerError)
@@ -229,7 +218,7 @@ func AddUrlToGroup(repo *urls.UrlsRepository, logger *log.Logger) http.Handler {
 
 		// TODO - check url id
 
-		// TODO - check group by user_id
+		// TODO - check group by account_id
 
 		if err := repo.AddUrlToGroup(form.GroupID, form.UrlID); err != nil {
 			logError(logger, err)
@@ -261,7 +250,7 @@ func DeleteUrlFromGroup(repo *urls.UrlsRepository, logger *log.Logger) http.Hand
 
 		// TODO - check url id
 
-		// TODO - check group by user_id
+		// TODO - check group by account_id
 
 		if err := repo.DeleteUrlFromGroup(form.GroupID, form.UrlID); err != nil {
 			logError(logger, err)
@@ -284,10 +273,7 @@ func GetClicksData(historyDB *data.HistoryDB, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		claims := r.Context().Value("user").(*JWTClaims)
-		accountID := claims.AdminID
-		if accountID == 0 {
-			accountID = claims.UserID
-		}
+		accountID := claims.AccountID
 
 		if r.Method != "GET" {
 			apiError(w, "method not allowed", http.StatusMethodNotAllowed)

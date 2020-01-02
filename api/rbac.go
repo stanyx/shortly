@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"strconv"
 
-	"shortly/app/users"
+	"shortly/app/accounts"
 	"shortly/app/rbac"
 )
 
@@ -52,9 +52,9 @@ func RbacRoutes(auth func(rbac.Permission, http.Handler) http.Handler, permissio
 func GetUserRoles(userRepo *users.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		ownerID := r.Context().Value("user").(*JWTClaims).UserID
+		accountID := r.Context().Value("user").(*JWTClaims).AccountID
 
-		roles, err := repo.GetUserRoles(ownerID)
+		roles, err := repo.GetUserRoles(accountID)
 		if err != nil {
 			logError(logger, err)
 			apiError(w, "get user roles error", http.StatusInternalServerError)
@@ -91,7 +91,7 @@ func CreateUserRole(userRepo *users.UsersRepository, repo *rbac.RbacRepository, 
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		ownerID := r.Context().Value("user").(*JWTClaims).UserID
+		accountID := r.Context().Value("user").(*JWTClaims).AccountID
 
 		var form CreateRoleForm
 
@@ -106,7 +106,7 @@ func CreateUserRole(userRepo *users.UsersRepository, repo *rbac.RbacRepository, 
 			Description: form.Description,
 		}
 
-		roleID, err := repo.CreateRole(ownerID, role)
+		roleID, err := repo.CreateRole(accountID, role)
 		if err != nil {
 			logError(logger, err)
 			apiError(w, "create role error", http.StatusInternalServerError)
@@ -184,6 +184,16 @@ func DeleteUserRole(userRepo *users.UsersRepository, repo *rbac.RbacRepository, 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
 			apiError(w, "decode form error", http.StatusBadRequest)
+			return
+		}
+
+		if form.RoleID == 0 {
+			apiError(w, "roleId is required", http.StatusBadRequest)
+			return
+		}
+
+		if form.UserID == 0 {
+			apiError(w, "userId is required", http.StatusBadRequest)
 			return
 		}
 

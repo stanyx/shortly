@@ -121,20 +121,20 @@ func ApplyBillingPlan(repo *billing.BillingRepository, billingLimiter *billing.B
 			return
 		}
 
-		if err := repo.ApplyBillingPlan(claims.UserID, form.PlanID); err != nil {
+		if err := repo.ApplyBillingPlan(claims.AccountID, form.PlanID); err != nil {
 			logError(logger, err)
 			apiError(w, "apply plan error", http.StatusInternalServerError)
 			return
 		}
 
-		options, err := repo.GetBillingPlanOptions(claims.UserID, form.PlanID)
+		options, err := repo.GetBillingPlanOptions(claims.AccountID, form.PlanID)
 		if err != nil {
 			logError(logger, err)
 			apiError(w, "get plan error", http.StatusInternalServerError)
 			return
 		}
 
-		if err := billingLimiter.SetPlanOptions(claims.UserID, options); err != nil {
+		if err := billingLimiter.SetPlanOptions(claims.AccountID, options); err != nil {
 			logError(logger, err)
 			apiError(w, "set plan error", http.StatusInternalServerError)
 			return
@@ -151,7 +151,7 @@ func BillingLimitMiddleware(optionName string, billingLimiter *billing.BillingLi
 
 			claims := r.Context().Value("user").(*JWTClaims)
 
-			if err := billingLimiter.CheckLimits(optionName, claims.UserID); err == billing.LimitExceededError {
+			if err := billingLimiter.CheckLimits(optionName, claims.AccountID); err == billing.LimitExceededError {
 				logError(logger, errors.New("plan limit exceeded"))
 				apiError(w, "plan limit exceeded", http.StatusBadRequest)
 				return

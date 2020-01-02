@@ -1,7 +1,6 @@
 package data
 
 import (
-	"fmt"
 	"time"
 	"bytes"
 	"errors"
@@ -53,8 +52,6 @@ func (d *HistoryDB) Insert(link string, r *http.Request) error {
 		if linkB == nil {
 			return nil
 		}
-
-		fmt.Println("save url", link)
 
 		var linkDetail LinkDetail
 

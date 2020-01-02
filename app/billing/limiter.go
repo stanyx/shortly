@@ -22,7 +22,7 @@ type BillingLimiter struct {
 	Logger  *log.Logger
 }
 
-func (l *BillingLimiter) SetPlanOptions(userID int64, options []BillingOption) error {
+func (l *BillingLimiter) SetPlanOptions(accountID int64, options []BillingOption) error {
 
 	return l.DB.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("billing"))
@@ -32,7 +32,7 @@ func (l *BillingLimiter) SetPlanOptions(userID int64, options []BillingOption) e
 			return err
 		}
 
-		err := b.Put([]byte(fmt.Sprintf("%v", userID)), buff.Bytes())
+		err := b.Put([]byte(fmt.Sprintf("%v", accountID)), buff.Bytes())
 		return err
 	})
 
@@ -51,12 +51,12 @@ func (l *BillingLimiter) LoadData() error {
 			switch opt.Name {
 			case "url_limit":
 
-				userUrlsCount, err := l.UrlRepo.GetUserUrlsCount(p.UserID)
+				userUrlsCount, err := l.UrlRepo.GetUserUrlsCount(p.AccountID)
 				if err != nil {
 					return err
 				}
 				topCount, _ := strconv.ParseInt(p.Options[i].Value, 0, 64)
-				l.Logger.Printf("(user=%v) set billing value(%s) to %v, max=%v, value=%v", p.UserID, opt.Name, topCount - int64(userUrlsCount), topCount, userUrlsCount)
+				l.Logger.Printf("(user=%v) set billing value(%s) to %v, max=%v, value=%v", p.AccountID, opt.Name, topCount - int64(userUrlsCount), topCount, userUrlsCount)
 				p.Options[i].Value = fmt.Sprintf("%v", topCount - int64(userUrlsCount))
 			case "timedata_limit":
 			default:
@@ -64,7 +64,7 @@ func (l *BillingLimiter) LoadData() error {
 			}
 		}
 
-		if err := l.SetPlanOptions(p.UserID, p.Options); err != nil {
+		if err := l.SetPlanOptions(p.AccountID, p.Options); err != nil {
 			return err
 		}
 	}
@@ -103,7 +103,6 @@ func (l *BillingLimiter) GetValue(tx *bolt.Tx, optionName string, accountID int6
 	}
 
 	for _, option := range options {
-		fmt.Println("Get option", option, optionName)
 		if option.Name == optionName {
 			return &option, nil
 		}
@@ -112,11 +111,11 @@ func (l *BillingLimiter) GetValue(tx *bolt.Tx, optionName string, accountID int6
 	return nil, OptionNotFound
 }
 
-func (l *BillingLimiter) CheckLimits(optionName string, userID int64) error {
+func (l *BillingLimiter) CheckLimits(optionName string, accountID int64) error {
 
 	return l.DB.Update(func(tx *bolt.Tx) error {
 
-		targetOption, err := l.GetValue(tx, optionName, userID)
+		targetOption, err := l.GetValue(tx, optionName, accountID)
 		if err == OptionNotFound {
 			return LimitExceededError
 		} else if err != nil {
@@ -124,7 +123,7 @@ func (l *BillingLimiter) CheckLimits(optionName string, userID int64) error {
 		}
 
 		value, _ := strconv.ParseInt(targetOption.Value, 0, 64)
-		l.Logger.Printf("(user=%v) current billing value(%s) value: %v\n", userID, optionName, value)
+		l.Logger.Printf("(user=%v) current billing value(%s) value: %v\n", accountID, optionName, value)
 		if value <= 0 {
 			return LimitExceededError
 		}
@@ -134,12 +133,12 @@ func (l *BillingLimiter) CheckLimits(optionName string, userID int64) error {
 
 }
 
-func (l *BillingLimiter) Reduce(optionName string, userID int64) error {
+func (l *BillingLimiter) Reduce(optionName string, accountID int64) error {
 
 	return l.DB.Update(func(tx *bolt.Tx) error {
 
 		b := tx.Bucket([]byte("billing"))
-		v := b.Get([]byte(fmt.Sprintf("%v", userID)))
+		v := b.Get([]byte(fmt.Sprintf("%v", accountID)))
 
 		if len(v) == 0 {
 			return LimitExceededError
@@ -175,12 +174,12 @@ func (l *BillingLimiter) Reduce(optionName string, userID int64) error {
 					return err
 				}
 
-				err := b.Put([]byte(fmt.Sprintf("%v", userID)), buff.Bytes())
+				err := b.Put([]byte(fmt.Sprintf("%v", accountID)), buff.Bytes())
 				if err != nil {
 					return err
 				}
 
-				l.Logger.Printf("(user=%v) reduce billing value(%s) to %v", userID, optionName, value - 1)
+				l.Logger.Printf("(user=%v) reduce billing value(%s) to %v", accountID, optionName, value - 1)
 				return nil
 			}
 

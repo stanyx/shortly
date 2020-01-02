@@ -23,7 +23,7 @@ import (
 
 	"shortly/app/billing"
 	"shortly/app/rbac"
-	"shortly/app/users" //TODO - rename to accounts
+	"shortly/app/accounts"
 	"shortly/app/urls"
 	"shortly/app/data"
 )
@@ -221,6 +221,7 @@ func main() {
 	usersRepository := &users.UsersRepository{DB: database}
 
 	http.Handle("/api/v1/registration", api.RegisterAccount(usersRepository, logger))
+	http.Handle("/api/v1/account/users", api.AddUser(usersRepository, logger))
 	http.Handle("/api/v1/login", api.Login(usersRepository, logger, appConfig.Auth))
 
 	http.Handle("/api/v1/users/urls/create", auth(

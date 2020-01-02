@@ -9,7 +9,7 @@ type IUrlsRepository interface {
 	GetAllUrls() ([]UrlPair, error)
 	CreateUrl(short, long string) error
 	GetUserUrls(accountID, userID int64) ([]UrlPair, error)
-	GetUserUrlsCount(userID int64) (int, error)
+	GetUserUrlsCount(accountID int64) (int, error)
 }
 
 type UrlsRepository struct {
@@ -19,7 +19,7 @@ type UrlsRepository struct {
 
 func (repo *UrlsRepository) GetAllUrls() ([]UrlPair, error) {
 
-	rows, err := repo.DB.Query("select short_url, full_url from urls where user_id is null")
+	rows, err := repo.DB.Query("select short_url, full_url from urls where account_id is null")
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func (repo *UrlsRepository) GetUserUrls(accountID, userID int64) ([]UrlPair, err
 	from (
 		select * from urls
 		left join url_group ug on ug.url_id = urls.id
-		where (urls.user_id = $1 and not exists (select 1 from url_group)) 
+		where (urls.account_id = $1 and not exists (select 1 from url_group)) 
 		or (ug.url_id is not null and exists (select 1 from url_group))
 	) u
 	`, accountID, userID)
@@ -84,10 +84,10 @@ func (repo *UrlsRepository) GetUserUrls(accountID, userID int64) ([]UrlPair, err
 	return urls, nil
 }
 
-func (repo *UrlsRepository) GetUserUrlsCount(userID int64) (int, error) {
+func (repo *UrlsRepository) GetUserUrlsCount(accountID int64) (int, error) {
 
 	var count int
-	err := repo.DB.QueryRow("select count(*) from urls where user_id = $1", userID).Scan(&count)
+	err := repo.DB.QueryRow("select count(*) from urls where account_id = $1", accountID).Scan(&count)
 	if err != nil {
 		return 0, err
 	}
