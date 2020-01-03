@@ -2,7 +2,7 @@
 
 ## SHORTLY
 
-Simple project implementing urlshortener functionality, like Bit.ly, TinyURL, Google urlshorteners
+Urlshortener application, inspired by Bit.ly, TinyURL, Google
 
 ### Project goals
 
@@ -15,7 +15,7 @@ Simple project implementing urlshortener functionality, like Bit.ly, TinyURL, Go
  - Best practices
  - Fully tested
  - Benchmarks
- - Public REST API for creating, deleting urls
+ - Public REST API for creating, deleting links
  - Private REST API with payed plans
  - Redirect endpoint for url transformation
  - Support for 3 cache engines: Memcached, Redis, BoltDB (not ready)

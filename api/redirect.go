@@ -23,17 +23,17 @@ func Redirect(historyDB *data.HistoryDB, urlCache cache.UrlCache, logger *log.Lo
 
 		if cacheURLValue, ok := urlCache.Load(shortURL); ok {
 
-			fullURL, ok := cacheURLValue.(string)
+			longURL, ok := cacheURLValue.(string)
 			if !ok {
 				apiError(w, "url is not a string", http.StatusBadRequest)
 				return
 			}
 
-			if !(strings.HasPrefix(fullURL, "http") || strings.HasPrefix(fullURL, "https")) {
-				fullURL = "https://" + fullURL
+			if !(strings.HasPrefix(longURL, "http") || strings.HasPrefix(longURL, "https")) {
+				longURL = "https://" + longURL
 			}
 
-			validURL, err := url.Parse(fullURL)
+			validURL, err := url.Parse(longURL)
 			if err != nil {
 				apiError(w, "url has incorrect format", http.StatusBadRequest)
 				return

@@ -25,14 +25,14 @@ import (
 	"shortly/app/billing"
 	"shortly/app/rbac"
 	"shortly/app/accounts"
-	"shortly/app/urls"
+	"shortly/app/links"
 	"shortly/app/data"
 	"shortly/app/tags"
 )
 
-func LoadCacheFromDatabase(repo *urls.UrlsRepository, urlCache cache.UrlCache) error {
+func LoadCacheFromDatabase(repo *links.LinksRepository, urlCache cache.UrlCache) error {
 
-	rows, err := repo.GetAllUrls()
+	rows, err := repo.GetAllLinks()
 	if err != nil {
 		return err
 	}
@@ -88,13 +88,13 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	urlsRepository := &urls.UrlsRepository{DB: database, Logger: logger}
+	linksRepository := &links.LinksRepository{DB: database, Logger: logger}
 
 	billingRepository := &billing.BillingRepository{DB: database}
 	billingLimiter := &billing.BillingLimiter{
 		Repo:    billingRepository, 
 		DB:      billingDataStorage,
-		UrlRepo: urlsRepository,
+		UrlRepo: linksRepository,
 		Logger:  logger,
 	}
 	if err := billingLimiter.LoadData(); err != nil {
@@ -132,7 +132,7 @@ func main() {
 		}
 	}
 
-	err = LoadCacheFromDatabase(urlsRepository, urlCache)
+	err = LoadCacheFromDatabase(linksRepository, urlCache)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -157,8 +157,8 @@ func main() {
 		logger,
 	))
 
-	http.Handle("/api/v1/urls", api.GetURLList(urlsRepository, logger))
-	http.Handle("/api/v1/urls/create", api.CreateShortURL(urlsRepository, urlCache, logger))
+	http.Handle("/api/v1/links", api.GetURLList(linksRepository, logger))
+	http.Handle("/api/v1/links/create", api.CreateLink(linksRepository, urlCache, logger))
 
 	// storage metadata preparation
 	err = billingDataStorage.Update(func(tx *bolt.Tx) error {
@@ -226,24 +226,24 @@ func main() {
 	))
 
 	// links api
-	http.Handle("/api/v1/users/urls", auth(
-		rbac.NewPermission("/api/v1/users/urls", "read_urls", "GET"), 
-		api.GetUserURLList(urlsRepository, logger),
+	http.Handle("/api/v1/users/links", auth(
+		rbac.NewPermission("/api/v1/users/links", "read_links", "GET"), 
+		api.GetUserURLList(linksRepository, logger),
 	))
 
-	http.Handle("/api/v1/users/urls/clicks", auth(
-		rbac.NewPermission("/api/v1/users/urls/clicks", "get_links_clicks", "GET"), 
+	http.Handle("/api/v1/users/links/clicks", auth(
+		rbac.NewPermission("/api/v1/users/links/clicks", "get_links_clicks", "GET"), 
 		api.GetClicksData(historyDB, logger),
 	))
 
-	http.Handle("/api/v1/users/urls/add_group", auth(
-		rbac.NewPermission("/api/v1/users/urls/add_group", "add_url_to_group", "POST"), 
-		api.AddUrlToGroup(urlsRepository, logger),
+	http.Handle("/api/v1/users/links/add_group", auth(
+		rbac.NewPermission("/api/v1/users/links/add_group", "add_link_to_group", "POST"), 
+		api.AddUrlToGroup(linksRepository, logger),
 	))
 
-	http.Handle("/api/v1/users/urls/delete_group", auth(
-		rbac.NewPermission("/api/v1/users/urls/delete_group", "delete_url_to_group", "DELETE"), 
-		api.DeleteUrlFromGroup(urlsRepository, logger),
+	http.Handle("/api/v1/users/links/delete_group", auth(
+		rbac.NewPermission("/api/v1/users/links/delete_group", "delete_link_from_group", "DELETE"), 
+		api.DeleteUrlFromGroup(linksRepository, logger),
 	))
 
 	// account api
@@ -253,14 +253,14 @@ func main() {
 	http.Handle("/api/v1/accounts/users", api.AddUser(usersRepository, logger))
 	http.Handle("/api/v1/login", api.Login(usersRepository, logger, appConfig.Auth))
 
-	http.Handle("/api/v1/users/urls/create", auth(
-		rbac.NewPermission("/api/v1/users/urls/create", "create_url", "POST"), 
-		urlBillingLimit(api.CreateUserShortURL(historyDB, database, urlCache, billingLimiter, logger)),
+	http.Handle("/api/v1/users/links/create", auth(
+		rbac.NewPermission("/api/v1/users/links/create", "create_url", "POST"), 
+		urlBillingLimit(api.CreateUserLink(linksRepository, historyDB, urlCache, billingLimiter, logger)),
 	))
 		
-	http.Handle("/api/v1/users/urls/delete", auth(
-		rbac.NewPermission("/api/v1/users/urls/delete", "delete_url", "DELETE"), 
-		api.RemoveUserShortURL(database, urlCache, logger),
+	http.Handle("/api/v1/users/links/delete", auth(
+		rbac.NewPermission("/api/v1/users/links/delete", "delete_url", "DELETE"), 
+		api.DeleteUserLink(linksRepository, urlCache, logger),
 	))
 
 	http.Handle("/api/v1/users/groups/create", auth(
