@@ -10,13 +10,13 @@ import (
 
 	bolt "go.etcd.io/bbolt"
 
-	"shortly/app/urls"
+	"shortly/app/links"
 )
 
 var LimitExceededError = errors.New("limit exceeded error")
 
 type BillingLimiter struct {
-	UrlRepo *urls.UrlsRepository
+	UrlRepo *links.LinksRepository
 	Repo    *BillingRepository
 	DB      *bolt.DB
 	Logger  *log.Logger
@@ -51,13 +51,13 @@ func (l *BillingLimiter) LoadData() error {
 			switch opt.Name {
 			case "url_limit":
 
-				userUrlsCount, err := l.UrlRepo.GetUserUrlsCount(p.AccountID)
+				cnt, err := l.UrlRepo.GetUserLinksCount(p.AccountID)
 				if err != nil {
 					return err
 				}
 				topCount, _ := strconv.ParseInt(p.Options[i].Value, 0, 64)
-				l.Logger.Printf("(user=%v) set billing value(%s) to %v, max=%v, value=%v", p.AccountID, opt.Name, topCount - int64(userUrlsCount), topCount, userUrlsCount)
-				p.Options[i].Value = fmt.Sprintf("%v", topCount - int64(userUrlsCount))
+				l.Logger.Printf("(user=%v) set billing value(%s) to %v, max=%v, value=%v", p.AccountID, opt.Name, topCount - int64(cnt), topCount, cnt)
+				p.Options[i].Value = fmt.Sprintf("%v", topCount - int64(cnt))
 			case "timedata_limit":
 			default:
 				return errors.New("billing option is not supported")

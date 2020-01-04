@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"bytes"
 	"log"
 	"net/http"
@@ -14,43 +13,52 @@ import (
 
 	"shortly/api"
 
-	"shortly/app/urls"
+	"shortly/app/links"
 )
 
-type MockUrlsRepository struct {
+type MockLinksRepository struct {
 
 }
 
-func (repo *MockUrlsRepository) GetAllUrls() ([]urls.UrlPair, error) {
-	return []urls.UrlPair{
+func (repo *MockLinksRepository) GetAllLinks() ([]links.Link, error) {
+	return []links.Link{
 		{Short: "12345", Long: "www.google.com"},
 		{Short: "ABCDE", Long: "www.twitter.com"},
 	}, nil
 }
 
-func (repo *MockUrlsRepository) CreateUrl(short, long string) error {
+func (repo *MockLinksRepository) CreateLink(*links.Link) error {
 	return nil
 }
 
-func (repo *MockUrlsRepository) GetUserUrls(_, _ int64, filters ...urls.LinkFilter) ([]urls.UrlPair, error) {
-	return []urls.UrlPair{
+func (repo *MockLinksRepository) GetUserLinks(_, _ int64, filters ...links.LinkFilter) ([]links.Link, error) {
+	return []links.Link{
 		{Short: "12345", Long: "www.facebook.com"},
 		{Short: "ABCDE", Long: "www.netflix.com"},
 	}, nil
 }
 
-func (repo *MockUrlsRepository) GetUserUrlsCount(accountID int64) (int, error) {
+func (repo *MockLinksRepository) GetUserLinksCount(accountID int64) (int, error) {
 	return 2, nil
 }
 
-func TestGetUrls(t *testing.T) {
+func (repo *MockLinksRepository) CreateUserLink(accountID int64, _ *links.Link) (int64, error) {
+	return 0, nil
+}
+
+func (repo *MockLinksRepository) DeleteUserLink(accountID int64, shortURL string) (int64, error) {
+	return 0, nil
+}
+
+
+func TestGetLinks(t *testing.T) {
 
 	logger := log.New(ioutil.Discard, "", log.Lshortfile)
 
-	mockRepo := &MockUrlsRepository{}
+	mockRepo := &MockLinksRepository{}
 	urlhandler := api.GetURLList(mockRepo, logger)
 
-	req := httptest.NewRequest("GET", "http://example.com/api/v1/urls", nil)
+	req := httptest.NewRequest("GET", "http://example.com/api/v1/links", nil)
 	w := httptest.NewRecorder()
 	urlhandler.ServeHTTP(w, req)
 
@@ -73,27 +81,25 @@ func TestGetUrls(t *testing.T) {
 		t.Errorf("response is not api response")
 	}
 
-	urls, ok := response.Result.([]interface{})
+	rows, ok := response.Result.([]interface{})
 	if !ok {
 		t.Errorf("response result is not slice")
 	}
 
-	fmt.Println(string(body))
-
-	if len(urls) != 2 {
-		t.Errorf("response length != 2, %v", len(urls))
+	if len(rows) != 2 {
+		t.Errorf("response length != 2, %v", len(rows))
 	}	
 
-	for i, u := range urls {
+	for i, u := range rows {
 
 		result, ok := u.(map[string]interface{})
 		if !ok {
 			t.Errorf("result is not map[string]interface{}, but %T", u)
 		}
 
-		var e api.UrlResponse
+		var e api.LinkResponse
 		if err := mapstructure.Decode(result, &e); err != nil {
-			t.Errorf("result is not UrlResponse")
+			t.Errorf("result is not LinkResponse")
 		}
 
 		if i == 0 {
