@@ -78,7 +78,7 @@ func (repo *LinksRepository) GetUserLinks(accountID, userID int64, filters ...Li
 		select link_id, array_agg(tags.tag) tags_list from tags 
 		group by link_id
 	)
-	select u.short_url, u.full_url, u.description, u.tl
+	select u.short_url, u.long_url, u.description, u.tl
 	from (
 		select *, t.tags_list tl from links
 		left join url_group ug on ug.url_id = links.id
@@ -109,7 +109,7 @@ func (repo *LinksRepository) GetUserLinks(accountID, userID int64, filters ...Li
 		if len(f.LongUrl) > 0 {
 			exp := []string{}
 			for _, v := range f.LongUrl {
-				exp = append(exp, fmt.Sprintf("u.full_url LIKE $%d", len(queryArgs) + 1))
+				exp = append(exp, fmt.Sprintf("u.long_url LIKE $%d", len(queryArgs) + 1))
 				queryArgs = append(queryArgs, v + "%")
 			}
 			filterExpressions = append(filterExpressions, fmt.Sprintf("(%s)", strings.Join(exp, " OR ")))
@@ -118,7 +118,7 @@ func (repo *LinksRepository) GetUserLinks(accountID, userID int64, filters ...Li
 			exp := []string{
 				fmt.Sprintf("u.tl && $%d", len(queryArgs) + 1),
 				fmt.Sprintf("u.short_url LIKE $%d", len(queryArgs) + 2),
-				fmt.Sprintf("u.full_url LIKE $%d", len(queryArgs) + 3),
+				fmt.Sprintf("u.long_url LIKE $%d", len(queryArgs) + 3),
 			}
 			queryArgs = append(queryArgs, pq.Array([]string{f.FullText}))
 			queryArgs = append(queryArgs, f.FullText + "%")

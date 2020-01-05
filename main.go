@@ -14,6 +14,8 @@ import (
 	_ "github.com/lib/pq"
 	bolt "go.etcd.io/bbolt"
 	"github.com/kr/pretty"
+	"github.com/go-chi/chi"
+	"github.com/swaggo/http-swagger"
 
 	"shortly/api"
 	"shortly/cache"
@@ -28,6 +30,7 @@ import (
 	"shortly/app/links"
 	"shortly/app/data"
 	"shortly/app/tags"
+	"shortly/app/campaigns"
 )
 
 func LoadCacheFromDatabase(repo *links.LinksRepository, urlCache cache.UrlCache) error {
@@ -44,6 +47,20 @@ func LoadCacheFromDatabase(repo *links.LinksRepository, urlCache cache.UrlCache)
 	return nil
 }
 
+// @title Shotly API
+// @version 1.0
+// @description Url shortener web application.
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.url http://www.swagger.io/support
+// @contact.email support@swagger.io
+
+// @license.name Apache 2.0
+// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host store.swagger.io
+// @BasePath /api/v1
 func main() {
 
 	rand.Seed(time.Now().UnixNano())
@@ -104,6 +121,7 @@ func main() {
 	urlBillingLimit := api.BillingLimitMiddleware("url_limit", billingLimiter, logger)
 
 	historyDB := &data.HistoryDB{DB: linksStorage, Limiter: billingLimiter}
+	campaignsRepository := &campaigns.Repository{DB: database, HistoryDB: historyDB, Logger: logger}
 
 	// cache initialization
 
@@ -141,11 +159,25 @@ func main() {
 
 	// public api
 
-	fs := http.FileServer(http.Dir("static"))
-    http.Handle("/static", http.StripPrefix("/static", fs))
+	serverPort := os.Getenv("PORT")
+	if serverPort == "" {
+		serverPort = fmt.Sprintf("%v", serverConfig.Port)
+	}
 
-	http.Handle("/", api.Redirect(historyDB, urlCache, logger))
-	http.Handle("/health", utils.HealthCheck(
+	r := chi.NewRouter()
+
+	r.Get("/swagger/*", httpSwagger.Handler(
+		httpSwagger.URL(fmt.Sprintf("http://localhost:%d/swagger/doc.json", serverConfig.Port)), //The url pointing to API definition"
+	))
+
+	fs := http.FileServer(http.Dir("static"))
+	fsHandler := http.StripPrefix("/static", fs)
+	
+	r.Get("/static", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fsHandler.ServeHTTP(w, r)
+	}))
+
+	r.Get("/health", utils.HealthCheck(
 		[]utils.HealthChecker{
 			utils.HealthCheckFunc(func(_ context.Context) error {
 				return database.Ping()
@@ -157,8 +189,8 @@ func main() {
 		logger,
 	))
 
-	http.Handle("/api/v1/links", api.GetURLList(linksRepository, logger))
-	http.Handle("/api/v1/links/create", api.CreateLink(linksRepository, urlCache, logger))
+	r.Get("/api/v1/links", api.GetURLList(linksRepository, logger))
+	r.Post("/api/v1/links/create", api.CreateLink(linksRepository, urlCache, logger))
 
 	// storage metadata preparation
 	err = billingDataStorage.Update(func(tx *bolt.Tx) error {
@@ -201,9 +233,9 @@ func main() {
 
 	//   billing api
 
-	http.Handle("/api/v1/billing/plans", api.ListBillingPlans(billingRepository, logger))
+	r.Get("/api/v1/billing/plans", api.ListBillingPlans(billingRepository, logger))
 
-	http.Handle("/api/v1/billing/apply", auth(
+	r.Post("/api/v1/billing/apply", auth(
 		rbac.NewPermission("/api/v1/billing/apply", "apply_billingplan", "POST"), 
 		api.ApplyBillingPlan(billingRepository, billingLimiter, appConfig.Billing.Payment, logger),
 	))
@@ -215,33 +247,33 @@ func main() {
 		Logger: logger,
 	}
 
-	http.Handle("/api/v1/tags/create", auth(
+	r.Post("/api/v1/tags/create", auth(
 		rbac.NewPermission("/api/v1/tags/create", "create_tag", "POST"), 
 		api.AddTagToLink(tagsRepository, logger),
 	))
 
-	http.Handle("/api/v1/tags/delete", auth(
+	r.Delete("/api/v1/tags/delete", auth(
 		rbac.NewPermission("/api/v1/tags/delete", "delete_tag", "POST"), 
 		api.DeleteTagFromLink(tagsRepository, logger),
 	))
 
 	// links api
-	http.Handle("/api/v1/users/links", auth(
+	r.Get("/api/v1/users/links", auth(
 		rbac.NewPermission("/api/v1/users/links", "read_links", "GET"), 
 		api.GetUserURLList(linksRepository, logger),
 	))
 
-	http.Handle("/api/v1/users/links/clicks", auth(
+	r.Get("/api/v1/users/links/clicks", auth(
 		rbac.NewPermission("/api/v1/users/links/clicks", "get_links_clicks", "GET"), 
 		api.GetClicksData(historyDB, logger),
 	))
 
-	http.Handle("/api/v1/users/links/add_group", auth(
+	r.Post("/api/v1/users/links/add_group", auth(
 		rbac.NewPermission("/api/v1/users/links/add_group", "add_link_to_group", "POST"), 
 		api.AddUrlToGroup(linksRepository, logger),
 	))
 
-	http.Handle("/api/v1/users/links/delete_group", auth(
+	r.Delete("/api/v1/users/links/delete_group", auth(
 		rbac.NewPermission("/api/v1/users/links/delete_group", "delete_link_from_group", "DELETE"), 
 		api.DeleteUrlFromGroup(linksRepository, logger),
 	))
@@ -249,58 +281,58 @@ func main() {
 	// account api
 	usersRepository := &users.UsersRepository{DB: database}
 
-	http.Handle("/api/v1/registration", api.RegisterAccount(usersRepository, logger))
-	http.Handle("/api/v1/accounts/users", api.AddUser(usersRepository, logger))
-	http.Handle("/api/v1/login", api.Login(usersRepository, logger, appConfig.Auth))
+	r.Post("/api/v1/registration", api.RegisterAccount(usersRepository, logger))
+	r.Post("/api/v1/accounts/users", api.AddUser(usersRepository, logger))
+	r.Post("/api/v1/login", api.Login(usersRepository, logger, appConfig.Auth))
 
-	http.Handle("/api/v1/users/links/create", auth(
+	r.Post("/api/v1/users/links/create", auth(
 		rbac.NewPermission("/api/v1/users/links/create", "create_url", "POST"), 
 		urlBillingLimit(api.CreateUserLink(linksRepository, historyDB, urlCache, billingLimiter, logger)),
 	))
 		
-	http.Handle("/api/v1/users/links/delete", auth(
+	r.Delete("/api/v1/users/links/delete", auth(
 		rbac.NewPermission("/api/v1/users/links/delete", "delete_url", "DELETE"), 
 		api.DeleteUserLink(linksRepository, urlCache, logger),
 	))
 
-	http.Handle("/api/v1/users/groups/create", auth(
+	r.Post("/api/v1/users/groups/create", auth(
 		rbac.NewPermission("/api/v1/users/groups/create", "create_group", "POST"), 
 		api.AddGroup(usersRepository, logger),
 	))
 
-	http.Handle("/api/v1/users/groups/delete", auth(
+	r.Delete("/api/v1/users/groups/delete", auth(
 		rbac.NewPermission("/api/v1/users/groups/delete", "delete_group", "DELETE"), 
 		api.DeleteGroup(usersRepository, logger),
 	))
 
-	http.Handle("/api/v1/users/groups/add_user", auth(
+	r.Post("/api/v1/users/groups/add_user", auth(
 		rbac.NewPermission("/api/v1/users/groups/add_user", "add_group_user", "POST"), 
 		api.AddUserToGroup(usersRepository, logger),
 	))
 
-	http.Handle("/api/v1/users/groups/delete_user", auth(
+	r.Delete("/api/v1/users/groups/delete_user", auth(
 		rbac.NewPermission("/api/v1/users/groups/delete_user", "delete_group_user", "DELETE"), 
 		api.DeleteUserFromGroup(usersRepository, logger),
 	))
 
-	api.RbacRoutes(auth, permissionRegistry, usersRepository, rbacRepository, logger)
+	api.RbacRoutes(r, auth, permissionRegistry, usersRepository, rbacRepository, logger)
+	api.CampaignRoutes(r, auth, campaignsRepository, logger)
 
-	serverPort := os.Getenv("PORT")
-	if serverPort == "" {
-		serverPort = fmt.Sprintf("%v", serverConfig.Port)
-	}
+	r.Get("/*", api.Redirect(historyDB, urlCache, logger))
 
 	var srv *http.Server
 	// server running
 	go func() {
+		srv = &http.Server{
+			Addr: fmt.Sprintf(":%v", serverPort),
+			Handler: r,
+		}
 		logger.Printf("starting web server at port: %v, tls: %v\n", serverConfig.Port, appConfig.Server.UseTLS)
 		if appConfig.Server.UseTLS {
-			srv = &http.Server{Addr: fmt.Sprintf(":%v", serverPort)}
 			if err := srv.ListenAndServeTLS("./server.crt", "./server.key"); err != nil && err != http.ErrServerClosed {
 				logger.Printf("server stop unexpectedly, cause: %+v\n", err)
 			}
 		} else {
-			srv = &http.Server{Addr: fmt.Sprintf(":%v", serverPort)}
 			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 				logger.Printf("server stop unexpectedly, cause: %+v\n", err)
 			}

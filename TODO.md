@@ -4,10 +4,7 @@
  - OpenAPI Swagger documentation
  - Logging requests
  - Authorization with Outh2
- - SQLLite support for testing purposes
- - Payment processing with Stripe integration
- - Minimalistic frontend with dashboard
- - DI support
+ - Frontend with dashboard
  
  - Beauty-naming for links
  - Hiding Links

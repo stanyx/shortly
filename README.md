@@ -12,18 +12,15 @@ Urlshortener application, inspired by Bit.ly, TinyURL, Google
 
 ### Features included
 
- - Best practices
- - Fully tested
- - Benchmarks
  - Public REST API for creating, deleting links
  - Private REST API with payed plans
  - Redirect endpoint for url transformation
- - Support for 3 cache engines: Memcached, Redis, BoltDB (not ready)
- - Users and roles management (RBAC) (not ready)
- - Billing functionality (not ready)
+ - Support for 3 cache engines: In-memory, Memcached, BoltDB
+ - Users and roles management (RBAC)
+ - Billing functionality
  - Statisticts aggregation (not ready)
- - Prometheus integration (not ready)
- - Kubernetes ready (not ready)
+ - Prometheus monitoring integration (in progress)
+ - Kubernetes ready (in progress)
 
 ### Prerequisites
 
@@ -33,15 +30,7 @@ Using TLS with server
     openssl ecparam -genkey -name secp384r1 -out server.key
     openssl req -new -x509 -sha256 -key server.key -out server.crt -days 3650
 
-### Installing from source
-
-TODO
-
 ### Installing from Docker
 
     docker pull stanyx/shortly
     docker run --expose=[port] -p [port]:[port] shortly
-
-### CONTRIBUTING
-
-TODO

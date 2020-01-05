@@ -126,7 +126,13 @@ func (db *HistoryDB) GetClicksData(accountID int64, link string, start, end time
 
 	err = db.View(func(tx *bolt.Tx) error {
 
-		b := tx.Bucket([]byte("clicks:" + link)).Cursor()
+		linkBucket := tx.Bucket([]byte("clicks:" + link))
+
+		if linkBucket == nil {
+			return nil
+		}
+
+		b := linkBucket.Cursor()
 
 		if b == nil {
 			return nil

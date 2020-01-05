@@ -28,7 +28,7 @@ type LinkResponse struct {
 	Tags        []string `json:"tags"`
 }
 
-func GetURLList(repo links.ILinksRepository, logger *log.Logger) http.Handler {
+func GetURLList(repo links.ILinksRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -56,7 +56,7 @@ func GetURLList(repo links.ILinksRepository, logger *log.Logger) http.Handler {
 
 }
 
-func GetUserURLList(repo links.ILinksRepository, logger *log.Logger) http.Handler {
+func GetUserURLList(repo links.ILinksRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -111,7 +111,7 @@ type CreateLinkForm struct {
 	Description string `json:"description"`
 }
 
-func CreateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *log.Logger) http.Handler {
+func CreateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -165,7 +165,7 @@ func CreateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *lo
 
 }
 
-func CreateUserLink(repo *links.LinksRepository, historyDB *data.HistoryDB, urlCache cache.UrlCache, billingLimiter *billing.BillingLimiter, logger *log.Logger) http.Handler {
+func CreateUserLink(repo *links.LinksRepository, historyDB *data.HistoryDB, urlCache cache.UrlCache, billingLimiter *billing.BillingLimiter, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -236,7 +236,7 @@ type DeleteLinkForm struct {
 	Url string `json:"url"`
 }
 
-func DeleteUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, logger *log.Logger) http.Handler {
+func DeleteUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -277,7 +277,7 @@ type AddUrlToGroupForm struct {
 	UrlID  int64  `json:"urlId"`
 }
 
-func AddUrlToGroup(repo *links.LinksRepository, logger *log.Logger) http.Handler {
+func AddUrlToGroup(repo *links.LinksRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -309,7 +309,7 @@ type DeleteUrlFromGroupForm struct {
 	UrlID  int64  `json:"urlId"`
 }
 
-func DeleteUrlFromGroup(repo *links.LinksRepository, logger *log.Logger) http.Handler {
+func DeleteUrlFromGroup(repo *links.LinksRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -341,7 +341,7 @@ type ClickDataResponse struct {
 	Count int64
 }
 
-func GetClicksData(historyDB *data.HistoryDB, logger *log.Logger) http.Handler {
+func GetClicksData(historyDB *data.HistoryDB, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
