@@ -48,7 +48,7 @@ type LoginResponse struct {
 	Token string       `json:"token"`
 }
 
-func RegisterAccount(repo *users.UsersRepository, logger *log.Logger) http.Handler {
+func RegisterAccount(repo *users.UsersRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -101,7 +101,7 @@ type UserRegistrationForm struct {
 	RoleID    int64  `json:"roleId"`
 }
 
-func AddUser(repo *users.UsersRepository, logger *log.Logger) http.Handler {
+func AddUser(repo *users.UsersRepository, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		if r.Method != "POST" {
@@ -147,7 +147,7 @@ type LoginForm struct {
 	Password string `json:"password"`
 }
 
-func Login(repo *users.UsersRepository, logger *log.Logger, authConfig config.JWTConfig) http.Handler {
+func Login(repo *users.UsersRepository, logger *log.Logger, authConfig config.JWTConfig) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		if r.Method != "POST" {
@@ -224,7 +224,7 @@ type GroupResponse struct {
 	Description string `json:"description"`
 }
 
-func AddGroup(repo *users.UsersRepository, logger *log.Logger) http.Handler {
+func AddGroup(repo *users.UsersRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -264,7 +264,7 @@ type DeleteGroupForm struct {
 	GroupID int64 `json:"groupId"`
 }
 
-func DeleteGroup(repo *users.UsersRepository, logger *log.Logger) http.Handler {
+func DeleteGroup(repo *users.UsersRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -296,7 +296,7 @@ type AddUserToGroupForm struct {
 	UserID  int64 `json:"userId"`
 }
 
-func AddUserToGroup(repo *users.UsersRepository, logger *log.Logger) http.Handler {
+func AddUserToGroup(repo *users.UsersRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -332,7 +332,7 @@ type DeleteUserFromGroupForm struct {
 	UserID  int64 `json:"userId"`
 }
 
-func DeleteUserFromGroup(repo *users.UsersRepository, logger *log.Logger) http.Handler {
+func DeleteUserFromGroup(repo *users.UsersRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 

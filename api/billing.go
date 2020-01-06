@@ -28,7 +28,7 @@ type BillingPlanResponse struct {
 	Options     []BillingOptionResponse `json:"options"`
 }
 
-func ListBillingPlans(repo *billing.BillingRepository, logger *log.Logger) http.Handler {
+func ListBillingPlans(repo *billing.BillingRepository, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		plans, err := repo.GetAllBillingPlans()
@@ -72,7 +72,7 @@ type ApplyBillingPlanForm struct {
 	StripeToken string `json:"paymentToken"`
 }
 
-func ApplyBillingPlan(repo *billing.BillingRepository, billingLimiter *billing.BillingLimiter, paymentConfig config.PaymentConfig, logger *log.Logger) http.Handler {
+func ApplyBillingPlan(repo *billing.BillingRepository, billingLimiter *billing.BillingLimiter, paymentConfig config.PaymentConfig, logger *log.Logger) http.HandlerFunc {
 
 	createPaymentCharge := func(planCost string, r *http.Request) error {
 		stripe.Key = paymentConfig.Key
@@ -145,8 +145,8 @@ func ApplyBillingPlan(repo *billing.BillingRepository, billingLimiter *billing.B
 	})
 }
 
-func BillingLimitMiddleware(optionName string, billingLimiter *billing.BillingLimiter, logger *log.Logger) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
+func BillingLimitMiddleware(optionName string, billingLimiter *billing.BillingLimiter, logger *log.Logger) func(http.Handler) http.HandlerFunc {
+	return func(next http.Handler) http.HandlerFunc {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 			claims := r.Context().Value("user").(*JWTClaims)

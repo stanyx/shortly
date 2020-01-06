@@ -43,7 +43,7 @@ func (r *TagsRepository) GetAllLinkTags(linkID int64) ([]string, error) {
 
 func (r *TagsRepository) GetAllLinksForTags(tags []string) ([]links.Link, error) {
 	rows, err := r.DB.Query(
-		`select distinct(id, short_url, full_url) from links u
+		`select distinct(id, short_url, long_url) from links u
 		inner join tags t on t.link_id = u.id
 		where t.tag IN ($1)
 		`, tags)

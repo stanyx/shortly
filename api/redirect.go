@@ -11,7 +11,7 @@ import (
 )
 
 
-func Redirect(historyDB *data.HistoryDB, urlCache cache.UrlCache, logger *log.Logger) http.Handler {
+func Redirect(historyDB *data.HistoryDB, urlCache cache.UrlCache, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		shortURL := strings.TrimPrefix(r.URL.Path, "/")
@@ -21,7 +21,9 @@ func Redirect(historyDB *data.HistoryDB, urlCache cache.UrlCache, logger *log.Lo
 			return
 		}
 
-		if cacheURLValue, ok := urlCache.Load(shortURL); ok {
+		cacheURLValue, ok := urlCache.Load(shortURL)
+
+		if ok {
 
 			longURL, ok := cacheURLValue.(string)
 			if !ok {
@@ -47,10 +49,12 @@ func Redirect(historyDB *data.HistoryDB, urlCache cache.UrlCache, logger *log.Lo
 			// TODO - persistent logging to postgres with rmq
 
 			http.Redirect(w, r, validURL.String(), http.StatusSeeOther)
-		} else {
-			w.WriteHeader(http.StatusNotFound)
-			_, _ = w.Write([]byte("not found"))
+			return
 		}
+
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte("not found"))
+
 	})
 }
 

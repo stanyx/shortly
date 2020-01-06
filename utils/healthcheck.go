@@ -25,7 +25,7 @@ type HealthCheckResponse struct {
 	Errors []string
 }
 
-func HealthCheck(checkers []HealthChecker, logger *log.Logger) http.Handler {
+func HealthCheck(checkers []HealthChecker, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 

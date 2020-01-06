@@ -13,8 +13,8 @@ import (
 	"shortly/app/rbac"
 )
 
-func AuthMiddleware(enforcer *casbin.Enforcer, authConfig config.JWTConfig, permissions map[string]rbac.Permission) func(rbac.Permission, http.Handler) http.Handler {
-	return func(permission rbac.Permission, next http.Handler) http.Handler {
+func AuthMiddleware(enforcer *casbin.Enforcer, authConfig config.JWTConfig, permissions map[string]rbac.Permission) func(rbac.Permission, http.Handler) http.HandlerFunc {
+	return func(permission rbac.Permission, next http.Handler) http.HandlerFunc {
 
 		permissions[permission.Url] = permission
 
