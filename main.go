@@ -16,6 +16,7 @@ import (
 	"github.com/kr/pretty"
 	"github.com/go-chi/chi"
 	"github.com/swaggo/http-swagger"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"shortly/api"
 	"shortly/cache"
@@ -172,7 +173,7 @@ func main() {
 
 	fs := http.FileServer(http.Dir("static"))
 	fsHandler := http.StripPrefix("/static", fs)
-	
+
 	r.Get("/static", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fsHandler.ServeHTTP(w, r)
 	}))
@@ -189,8 +190,10 @@ func main() {
 		logger,
 	))
 
+	totalLinkCreatedPromMiddleware := utils.PrometheusMiddleware("totalLinksCreated", "TODO description")
 	r.Get("/api/v1/links", api.GetURLList(linksRepository, logger))
-	r.Post("/api/v1/links/create", api.CreateLink(linksRepository, urlCache, logger))
+	r.Post("/api/v1/links/create", totalLinkCreatedPromMiddleware(
+		api.CreateLink(linksRepository, urlCache, logger)))
 
 	// storage metadata preparation
 	err = billingDataStorage.Update(func(tx *bolt.Tx) error {
@@ -235,9 +238,12 @@ func main() {
 
 	r.Get("/api/v1/billing/plans", api.ListBillingPlans(billingRepository, logger))
 
+	applyBillingPlansPromMiddleware := utils.PrometheusMiddleware("billingApplied", "TODO description")
 	r.Post("/api/v1/billing/apply", auth(
 		rbac.NewPermission("/api/v1/billing/apply", "apply_billingplan", "POST"), 
-		api.ApplyBillingPlan(billingRepository, billingLimiter, appConfig.Billing.Payment, logger),
+		applyBillingPlansPromMiddleware(
+			api.ApplyBillingPlan(billingRepository, billingLimiter, appConfig.Billing.Payment, logger),
+		),
 	))
 
 	// TODO remove to routes.go
@@ -318,7 +324,9 @@ func main() {
 	api.RbacRoutes(r, auth, permissionRegistry, usersRepository, rbacRepository, logger)
 	api.CampaignRoutes(r, auth, campaignsRepository, logger)
 
-	r.Get("/*", api.Redirect(historyDB, urlCache, logger))
+	totalRedirectsPromMiddleware := utils.PrometheusMiddleware("totalRedirects", "TODO description")
+	r.Get("/metrics", promhttp.Handler().(http.HandlerFunc))
+	r.Get("/*", totalRedirectsPromMiddleware(api.Redirect(historyDB, urlCache, logger)))
 
 	var srv *http.Server
 	// server running

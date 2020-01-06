@@ -13,6 +13,18 @@ type AddTagForm struct {
 	Tag    string `json:"tag"`
 }
 
+// AddTagToLink handler for adding tag to link
+// @Summary Adds tag to link
+// @Description create new tag for link
+// @ID add-tag-to-link
+// @Accept  json
+// @Produce  json
+// @Param id path int true "Account ID"
+// @Success 200 {object} OkResponse
+// @Failure 400 {object} apiError
+// @Failure 404 {object} apiError
+// @Failure 500 {object} apiError
+// @Router /api/v1/tags/create [post]
 func AddTagToLink(repo *tags.TagsRepository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -26,7 +38,7 @@ func AddTagToLink(repo *tags.TagsRepository, logger *log.Logger) http.Handler {
 
 		if _, err := repo.AddTagToLink(form.LinkID, form.Tag); err != nil {
 			logError(logger, err)
-			apiError(w, "internal server error", http.StatusBadRequest)
+			apiError(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 
