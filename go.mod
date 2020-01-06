@@ -3,6 +3,8 @@ module shortly
 go 1.12
 
 require (
+	github.com/adjust/rmq v1.0.0
+	github.com/adjust/uniuri v0.0.0-20130923163420-498743145e60 // indirect
 	github.com/bradfitz/gomemcache v0.0.0-20190913173617-a41fca850d0b
 	github.com/casbin/casbin/v2 v2.1.2
 	github.com/creack/pty v1.1.9 // indirect
@@ -38,6 +40,8 @@ require (
 	golang.org/x/sys v0.0.0-20200106114638-5f8ca72cd632 // indirect
 	golang.org/x/tools v0.0.0-20200103221440-774c71fcf114 // indirect
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 // indirect
+	gopkg.in/bsm/ratelimit.v1 v1.0.0-20160220154919-db14e161995a // indirect
 	gopkg.in/go-playground/validator.v9 v9.31.0 // indirect
+	gopkg.in/redis.v3 v3.6.4 // indirect
 	gopkg.in/yaml.v2 v2.2.7 // indirect
 )

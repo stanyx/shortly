@@ -15,6 +15,7 @@ import (
 	bolt "go.etcd.io/bbolt"
 	"github.com/kr/pretty"
 	"github.com/go-chi/chi"
+	"github.com/adjust/rmq"
 	"github.com/swaggo/http-swagger"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -325,8 +326,10 @@ func main() {
 	api.CampaignRoutes(r, auth, campaignsRepository, logger)
 
 	totalRedirectsPromMiddleware := utils.PrometheusMiddleware("totalRedirects", "TODO description")
+
+	queueConn := rmq.OpenConnection("shortly", "tcp", ":6379", 1)
 	r.Get("/metrics", promhttp.Handler().(http.HandlerFunc))
-	r.Get("/*", totalRedirectsPromMiddleware(api.Redirect(historyDB, urlCache, logger)))
+	r.Get("/*", totalRedirectsPromMiddleware(api.Redirect(queueConn, historyDB, urlCache, logger)))
 
 	var srv *http.Server
 	// server running
