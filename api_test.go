@@ -27,6 +27,10 @@ func (repo *MockLinksRepository) GetAllLinks() ([]links.Link, error) {
 	}, nil
 }
 
+func (repo *MockLinksRepository) GenerateLink() string {
+	return "ABCDE"
+}
+
 func (repo *MockLinksRepository) CreateLink(*links.Link) error {
 	return nil
 }

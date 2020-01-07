@@ -66,5 +66,5 @@ func (l *SyncLogger) Push(body []byte) error {
 		string(headers),
 	)
 
-	return nil
+	return err
 }

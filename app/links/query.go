@@ -7,10 +7,13 @@ import (
 	"strings"
 
 	"github.com/lib/pq"
+
+	"shortly/utils"
 )
 
 type ILinksRepository interface {
 	GetAllLinks() ([]Link, error)
+	GenerateLink() string
 	CreateLink(*Link) error
 	CreateUserLink(accountID int64, link *Link) (int64, error)
 	DeleteUserLink(accountID int64, shortURL string) (int64, error)
@@ -162,6 +165,10 @@ func (repo *LinksRepository) GetUserLinksCount(accountID int64) (int, error) {
 	return count, nil
 }
 
+func (repo *LinksRepository) GenerateLink() string {
+	return utils.RandomString(5)
+}
+
 func (repo *LinksRepository) CreateUserLink(accountID int64, link *Link) (int64, error) {
 	var rowID int64
 	err := repo.DB.QueryRow(
@@ -191,4 +198,30 @@ func (repo *LinksRepository) DeleteUrlFromGroup(groupID, linkID int64) error {
 		delete from links_groups where group_id = $1 and link_id = $2
 	`, groupID, linkID)
 	return err
+}
+
+func (repo *LinksRepository) BulkCreateLinks(accountID int64, links []string) ([]Link, error) {
+
+	query := "insert into links (short_url, long_url, account_id) values "
+	var queryArgs []interface{}
+
+	var createdLinks []Link
+	for i, l := range links {
+		if i > 0 {
+			query += ", "
+		}
+		query += fmt.Sprintf("($%v, $%v, $%v)", i * 3 + 1, i * 3 + 2, i * 3 + 3)
+
+		shortURL := repo.GenerateLink()
+		queryArgs = append(queryArgs, []interface{}{
+			shortURL, l, accountID,
+		}...)
+		createdLinks = append(createdLinks, Link{
+			Short: shortURL,
+			Long: l,
+		})
+	}
+
+	_, err := repo.DB.Exec(query, queryArgs...)
+	return createdLinks, err
 }

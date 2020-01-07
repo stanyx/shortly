@@ -15,7 +15,7 @@ require (
 	github.com/go-openapi/spec v0.19.5 // indirect
 	github.com/go-openapi/swag v0.19.6 // indirect
 	github.com/go-playground/universal-translator v0.17.0 // indirect
-	github.com/golang-migrate/migrate/v4 v4.7.1 // indirect
+	github.com/golang-migrate/migrate/v4 v4.7.1
 	github.com/golangci/golangci-lint v1.21.0 // indirect
 	github.com/json-iterator/go v1.1.9 // indirect
 	github.com/kr/pretty v0.2.0
@@ -31,9 +31,8 @@ require (
 	github.com/spf13/viper v1.6.1
 	github.com/stripe/stripe-go v68.4.0+incompatible
 	github.com/swaggo/cli v1.22.0 // indirect
-	github.com/swaggo/http-swagger v0.0.0-20200103000832-0e9263c4b516 // indirect
+	github.com/swaggo/http-swagger v0.0.0-20200103000832-0e9263c4b516
 	github.com/swaggo/swag v1.6.4 // indirect
-	github.com/urfave/cli v1.20.0 // indirect
 	go.etcd.io/bbolt v1.3.2
 	golang.org/x/crypto v0.0.0-20191227163750-53104e6ec876
 	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553 // indirect

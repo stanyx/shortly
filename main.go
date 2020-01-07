@@ -292,12 +292,17 @@ func main() {
 	r.Post("/api/v1/login", api.Login(usersRepository, logger, appConfig.Auth))
 
 	r.Post("/api/v1/users/links/create", auth(
-		rbac.NewPermission("/api/v1/users/links/create", "create_url", "POST"), 
+		rbac.NewPermission("/api/v1/users/links/create", "create_link", "POST"), 
 		urlBillingLimit(api.CreateUserLink(linksRepository, historyDB, urlCache, billingLimiter, logger)),
 	))
-		
+
+	r.Post("/api/v1/users/links/upload", auth(
+		rbac.NewPermission("/api/v1/users/links/upload", "upload_links", "POST"), 
+		api.UploadLinksInBulk(billingLimiter, linksRepository, historyDB, urlCache, logger),
+	))
+
 	r.Delete("/api/v1/users/links/delete", auth(
-		rbac.NewPermission("/api/v1/users/links/delete", "delete_url", "DELETE"), 
+		rbac.NewPermission("/api/v1/users/links/delete", "delete_link", "DELETE"), 
 		api.DeleteUserLink(linksRepository, urlCache, logger),
 	))
 

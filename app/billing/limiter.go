@@ -59,8 +59,11 @@ func (l *BillingLimiter) LoadData() error {
 				l.Logger.Printf("(user=%v) set billing value(%s) to %v, max=%v, value=%v", p.AccountID, opt.Name, topCount - int64(cnt), topCount, cnt)
 				p.Options[i].Value = fmt.Sprintf("%v", topCount - int64(cnt))
 			case "timedata_limit":
+			case "users_limit":
+			case "tags_limit":
+			case "groups_limit":
 			default:
-				return errors.New("billing option is not supported")
+				return fmt.Errorf("billing option is not supported: %v", opt.Name)
 			}
 		}
 

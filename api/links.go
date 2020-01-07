@@ -1,10 +1,15 @@
 package api
 
 import (
+	"fmt"
+	"io"
+	"bufio"
 	"log"
 	"encoding/json"
+	"encoding/csv"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"shortly/cache"
@@ -141,7 +146,7 @@ func CreateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *lo
 		}
 
 		link := &links.Link{
-			Short:       utils.RandomString(5),
+			Short:       repo.GenerateLink(),
 			Long:        validLongURL.String(),
 			Description: form.Description,
 		}
@@ -201,6 +206,8 @@ func CreateUserLink(repo *links.LinksRepository, historyDB *data.HistoryDB, urlC
 			Description: form.Description,
 		}
 
+		// TODO - transactions
+
 		urlCache.Store(link.Short, link.Long)
 
 		linkID, err := repo.CreateUserLink(accountID, link)
@@ -209,6 +216,8 @@ func CreateUserLink(repo *links.LinksRepository, historyDB *data.HistoryDB, urlC
 			apiError(w, "(create link) - internal error", http.StatusInternalServerError)
 			return
 		}
+
+		// TODO - billing check locking
 
 		if err := billingLimiter.Reduce("url_limit", accountID); err != nil {
 			logError(logger, err)
@@ -258,6 +267,8 @@ func DeleteUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, logger
 			apiError(w, "url parameter is required", http.StatusBadRequest)
 			return
 		}
+
+		// TODO - increase billing counter
 
 		_, err := repo.DeleteUserLink(accountID, form.Url)
 		if err != nil {
@@ -397,4 +408,87 @@ func GetClicksData(historyDB *data.HistoryDB, logger *log.Logger) http.HandlerFu
 		response(w, &list, http.StatusOK)
 	})
 
+}
+
+func UploadLinksInBulk(limiter *billing.BillingLimiter, repo *links.LinksRepository, historyDB *data.HistoryDB, urlCache cache.UrlCache, logger *log.Logger) http.HandlerFunc {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		claims := r.Context().Value("user").(*JWTClaims)
+		accountID := claims.AccountID
+
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			logError(logger, err)
+			fmt.Fprintf(w, "parse form error")
+			return
+		}
+
+		file, _, err := r.FormFile("file")
+		if err != nil {
+			logError(logger, err)
+			fmt.Fprintf(w, "internal server error")
+			return
+		}
+		defer file.Close()
+
+		reader := csv.NewReader(bufio.NewReader(file))
+
+		var links []string
+
+		for {
+			line, err := reader.Read()
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				logError(logger, err)
+				fmt.Fprintf(w, "error")
+				return
+			}
+			links = append(links, line[0])
+		}
+
+		option, err := limiter.GetOptionValue("url_limit", accountID)
+
+		if err != nil {
+			logError(logger, err)
+			fmt.Fprintf(w, "error")
+			return
+		}
+
+		maxLinks, _ := strconv.ParseInt(option.Value, 0, 64)
+
+		if len(links) >= int(maxLinks) {
+			fmt.Fprintf(w, "plan limit exceeded")
+			return
+		}
+
+		linksCreated, err := repo.BulkCreateLinks(accountID, links)
+		if err != nil {
+			logError(logger, err)
+			fmt.Fprintf(w, "error")
+			return
+		}
+
+		for _, l := range linksCreated {
+
+			// TODO - make one method for creating links
+
+			urlCache.Store(l.Short, l.Long)
+
+			if err := limiter.Reduce("url_limit", accountID); err != nil {
+				logError(logger, err)
+				fmt.Fprintf(w, "error")
+				return
+			}
+	
+			if err := historyDB.InsertDetail(l.Short, accountID); err != nil {
+				logError(logger, err)
+				fmt.Fprintf(w, "error")
+				return
+			}
+
+		}
+
+		fmt.Fprintf(w, "ok")
+	})
 }
