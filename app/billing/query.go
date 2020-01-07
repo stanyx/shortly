@@ -123,15 +123,24 @@ func (r *BillingRepository) GetAllBillingPlans() ([]BillingPlan, error) {
 	return plans, nil
 }
 
-func (r *BillingRepository) GetAllUserBillingPlans() ([]BillingPlan, error) {
+func (r *BillingRepository) GetAllUserBillingPlans(accountID int64) ([]BillingPlan, error) {
 
-	rows1, err := r.DB.Query(`
+
+	q1 := `
 		SELECT ubp.account_id, opts.id, opts.name, opts.description, opts.value 
 		FROM billing_accounts ubp
 		INNER JOIN billing_options opts ON opts.plan_id = ubp.plan_id
 		INNER JOIN billing_plans bp ON bp.id = opts.plan_id
 		WHERE ubp.active = true
-	`)
+	`
+
+	var queryArgs1 []interface{}
+	if accountID > 0 {
+		q1 += " AND ubp.account_id = $1"
+		queryArgs1 = append(queryArgs1, accountID)
+	}
+
+	rows1, err := r.DB.Query(q1, queryArgs1...)
 
 	if err != nil {
 		return nil, err
@@ -154,12 +163,19 @@ func (r *BillingRepository) GetAllUserBillingPlans() ([]BillingPlan, error) {
 		return nil, err
 	}
 
-	rows2, err := r.DB.Query(`
+	q2 := `
 		SELECT ubp.account_id, bp.id, bp.name, bp.description, bp.price 
 		FROM billing_accounts ubp
 		INNER JOIN billing_plans bp ON bp.id = ubp.plan_id
 		WHERE ubp.active = true
-	`)
+	`
+
+	var queryArgs2 []interface{}
+	if accountID > 0 {
+		q2 += " AND ubp.account_id = $1"
+		queryArgs2 = append(queryArgs2, accountID)
+	}
+	rows2, err := r.DB.Query(q2, queryArgs2...)
 
 	if err != nil {
 		return nil, err

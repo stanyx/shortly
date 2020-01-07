@@ -7,6 +7,7 @@ import (
 	"errors"
 	"encoding/json"
 	"strconv"
+	"sync"
 
 	bolt "go.etcd.io/bbolt"
 
@@ -20,6 +21,60 @@ type BillingLimiter struct {
 	Repo    *BillingRepository
 	DB      *bolt.DB
 	Logger  *log.Logger
+
+	locks   sync.Map
+}
+
+func (l *BillingLimiter) Lock(accountID int64) sync.Mutex {
+	var lock sync.Mutex
+	v, _ := l.locks.LoadOrStore(accountID, lock)
+	m := v.(sync.Mutex)
+	m.Lock()
+	return m
+}
+
+func (l *BillingLimiter) Reset(optionName string, accountID int64) error {
+
+	return l.DB.Update(func(tx *bolt.Tx) error {
+
+		plans, err := l.Repo.GetAllUserBillingPlans(accountID)
+		if err != nil {
+			return err
+		}
+
+		if len(plans) != 1 {
+			return errors.New("multiple plans found")
+		}
+
+		var option *BillingOption
+		for _, opt := range plans[0].Options {
+			if opt.Name == optionName {
+				option = &opt
+				break
+			}
+		}
+
+		if option == nil {
+			return errors.New("option not found")
+		}
+
+		switch optionName {
+		case "url_limit":
+			cnt, err := l.UrlRepo.GetUserLinksCount(accountID)
+			if err != nil {
+				return err
+			}
+			topCount, _ := strconv.ParseInt(option.Value, 0, 64)
+			l.Logger.Printf("(user=%v) reset billing value(%s) to %v, max=%v, value=%v", accountID, optionName, topCount - int64(cnt), topCount, cnt)
+			if err := l.UpdateOption(tx, optionName, accountID, func(_ int64) int64{return topCount - int64(cnt)}); err != nil {
+				return err
+			}
+			return nil
+		}
+
+		return nil
+	})
+
 }
 
 func (l *BillingLimiter) SetPlanOptions(accountID int64, options []BillingOption) error {
@@ -40,7 +95,7 @@ func (l *BillingLimiter) SetPlanOptions(accountID int64, options []BillingOption
 
 func (l *BillingLimiter) LoadData() error {
 
-	plans, err := l.Repo.GetAllUserBillingPlans()
+	plans, err := l.Repo.GetAllUserBillingPlans(0)
 	if err != nil {
 		return err
 	}
@@ -136,61 +191,61 @@ func (l *BillingLimiter) CheckLimits(optionName string, accountID int64) error {
 
 }
 
-func (l *BillingLimiter) Reduce(optionName string, accountID int64) error {
+func (l *BillingLimiter) UpdateOption(tx *bolt.Tx, optionName string, accountID int64, f func(int64)int64) error {
+	b := tx.Bucket([]byte("billing"))
+	v := b.Get([]byte(fmt.Sprintf("%v", accountID)))
 
-	return l.DB.Update(func(tx *bolt.Tx) error {
+	if len(v) == 0 {
+		return LimitExceededError
+	}
 
-		b := tx.Bucket([]byte("billing"))
-		v := b.Get([]byte(fmt.Sprintf("%v", accountID)))
+	buff := bytes.NewBuffer(v)
 
-		if len(v) == 0 {
-			return LimitExceededError
+	var options []BillingOption
+	if err := json.NewDecoder(buff).Decode(&options); err != nil {
+		return err
+	}
+
+	var update bool
+	for i, option := range options {
+		if option.Name == optionName {
+			value, _ := strconv.ParseInt(option.Value, 0, 64)
+			updatedValue := f(value)
+			if updatedValue < 0 {
+				return errors.New("value is below zero")
+			}
+			l.Logger.Printf("(user=%v) changed billing value(%s) to %v", accountID, optionName, updatedValue)
+			options[i].Value = fmt.Sprintf("%v", updatedValue)
+			update = true
+			break
 		}
+	}
 
-		buff := bytes.NewBuffer(v)
-
-		var options []BillingOption
-		if err := json.NewDecoder(buff).Decode(&options); err != nil {
+	if update {
+		buff := bytes.NewBuffer([]byte{})
+		if err := json.NewEncoder(buff).Encode(&options); err != nil {
 			return err
 		}
+		return b.Put([]byte(fmt.Sprintf("%v", accountID)), buff.Bytes())
+	}
 
-		var targetOption *BillingOption
-		var optionIndex int
+	return nil
+}
 
-		for i, option := range options {
-			if option.Name == optionName {
-				targetOption = &option
-				optionIndex = i
-				break
-			}
-		}
+func (l *BillingLimiter) Reduce(optionName string, accountID int64) error {
+	return l.DB.Update(func(tx *bolt.Tx) error {
+		return l.UpdateOption(tx, optionName, accountID, func(v int64) int64 {
+			return v - 1
+		})
+	})
 
-		if targetOption != nil {
+}
 
-			value, _ := strconv.ParseInt(targetOption.Value, 0, 64)
-
-			if value > 0 {
-
-				options[optionIndex].Value = fmt.Sprintf("%v", value - 1)
-				buff := bytes.NewBuffer([]byte{})
-				if err := json.NewEncoder(buff).Encode(&options); err != nil {
-					return err
-				}
-
-				err := b.Put([]byte(fmt.Sprintf("%v", accountID)), buff.Bytes())
-				if err != nil {
-					return err
-				}
-
-				l.Logger.Printf("(user=%v) reduce billing value(%s) to %v", accountID, optionName, value - 1)
-				return nil
-			}
-
-		} else {
-			return LimitExceededError
-		}
-
-		return nil
+func (l *BillingLimiter) Increase(optionName string, accountID int64) error {
+	return l.DB.Update(func(tx *bolt.Tx) error {
+		return l.UpdateOption(tx, optionName, accountID, func(v int64) int64 {
+			return v + 1
+		})
 	})
 
 }

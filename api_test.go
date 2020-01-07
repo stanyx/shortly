@@ -46,12 +46,12 @@ func (repo *MockLinksRepository) GetUserLinksCount(accountID int64) (int, error)
 	return 2, nil
 }
 
-func (repo *MockLinksRepository) CreateUserLink(accountID int64, _ *links.Link) (int64, error) {
-	return 0, nil
+func (repo *MockLinksRepository) CreateUserLink(accountID int64, _ *links.Link) (*sql.Tx, int64, error) {
+	return nil, 0, nil
 }
 
-func (repo *MockLinksRepository) DeleteUserLink(accountID int64, shortURL string) (int64, error) {
-	return 0, nil
+func (repo *MockLinksRepository) DeleteUserLink(accountID int64, shortURL string) (*sql.Tx, int64, error) {
+	return nil, 0, nil
 }
 
 
