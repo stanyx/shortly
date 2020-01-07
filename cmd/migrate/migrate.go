@@ -11,7 +11,7 @@ import (
 func main() {
 	m, err := migrate.New(
 		"file://storage/migrations",
-		"postgres://postgres:postgres@localhost:5432/shortly?sslmode=disable")
+		"postgres://shortly_user:1@localhost:5432/shortly?sslmode=disable")
 	if err != nil {
 		log.Fatal(err)
 	}

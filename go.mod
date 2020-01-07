@@ -15,6 +15,7 @@ require (
 	github.com/go-openapi/spec v0.19.5 // indirect
 	github.com/go-openapi/swag v0.19.6 // indirect
 	github.com/go-playground/universal-translator v0.17.0 // indirect
+	github.com/golang-migrate/migrate/v4 v4.7.1 // indirect
 	github.com/golangci/golangci-lint v1.21.0 // indirect
 	github.com/json-iterator/go v1.1.9 // indirect
 	github.com/kr/pretty v0.2.0

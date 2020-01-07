@@ -15,7 +15,6 @@ import (
 	bolt "go.etcd.io/bbolt"
 	"github.com/kr/pretty"
 	"github.com/go-chi/chi"
-	"github.com/adjust/rmq"
 	"github.com/swaggo/http-swagger"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -327,9 +326,16 @@ func main() {
 
 	totalRedirectsPromMiddleware := utils.PrometheusMiddleware("totalRedirects", "TODO description")
 
-	queueConn := rmq.OpenConnection("shortly", "tcp", ":6379", 1)
+	var dbLogger utils.DbLogger
+	if appConfig.RedirectLogger.Mode == "sync" && appConfig.RedirectLogger.Storage == "postgres" {
+		dbLogger = utils.NewSyncLogger(database)
+	} else if appConfig.RedirectLogger.Storage == "redis" || appConfig.RedirectLogger.Storage == "" {
+		dbLogger = utils.NewRMQLogger("shortly", "redirects", appConfig.RedirectLogger.Redis)
+	} else {
+		logger.Fatal("incorrect config params for redirect logger")
+	}
 	r.Get("/metrics", promhttp.Handler().(http.HandlerFunc))
-	r.Get("/*", totalRedirectsPromMiddleware(api.Redirect(queueConn, historyDB, urlCache, logger)))
+	r.Get("/*", totalRedirectsPromMiddleware(api.Redirect(dbLogger, historyDB, urlCache, logger)))
 
 	var srv *http.Server
 	// server running

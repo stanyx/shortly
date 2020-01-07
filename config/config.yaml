@@ -18,3 +18,8 @@ Billing:
     Key: ''
 LinkDB:
   Dir: .
+RedirectLogger:
+  Storage: postgres
+  Mode: sync
+  Redis:
+    Port: 6379

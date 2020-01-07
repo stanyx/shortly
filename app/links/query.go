@@ -71,7 +71,7 @@ func (repo *LinksRepository) GetUserLinks(accountID, userID int64, filters ...Li
 
 	query := `
 	with url_group as (
-		select distinct(ug.url_id) as url_id from links_groups ug where ug.group_id IN (
+		select distinct(ug.link_id) as link_id from links_groups ug where ug.group_id IN (
 			select group_id from users_groups where users_groups.user_id = $2
 		)
 	), url_tags as (
@@ -81,10 +81,10 @@ func (repo *LinksRepository) GetUserLinks(accountID, userID int64, filters ...Li
 	select u.short_url, u.long_url, u.description, u.tl
 	from (
 		select *, t.tags_list tl from links
-		left join url_group ug on ug.url_id = links.id
+		left join url_group ug on ug.link_id = links.id
 		left outer join url_tags t on t.link_id = links.id
 		where (links.account_id = $1 and not exists (select 1 from url_group)) 
-		or (ug.url_id is not null and exists (select 1 from url_group))
+		or (ug.link_id is not null and exists (select 1 from url_group))
 	) u
 	`
 
@@ -179,16 +179,16 @@ func (repo *LinksRepository) DeleteUserLink(accountID int64, link string) (int64
 	return rowID, err
 }
 
-func (repo *LinksRepository) AddUrlToGroup(groupID, urlID int64) error {
+func (repo *LinksRepository) AddUrlToGroup(groupID, linkID int64) error {
 	_, err := repo.DB.Exec(`
-		insert into links_groups (group_id, url_id) values ($1, $2)
-	`, groupID, urlID)
+		insert into links_groups (group_id, link_id) values ($1, $2)
+	`, groupID, linkID)
 	return err
 }
 
-func (repo *LinksRepository) DeleteUrlFromGroup(groupID, urlID int64) error {
+func (repo *LinksRepository) DeleteUrlFromGroup(groupID, linkID int64) error {
 	_, err := repo.DB.Exec(`
-		delete from links_groups where group_id = $1 and url_id = $2
-	`, groupID, urlID)
+		delete from links_groups where group_id = $1 and link_id = $2
+	`, groupID, linkID)
 	return err
 }

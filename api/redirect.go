@@ -7,9 +7,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/adjust/rmq"
-
 	"shortly/cache"
+	"shortly/utils"
 	"shortly/app/data"
 )
 
@@ -20,9 +19,7 @@ type LinkRedirect struct {
 }
 
 
-func Redirect(conn rmq.Connection, historyDB *data.HistoryDB, urlCache cache.UrlCache, logger *log.Logger) http.HandlerFunc {
-
-	queue := conn.OpenQueue("redirects")
+func Redirect(redirectLogger utils.DbLogger, historyDB *data.HistoryDB, urlCache cache.UrlCache, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -58,6 +55,7 @@ func Redirect(conn rmq.Connection, historyDB *data.HistoryDB, urlCache cache.Url
 		}
 
 		if err := historyDB.Insert(shortURL, r); err != nil {
+			logError(logger, err)
 			apiError(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
@@ -68,11 +66,16 @@ func Redirect(conn rmq.Connection, historyDB *data.HistoryDB, urlCache cache.Url
 			Headers:  r.Header,
 		})
 		if err != nil {
+			logError(logger, err)
 			apiError(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 
-		queue.Publish(string(body))
+		if err := redirectLogger.Push(body); err != nil {
+			logError(logger, err)
+			apiError(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
 
 		http.Redirect(w, r, validURL.String(), http.StatusSeeOther)
 

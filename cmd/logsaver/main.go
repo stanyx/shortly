@@ -53,7 +53,7 @@ func (consumer *Consumer) Consume(delivery rmq.Delivery) {
 		return
 	}
 
-	_, err = consumer.db.Exec("insert into redirect_log(short_url, long_url, headers) values ($1, $2, $3)",
+	_, err = consumer.db.Exec("insert into redirect_log(short_url, long_url, headers, timestamp) values ($1, $2, $3, now())",
 		msg.ShortUrl,
 		msg.LongUrl,
 		string(headers),

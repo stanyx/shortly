@@ -43,15 +43,27 @@ type LinksDBConfig struct {
 	Dir string
 }
 
-type ApplicationConfig struct {
-	Server   ServerConfig
-	Database DatabaseConfig
-	Cache    CacheConfig
-	Auth     JWTConfig
-	Casbin   CasbinConfig
+type RedisConfig struct {
+	Host string
+	Port int
+}
 
-	Billing  BillingConfig
-	LinkDB   LinksDBConfig
+type RedirectLoggerConfig struct {
+	Storage string
+	Mode    string
+	Redis   RedisConfig
+}
+
+type ApplicationConfig struct {
+	Server         ServerConfig
+	Database       DatabaseConfig
+	Cache          CacheConfig
+	Auth           JWTConfig
+	Casbin         CasbinConfig
+
+	Billing        BillingConfig
+	LinkDB         LinksDBConfig
+	RedirectLogger RedirectLoggerConfig
 }
 
 type ServerConfig struct {
