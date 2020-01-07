@@ -1,5 +1,4 @@
 [![Build Status](https://travis-ci.com/stanyx/shortly.svg?branch=master)](https://travis-ci.com/stanyx/shortly)
-
 [![codebeat badge](https://codebeat.co/badges/311fecd5-7eab-4c56-8edd-780e3aecb7ba)](https://codebeat.co/projects/github-com-stanyx-shortly-master)
 
 # SHORTLY

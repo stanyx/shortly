@@ -1,3 +1,9 @@
+Database:
+  Host: localhost
+  Port: 5432
+  User: shortly_user
+  Password: 1
+  Database: shortly
 Cache:
   CacheType: "boltdb"
   Memcached:
@@ -12,3 +18,8 @@ Billing:
     Key: ''
 LinkDB:
   Dir: .
+RedirectLogger:
+  Storage: postgres
+  Mode: sync
+  Redis:
+    Port: 6379
