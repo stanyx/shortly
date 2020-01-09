@@ -2,12 +2,14 @@ package main
 
 import (
 	"bytes"
+	"database/sql"
 	"log"
 	"net/http"
 	"testing"
 	"io/ioutil"
 	"net/http/httptest"
 	"encoding/json"
+	"time"
 
 	"github.com/mitchellh/mapstructure"
 
@@ -42,16 +44,16 @@ func (repo *MockLinksRepository) GetUserLinks(_, _ int64, filters ...links.LinkF
 	}, nil
 }
 
-func (repo *MockLinksRepository) GetUserLinksCount(accountID int64) (int, error) {
+func (repo *MockLinksRepository) GetUserLinksCount(_ int64, _, _ time.Time) (int, error) {
 	return 2, nil
 }
 
-func (repo *MockLinksRepository) CreateUserLink(accountID int64, _ *links.Link) (int64, error) {
-	return 0, nil
+func (repo *MockLinksRepository) CreateUserLink(accountID int64, _ *links.Link) (*sql.Tx, int64, error) {
+	return nil, 0, nil
 }
 
-func (repo *MockLinksRepository) DeleteUserLink(accountID int64, shortURL string) (int64, error) {
-	return 0, nil
+func (repo *MockLinksRepository) DeleteUserLink(accountID int64, shortURL string) (*sql.Tx, int64, error) {
+	return nil, 0, nil
 }
 
 

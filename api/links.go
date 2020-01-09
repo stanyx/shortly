@@ -33,6 +33,7 @@ type LinkResponse struct {
 	Tags        []string `json:"tags"`
 }
 
+// TODO refactor to top links
 func GetURLList(repo links.ILinksRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -206,30 +207,38 @@ func CreateUserLink(repo *links.LinksRepository, historyDB *data.HistoryDB, urlC
 			Description: form.Description,
 		}
 
-		// TODO - transactions
+		l := billingLimiter.Lock(accountID)
+		defer l.Unlock()
 
-		urlCache.Store(link.Short, link.Long)
-
-		linkID, err := repo.CreateUserLink(accountID, link)
+		tx, linkID, err := repo.CreateUserLink(accountID, link)
 		if err != nil {
 			logError(logger, err)
 			apiError(w, "(create link) - internal error", http.StatusInternalServerError)
 			return
 		}
 
-		// TODO - billing check locking
-
 		if err := billingLimiter.Reduce("url_limit", accountID); err != nil {
+			_ = tx.Rollback()
 			logError(logger, err)
 			apiError(w, "(create link) - internal error", http.StatusInternalServerError)
 			return
 		}
 
 		if err := historyDB.InsertDetail(link.Short, accountID); err != nil {
+			_ = tx.Rollback()
 			logError(logger, err)
 			apiError(w, "(create link) - internal error", http.StatusInternalServerError)
 			return
 		}
+
+		if err := tx.Commit(); err != nil {
+			_ = billingLimiter.Reset("url_limit", accountID)
+			logError(logger, err)
+			apiError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		urlCache.Store(link.Short, link.Long)
 
 		response(w, &LinkResponse{
 			ID:          linkID,
@@ -245,17 +254,12 @@ type DeleteLinkForm struct {
 	Url string `json:"url"`
 }
 
-func DeleteUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, logger *log.Logger) http.HandlerFunc {
+func DeleteUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, billingLimiter *billing.BillingLimiter, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		claims := r.Context().Value("user").(*JWTClaims)
 		accountID := claims.AccountID
-
-		if r.Method != "DELETE" {
-			apiError(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
 
 		var form DeleteLinkForm
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
@@ -268,16 +272,34 @@ func DeleteUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, logger
 			return
 		}
 
-		// TODO - increase billing counter
+		// TODO - transactions and locking
 
-		_, err := repo.DeleteUserLink(accountID, form.Url)
+		lock := billingLimiter.Lock(accountID)
+		defer lock.Unlock()
+
+		tx, _, err := repo.DeleteUserLink(accountID, form.Url)
 		if err != nil {
+			_ = tx.Rollback()
 			logError(logger, err)
 			apiError(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-			
+
+		if err := billingLimiter.Increase("url_limit", accountID); err != nil {
+			_ = tx.Rollback()
+			logError(logger, err)
+			apiError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
 		urlCache.Delete(form.Url)
+
+		if err := tx.Commit(); err != nil {
+			_ = billingLimiter.Reset("url_limit", accountID)
+			logError(logger, err)
+			apiError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 		
 		ok(w)
 	})

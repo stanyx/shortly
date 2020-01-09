@@ -29,7 +29,10 @@ func (r *BillingRepository) ApplyBillingPlan(accountID, planID int64) error {
 		return err
 	}
 
-	if _, err := r.DB.Exec("INSERT INTO billing_accounts (account_id, plan_id, active) VALUES ($1, $2, true)", accountID, planID); err != nil {
+	if _, err := r.DB.Exec(`
+		insert into "billing_accounts" (account_id, plan_id, started_at, ended_at, active) 
+		values ($1, $2, date_trunc('day', now()), date_trunc('day', now()) + '30 day'::interval, true)
+	`, accountID, planID); err != nil {
 		return err
 	}
 
@@ -123,62 +126,106 @@ func (r *BillingRepository) GetAllBillingPlans() ([]BillingPlan, error) {
 	return plans, nil
 }
 
-func (r *BillingRepository) GetAllUserBillingPlans() ([]BillingPlan, error) {
+func (r *BillingRepository) GetActiveBillingPlans(accountID int64) ([]AccountBillingPlan, error) {
+	query := `
+		SELECT ubp.account_id, ubp.started_at, ubp.ended_at, bp.id, bp.name, bp.description, bp.price 
+		FROM billing_accounts ubp
+		INNER JOIN billing_plans bp ON bp.id = ubp.plan_id
+		WHERE ubp.active = true
+	`
 
-	rows1, err := r.DB.Query(`
+	var queryArgs []interface{}
+	if accountID > 0 {
+		query += " AND ubp.account_id = $1"
+		queryArgs = append(queryArgs, accountID)
+	}
+	rows, err := r.DB.Query(query, queryArgs...)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var plans []AccountBillingPlan
+	for rows.Next() {
+		var bp AccountBillingPlan
+		if err := rows.Scan(
+			&bp.AccountID,
+			&bp.Start,
+			&bp.End,
+			&bp.ID,
+			&bp.Name,
+			&bp.Description,
+			&bp.Price,
+		); err != nil {
+			return nil, err
+		}
+		plans = append(plans, bp)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return plans, nil
+}
+
+func (r *BillingRepository) GetPlansOptions(accountID int64) (map[int64][]BillingOption, error) {
+
+	query := `
 		SELECT ubp.account_id, opts.id, opts.name, opts.description, opts.value 
 		FROM billing_accounts ubp
 		INNER JOIN billing_options opts ON opts.plan_id = ubp.plan_id
 		INNER JOIN billing_plans bp ON bp.id = opts.plan_id
 		WHERE ubp.active = true
-	`)
+	`
+
+	var queryArgs []interface{}
+	if accountID > 0 {
+		query += " AND ubp.account_id = $1"
+		queryArgs = append(queryArgs, accountID)
+	}
+
+	rows, err := r.DB.Query(query, queryArgs...)
 
 	if err != nil {
 		return nil, err
 	}
 
-	defer rows1.Close()
+	defer rows.Close()
 
 	optionByAccount := make(map[int64][]BillingOption)
 
-	for rows1.Next() {
+	for rows.Next() {
 		var accountID int64
 		var bp BillingOption
-		if err := rows1.Scan(&accountID, &bp.ID, &bp.Name, &bp.Description, &bp.Value); err != nil {
+		if err := rows.Scan(&accountID, &bp.ID, &bp.Name, &bp.Description, &bp.Value); err != nil {
 			return nil, err
 		}
 		optionByAccount[accountID] = append(optionByAccount[accountID], bp)
 	}
 
-	if err := rows1.Err(); err != nil {
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
-	rows2, err := r.DB.Query(`
-		SELECT ubp.account_id, bp.id, bp.name, bp.description, bp.price 
-		FROM billing_accounts ubp
-		INNER JOIN billing_plans bp ON bp.id = ubp.plan_id
-		WHERE ubp.active = true
-	`)
+	return optionByAccount, nil
+} 
 
+func (r *BillingRepository) GetAllUserBillingPlans(accountID int64) ([]AccountBillingPlan, error) {
+
+	optionByAccount, err := r.GetPlansOptions(accountID)
 	if err != nil {
 		return nil, err
 	}
 
-	defer rows2.Close()
-
-	var plans []BillingPlan
-	for rows2.Next() {
-		var bp BillingPlan
-		if err := rows2.Scan(&bp.AccountID, &bp.ID, &bp.Name, &bp.Description, &bp.Price); err != nil {
-			return nil, err
-		}
-		bp.Options = optionByAccount[bp.AccountID]
-		plans = append(plans, bp)
+	plans, err := r.GetActiveBillingPlans(accountID)
+	if err != nil {
+		return nil, err
 	}
 
-	if err := rows2.Err(); err != nil {
-		return nil, err
+	for _, bp := range plans {
+		bp.Options = optionByAccount[bp.AccountID]
 	}
 
 	return plans, nil

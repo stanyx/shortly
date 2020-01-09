@@ -301,9 +301,9 @@ func main() {
 		api.UploadLinksInBulk(billingLimiter, linksRepository, historyDB, urlCache, logger),
 	))
 
-	r.Delete("/api/v1/users/links/delete", auth(
+	r.Post("/api/v1/users/links/delete", auth(
 		rbac.NewPermission("/api/v1/users/links/delete", "delete_link", "DELETE"), 
-		api.DeleteUserLink(linksRepository, urlCache, logger),
+		api.DeleteUserLink(linksRepository, urlCache, billingLimiter, logger),
 	))
 
 	r.Post("/api/v1/users/groups/create", auth(
