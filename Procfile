@@ -1,2 +1,2 @@
-release: ./deploy/heroku-release.sh
+release: sh ./deploy/heroku-release.sh
 web: bin/shortly
