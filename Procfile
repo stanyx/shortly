@@ -1,2 +1,2 @@
-release: go run cmd/migrate/migrate.go
+release: ./deploy/heroku-release.sh
 web: bin/shortly
