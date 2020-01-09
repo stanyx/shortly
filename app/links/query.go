@@ -5,6 +5,7 @@ import (
 	"log"
 	"database/sql"
 	"strings"
+	"time"
 
 	"github.com/lib/pq"
 
@@ -18,7 +19,7 @@ type ILinksRepository interface {
 	CreateUserLink(accountID int64, link *Link) (*sql.Tx, int64, error)
 	DeleteUserLink(accountID int64, shortURL string) (*sql.Tx, int64, error)
 	GetUserLinks(accountID, userID int64, filters ...LinkFilter) ([]Link, error)
-	GetUserLinksCount(accountID int64) (int, error)
+	GetUserLinksCount(accountID int64, startTime, endTime time.Time) (int, error)
 }
 
 type LinksRepository struct {
@@ -154,10 +155,12 @@ func (repo *LinksRepository) GetUserLinks(accountID, userID int64, filters ...Li
 	return list, nil
 }
 
-func (repo *LinksRepository) GetUserLinksCount(accountID int64) (int, error) {
+func (repo *LinksRepository) GetUserLinksCount(accountID int64, createdStartTime, createdEndTime time.Time) (int, error) {
 
 	var count int
-	err := repo.DB.QueryRow("select count(*) from links where account_id = $1", accountID).Scan(&count)
+	err := repo.DB.QueryRow(`
+		select count(*) from links where account_id = $1 and created_at >= $2 and created_at <= $3
+	`, accountID, createdStartTime, createdEndTime).Scan(&count)
 	if err != nil {
 		return 0, err
 	}
@@ -176,7 +179,7 @@ func (repo *LinksRepository) CreateUserLink(accountID int64, link *Link) (*sql.T
 		return nil, 0, err
 	}
 	err = tx.QueryRow(
-		"insert into links (short_url, long_url, account_id) values ($1, $2, $3) returning id",
+		"insert into links (short_url, long_url, account_id, created_at) values ($1, $2, $3, now()) returning id",
 		link.Short, link.Long, accountID,
 	).Scan(&rowID)
 	return tx, rowID, err

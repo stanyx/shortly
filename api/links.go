@@ -33,6 +33,7 @@ type LinkResponse struct {
 	Tags        []string `json:"tags"`
 }
 
+// TODO refactor to top links
 func GetURLList(repo links.ILinksRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
