@@ -9,15 +9,15 @@ import (
 	"github.com/stripe/stripe-go"
 	"github.com/stripe/stripe-go/charge"
 
-	"shortly/config"
 	"shortly/app/billing"
+	"shortly/config"
 )
 
 type BillingOptionResponse struct {
-	ID          int64                   `json:"id"`
-	Name        string                  `json:"name"`
-	Description string                  `json:"description"`
-	Value       string                  `json:"value"`
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Value       string `json:"value"`
 }
 
 type BillingPlanResponse struct {
@@ -66,9 +66,8 @@ func ListBillingPlans(repo *billing.BillingRepository, logger *log.Logger) http.
 	})
 }
 
-
 type ApplyBillingPlanForm struct {
-	PlanID int64       `json:"plan_id"`
+	PlanID      int64  `json:"plan_id"`
 	StripeToken string `json:"paymentToken"`
 }
 
@@ -82,8 +81,8 @@ func ApplyBillingPlan(repo *billing.BillingRepository, billingLimiter *billing.B
 		price, _ := strconv.ParseInt(planCost, 0, 64)
 
 		params := &stripe.ChargeParams{
-			Amount: stripe.Int64(price),
-			Currency: stripe.String(string(stripe.CurrencyUSD)),
+			Amount:      stripe.Int64(price),
+			Currency:    stripe.String(string(stripe.CurrencyUSD)),
 			Description: stripe.String("billing plan charge"),
 		}
 

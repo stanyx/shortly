@@ -1,4 +1,4 @@
-package users
+package accounts
 
 type User struct {
 	ID        int64

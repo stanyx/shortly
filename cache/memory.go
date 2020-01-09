@@ -13,7 +13,7 @@ func NewMemoryCache() *MemoryCache {
 }
 
 func (ch *MemoryCache) Load(key interface{}) (interface{}, bool) {
-	return ch.c.Load(key) 
+	return ch.c.Load(key)
 }
 
 func (ch *MemoryCache) Store(key interface{}, value interface{}) {

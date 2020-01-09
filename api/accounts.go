@@ -1,27 +1,27 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"encoding/json"
 	"time"
 
-	"golang.org/x/crypto/bcrypt"
 	jwt "github.com/dgrijalva/jwt-go"
+	"golang.org/x/crypto/bcrypt"
 
-	"shortly/config"
 	"shortly/app/accounts"
+	"shortly/config"
 )
 
 type JWTClaims struct {
-	UserID    int64   `json:"userId"`
-	Name      string  `json:"name"`
-	Phone     string  `json:"phone"`
-	Email     string  `json:"email"`
-	IsStaff   bool    `json:"isStaff"`
-	AccountID int64   `json:"accountId"`
-	RoleID    int64	  `json:"roleId"`
+	UserID    int64  `json:"userId"`
+	Name      string `json:"name"`
+	Phone     string `json:"phone"`
+	Email     string `json:"email"`
+	IsStaff   bool   `json:"isStaff"`
+	AccountID int64  `json:"accountId"`
+	RoleID    int64  `json:"roleId"`
 	jwt.StandardClaims
 }
 
@@ -30,7 +30,7 @@ type AccountRegistrationForm struct {
 	Password string `json:"password"`
 	Phone    string `json:"phone"`
 	Email    string `json:"email"`
-	Company  string	`json:"company"`
+	Company  string `json:"company"`
 	IsStaff  bool   `json:"isStaff"`
 	RoleID   int64  `json:"roleId"`
 }
@@ -40,7 +40,7 @@ type UserResponse struct {
 	Username string `json:"username"`
 	Phone    string `json:"phone"`
 	Email    string `json:"email"`
-	Company  string	`json:"company"`
+	Company  string `json:"company"`
 }
 
 type LoginResponse struct {
@@ -48,7 +48,7 @@ type LoginResponse struct {
 	Token string       `json:"token"`
 }
 
-func RegisterAccount(repo *users.UsersRepository, logger *log.Logger) http.HandlerFunc {
+func RegisterAccount(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -65,7 +65,7 @@ func RegisterAccount(repo *users.UsersRepository, logger *log.Logger) http.Handl
 			return
 		}
 
-		user := users.User{
+		user := accounts.User{
 			Username: form.Username,
 			Password: form.Password,
 			Phone:    form.Phone,
@@ -79,7 +79,7 @@ func RegisterAccount(repo *users.UsersRepository, logger *log.Logger) http.Handl
 		if err != nil {
 			logger.Println(err)
 			http.Error(w, "save user error", http.StatusInternalServerError)
-			return			
+			return
 		}
 
 		response(w, &UserResponse{
@@ -101,7 +101,7 @@ type UserRegistrationForm struct {
 	RoleID    int64  `json:"roleId"`
 }
 
-func AddUser(repo *users.UsersRepository, logger *log.Logger) http.HandlerFunc {
+func AddUser(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		if r.Method != "POST" {
@@ -117,13 +117,13 @@ func AddUser(repo *users.UsersRepository, logger *log.Logger) http.HandlerFunc {
 			return
 		}
 
-		user := users.User{
-			IsStaff:   true,
-			Username:  form.Username,
-			Password:  form.Password,
-			Phone:     form.Phone,
-			Email:     form.Email,
-			RoleID:    form.RoleID,
+		user := accounts.User{
+			IsStaff:  true,
+			Username: form.Username,
+			Password: form.Password,
+			Phone:    form.Phone,
+			Email:    form.Email,
+			RoleID:   form.RoleID,
 		}
 
 		userID, err := repo.CreateUser(form.AccountID, user)
@@ -147,7 +147,7 @@ type LoginForm struct {
 	Password string `json:"password"`
 }
 
-func Login(repo *users.UsersRepository, logger *log.Logger, authConfig config.JWTConfig) http.HandlerFunc {
+func Login(repo *accounts.UsersRepository, logger *log.Logger, authConfig config.JWTConfig) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		if r.Method != "POST" {
@@ -219,12 +219,12 @@ type CreateGroupForm struct {
 }
 
 type GroupResponse struct {
-	ID       int64     `json:"id"`
-	Name 	 string    `json:"name"`
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
 	Description string `json:"description"`
 }
 
-func AddGroup(repo *users.UsersRepository, logger *log.Logger) http.HandlerFunc {
+func AddGroup(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -239,7 +239,7 @@ func AddGroup(repo *users.UsersRepository, logger *log.Logger) http.HandlerFunc 
 			return
 		}
 
-		groupID, err := repo.AddGroup(users.Group{
+		groupID, err := repo.AddGroup(accounts.Group{
 			AccountID:   accountID,
 			Name:        form.Name,
 			Description: form.Description,
@@ -264,7 +264,7 @@ type DeleteGroupForm struct {
 	GroupID int64 `json:"groupId"`
 }
 
-func DeleteGroup(repo *users.UsersRepository, logger *log.Logger) http.HandlerFunc {
+func DeleteGroup(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -296,7 +296,7 @@ type AddUserToGroupForm struct {
 	UserID  int64 `json:"userId"`
 }
 
-func AddUserToGroup(repo *users.UsersRepository, logger *log.Logger) http.HandlerFunc {
+func AddUserToGroup(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -332,7 +332,7 @@ type DeleteUserFromGroupForm struct {
 	UserID  int64 `json:"userId"`
 }
 
-func DeleteUserFromGroup(repo *users.UsersRepository, logger *log.Logger) http.HandlerFunc {
+func DeleteUserFromGroup(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 

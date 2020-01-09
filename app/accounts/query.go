@@ -1,8 +1,9 @@
-package users
+package accounts
 
 import (
-	"fmt"
 	"database/sql"
+	"fmt"
+
 	"golang.org/x/crypto/bcrypt"
 
 	"shortly/utils"
@@ -96,16 +97,16 @@ func (r *UsersRepository) GetUser(username string) (*User, error) {
 		from "users" where username = $1`,
 		username,
 	).Scan(
-		&user.ID, 
-		&user.Username, 
+		&user.ID,
+		&user.Username,
 		&user.Password,
-		&user.Phone, 
-		&user.Email, 
+		&user.Phone,
+		&user.Email,
 		&user.Company,
 		&user.IsStaff,
 		&accountID,
 		&roleID,
-	) 
+	)
 
 	if accountID != nil {
 		user.AccountID = *accountID
@@ -135,16 +136,16 @@ func (r *UsersRepository) getUserFiltered(fieldName string, value interface{}) (
 		from "users" WHERE %s = $1`, fieldName),
 		value,
 	).Scan(
-		&user.ID, 
-		&user.Username, 
-		&user.Password, 
-		&user.Phone, 
-		&user.Email, 
+		&user.ID,
+		&user.Username,
+		&user.Password,
+		&user.Phone,
+		&user.Email,
 		&user.Company,
 		&user.IsStaff,
 		&user.AccountID,
 		&user.RoleID,
-	) 
+	)
 
 	if err != nil {
 		return nil, err
@@ -174,9 +175,9 @@ func (repo *UsersRepository) AddGroup(g Group) (int64, error) {
 
 func (repo *UsersRepository) DeleteGroup(groupID, accountID int64) error {
 	//TODO - cascade delete
-	_, err := repo.DeleteTx("groups", repo.DB, 
+	_, err := repo.DeleteTx("groups", repo.DB,
 		`delete from groups e where id = $1 and account_id = $2
-		returning id`, 
+		returning id`,
 		groupID, accountID)
 	return err
 }

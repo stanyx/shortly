@@ -1,8 +1,8 @@
 package api
 
 import (
-	"log"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -217,7 +217,7 @@ type DeleteCampaignForm struct {
 func DeleteCampaign(repo *campaigns.Repository, logger *log.Logger) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		
+
 		var form DeleteCampaignForm
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
@@ -389,7 +389,7 @@ func GetLinkDataForCampaign(repo *campaigns.Repository, logger *log.Logger) http
 			var data []ClickDataResponse
 			for _, linkData := range l.Data {
 				data = append(data, ClickDataResponse{
-					Time: linkData.Time, 
+					Time:  linkData.Time,
 					Count: linkData.Count,
 				})
 			}

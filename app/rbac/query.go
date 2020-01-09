@@ -1,8 +1,8 @@
 package rbac
 
 import (
-	"fmt"
 	"database/sql"
+	"fmt"
 	"log"
 
 	"github.com/casbin/casbin/v2"
@@ -53,7 +53,7 @@ func (repo *RbacRepository) GetUserRoles(accountID int64) ([]Role, error) {
 func (repo *RbacRepository) CreateRole(accountID int64, r Role) (int64, error) {
 	var roleID int64
 	err := repo.DB.QueryRow(`
-		insert into roles(name, description, account_id) values ($1, $2, $3) returning id`, 
+		insert into roles(name, description, account_id) values ($1, $2, $3) returning id`,
 		r.Name, r.Description, accountID,
 	).Scan(&roleID)
 

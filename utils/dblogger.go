@@ -1,9 +1,9 @@
 package utils
 
 import (
-	"fmt"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 
 	"github.com/adjust/rmq"
 
@@ -28,7 +28,7 @@ func NewRMQLogger(dbName string, queueName string, conf config.RedisConfig) *RMQ
 	conn := rmq.OpenConnection(dbName, "tcp", fmt.Sprintf("%v:%v", conf.Host, conf.Port), 1)
 	queue := conn.OpenQueue(queueName)
 	return &RMQLogger{
-		queue: queue, 
+		queue: queue,
 	}
 }
 
@@ -43,7 +43,7 @@ type SyncLogger struct {
 
 func NewSyncLogger(db *sql.DB) *SyncLogger {
 	return &SyncLogger{
-		db: db, 
+		db: db,
 	}
 }
 

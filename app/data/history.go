@@ -1,12 +1,12 @@
 package data
 
 import (
-	"time"
 	"bytes"
-	"errors"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	bolt "go.etcd.io/bbolt"
 
@@ -108,7 +108,7 @@ type CounterData struct {
 }
 
 func (db *HistoryDB) GetClicksData(accountID int64, link string, start, end time.Time) ([]CounterData, error) {
-	
+
 	dataStoreLimit, err := db.Limiter.GetOptionValue("timedata_limit", accountID)
 	if err != nil {
 		return nil, err
@@ -122,7 +122,7 @@ func (db *HistoryDB) GetClicksData(accountID int64, link string, start, end time
 		return nil, errors.New("limit error")
 	}
 
-	var counters []CounterData 
+	var counters []CounterData
 
 	err = db.View(func(tx *bolt.Tx) error {
 
@@ -154,7 +154,7 @@ func (db *HistoryDB) GetClicksData(accountID int64, link string, start, end time
 			}
 
 			counters = append(counters, CounterData{
-				Time: timeK,
+				Time:  timeK,
 				Count: counterValue,
 			})
 		}

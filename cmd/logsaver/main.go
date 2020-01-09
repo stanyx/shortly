@@ -2,15 +2,15 @@
 package main
 
 import (
-	"flag"
-	"log"
-	"os"
-	"fmt"
-	"time"
-	"os/signal"
-	"syscall"
 	"database/sql"
 	"encoding/json"
+	"flag"
+	"fmt"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/adjust/rmq"
 	_ "github.com/lib/pq"
@@ -105,7 +105,7 @@ func main() {
 	consumer := NewConsumer(db)
 	taskQueue.AddConsumer("logsaver", consumer)
 
-	ch := make(chan os.Signal, 1) 
+	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGTERM, syscall.SIGINT)
 
 	done := make(chan struct{}, 1)

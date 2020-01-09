@@ -1,11 +1,11 @@
 package billing
 
 import (
+	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
-	"bytes"
-	"errors"
-	"encoding/json"
 	"strconv"
 	"sync"
 	"time"
@@ -15,7 +15,7 @@ import (
 	"shortly/app/links"
 )
 
-const billingDatabaseName = "billing" 
+const billingDatabaseName = "billing"
 
 var LimitExceededError = errors.New("limit exceeded error")
 
@@ -25,7 +25,7 @@ type BillingLimiter struct {
 	DB      *bolt.DB
 	Logger  *log.Logger
 
-	locks   sync.Map
+	locks sync.Map
 }
 
 func (l *BillingLimiter) Lock(accountID int64) *sync.Mutex {
@@ -45,8 +45,8 @@ func (l *BillingLimiter) resetOptionForInterval(tx *bolt.Tx, option BillingOptio
 			return err
 		}
 		topCount := option.AsInt64()
-		l.Logger.Printf("(user=%v) reset billing value(%s) to %v, max=%v, value=%v", accountID, option.Name, topCount - int64(cnt), topCount, cnt)
-		if err := l.UpdateOption(tx, option.Name, accountID, func(_ int64) int64{return topCount - int64(cnt)}); err != nil {
+		l.Logger.Printf("(user=%v) reset billing value(%s) to %v, max=%v, value=%v", accountID, option.Name, topCount-int64(cnt), topCount, cnt)
+		if err := l.UpdateOption(tx, option.Name, accountID, func(_ int64) int64 { return topCount - int64(cnt) }); err != nil {
 			return err
 		}
 		return nil
@@ -110,7 +110,6 @@ func (l *BillingLimiter) SetPlanOptions(accountID int64, options []BillingOption
 
 }
 
-
 // LoadData fill billing database with actual billing information
 func (l *BillingLimiter) LoadData() error {
 
@@ -129,8 +128,8 @@ func (l *BillingLimiter) LoadData() error {
 					return err
 				}
 				topCount := p.Options[i].AsInt64()
-				l.Logger.Printf("(user=%v) set billing value(%s) to %v, max=%v, value=%v", p.AccountID, opt.Name, topCount - int64(cnt), topCount, cnt)
-				p.Options[i].Value = fmt.Sprintf("%v", topCount - int64(cnt))
+				l.Logger.Printf("(user=%v) set billing value(%s) to %v, max=%v, value=%v", p.AccountID, opt.Name, topCount-int64(cnt), topCount, cnt)
+				p.Options[i].Value = fmt.Sprintf("%v", topCount-int64(cnt))
 			case "timedata_limit":
 			case "users_limit":
 			case "tags_limit":
@@ -215,7 +214,7 @@ func (l *BillingLimiter) CheckLimits(optionName string, accountID int64) error {
 
 }
 
-func (l *BillingLimiter) UpdateOption(tx *bolt.Tx, optionName string, accountID int64, f func(int64)int64) error {
+func (l *BillingLimiter) UpdateOption(tx *bolt.Tx, optionName string, accountID int64, f func(int64) int64) error {
 	b := tx.Bucket([]byte(billingDatabaseName))
 	v := b.Get([]byte(fmt.Sprintf("%v", accountID)))
 
@@ -262,7 +261,6 @@ func (l *BillingLimiter) Reduce(optionName string, accountID int64) error {
 			return v - 1
 		})
 	})
-
 }
 
 func (l *BillingLimiter) Increase(optionName string, accountID int64) error {
@@ -271,5 +269,4 @@ func (l *BillingLimiter) Increase(optionName string, accountID int64) error {
 			return v + 1
 		})
 	})
-
 }

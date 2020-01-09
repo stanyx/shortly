@@ -55,11 +55,11 @@ type RedirectLoggerConfig struct {
 }
 
 type ApplicationConfig struct {
-	Server         ServerConfig
-	Database       DatabaseConfig
-	Cache          CacheConfig
-	Auth           JWTConfig
-	Casbin         CasbinConfig
+	Server   ServerConfig
+	Database DatabaseConfig
+	Cache    CacheConfig
+	Auth     JWTConfig
+	Casbin   CasbinConfig
 
 	Billing        BillingConfig
 	LinkDB         LinksDBConfig
