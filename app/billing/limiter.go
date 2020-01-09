@@ -8,11 +8,14 @@ import (
 	"encoding/json"
 	"strconv"
 	"sync"
+	"time"
 
 	bolt "go.etcd.io/bbolt"
 
 	"shortly/app/links"
 )
+
+const billingDatabaseName = "billing" 
 
 var LimitExceededError = errors.New("limit exceeded error")
 
@@ -25,62 +28,76 @@ type BillingLimiter struct {
 	locks   sync.Map
 }
 
-func (l *BillingLimiter) Lock(accountID int64) sync.Mutex {
+func (l *BillingLimiter) Lock(accountID int64) *sync.Mutex {
 	var lock sync.Mutex
-	v, _ := l.locks.LoadOrStore(accountID, lock)
-	m := v.(sync.Mutex)
+	v, _ := l.locks.LoadOrStore(accountID, &lock)
+	m := v.(*sync.Mutex)
 	m.Lock()
 	return m
 }
 
-func (l *BillingLimiter) Reset(optionName string, accountID int64) error {
+func (l *BillingLimiter) resetOptionForInterval(tx *bolt.Tx, option BillingOption, accountID int64, planStartTime, planEndTime time.Time) error {
 
-	return l.DB.Update(func(tx *bolt.Tx) error {
-
-		plans, err := l.Repo.GetAllUserBillingPlans(accountID)
+	switch option.Name {
+	case "url_limit":
+		cnt, err := l.UrlRepo.GetUserLinksCount(accountID, planStartTime, planEndTime)
 		if err != nil {
 			return err
 		}
-
-		if len(plans) != 1 {
-			return errors.New("multiple plans found")
+		topCount := option.AsInt64()
+		l.Logger.Printf("(user=%v) reset billing value(%s) to %v, max=%v, value=%v", accountID, option.Name, topCount - int64(cnt), topCount, cnt)
+		if err := l.UpdateOption(tx, option.Name, accountID, func(_ int64) int64{return topCount - int64(cnt)}); err != nil {
+			return err
 		}
-
-		var option *BillingOption
-		for _, opt := range plans[0].Options {
-			if opt.Name == optionName {
-				option = &opt
-				break
-			}
-		}
-
-		if option == nil {
-			return errors.New("option not found")
-		}
-
-		switch optionName {
-		case "url_limit":
-			cnt, err := l.UrlRepo.GetUserLinksCount(accountID)
-			if err != nil {
-				return err
-			}
-			topCount, _ := strconv.ParseInt(option.Value, 0, 64)
-			l.Logger.Printf("(user=%v) reset billing value(%s) to %v, max=%v, value=%v", accountID, optionName, topCount - int64(cnt), topCount, cnt)
-			if err := l.UpdateOption(tx, optionName, accountID, func(_ int64) int64{return topCount - int64(cnt)}); err != nil {
-				return err
-			}
-			return nil
-		}
-
 		return nil
-	})
+	default:
+		return OptionNotFound
+	}
+}
 
+func (l *BillingLimiter) resetOption(tx *bolt.Tx, optionName string, accountID int64) (*BillingOption, error) {
+
+	plans, err := l.Repo.GetAllUserBillingPlans(accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(plans) != 1 {
+		return nil, errors.New("multiple plans found")
+	}
+
+	plan := plans[0]
+
+	var option *BillingOption
+	for _, opt := range plan.Options {
+		if opt.Name == optionName {
+			option = &opt
+			break
+		}
+	}
+
+	if option == nil {
+		return nil, errors.New("option not found")
+	}
+
+	if err := l.resetOptionForInterval(tx, *option, accountID, plan.Start, plan.End); err != nil {
+		return nil, err
+	}
+
+	return option, nil
+}
+
+func (l *BillingLimiter) Reset(optionName string, accountID int64) error {
+	return l.DB.Update(func(tx *bolt.Tx) error {
+		_, err := l.resetOption(tx, optionName, accountID)
+		return err
+	})
 }
 
 func (l *BillingLimiter) SetPlanOptions(accountID int64, options []BillingOption) error {
 
 	return l.DB.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("billing"))
+		b := tx.Bucket([]byte(billingDatabaseName))
 
 		buff := bytes.NewBuffer([]byte{})
 		if err := json.NewEncoder(buff).Encode(&options); err != nil {
@@ -93,6 +110,8 @@ func (l *BillingLimiter) SetPlanOptions(accountID int64, options []BillingOption
 
 }
 
+
+// LoadData fill billing database with actual billing information
 func (l *BillingLimiter) LoadData() error {
 
 	plans, err := l.Repo.GetAllUserBillingPlans(0)
@@ -105,12 +124,11 @@ func (l *BillingLimiter) LoadData() error {
 		for i, opt := range p.Options {
 			switch opt.Name {
 			case "url_limit":
-
-				cnt, err := l.UrlRepo.GetUserLinksCount(p.AccountID)
+				cnt, err := l.UrlRepo.GetUserLinksCount(p.AccountID, p.Start, p.End)
 				if err != nil {
 					return err
 				}
-				topCount, _ := strconv.ParseInt(p.Options[i].Value, 0, 64)
+				topCount := p.Options[i].AsInt64()
 				l.Logger.Printf("(user=%v) set billing value(%s) to %v, max=%v, value=%v", p.AccountID, opt.Name, topCount - int64(cnt), topCount, cnt)
 				p.Options[i].Value = fmt.Sprintf("%v", topCount - int64(cnt))
 			case "timedata_limit":
@@ -144,13 +162,19 @@ func (l *BillingLimiter) GetOptionValue(optionName string, accountID int64) (*Bi
 	return optionValue, err
 }
 
+// GetValue returns an actual billing value for provided option
 func (l *BillingLimiter) GetValue(tx *bolt.Tx, optionName string, accountID int64) (*BillingOption, error) {
 
-	b := tx.Bucket([]byte("billing"))
-	v := b.Get([]byte(fmt.Sprintf("%v", accountID)))
+	b := tx.Bucket([]byte(billingDatabaseName))
 
+	v := b.Get([]byte(fmt.Sprintf("%v", accountID)))
+	// cache miss only possible with plan reset
 	if len(v) == 0 {
-		return nil, OptionNotFound
+		option, err := l.resetOption(tx, optionName, accountID)
+		if err != nil {
+			return nil, err
+		}
+		return option, nil
 	}
 
 	buff := bytes.NewBuffer(v)
@@ -173,14 +197,14 @@ func (l *BillingLimiter) CheckLimits(optionName string, accountID int64) error {
 
 	return l.DB.Update(func(tx *bolt.Tx) error {
 
-		targetOption, err := l.GetValue(tx, optionName, accountID)
+		option, err := l.GetValue(tx, optionName, accountID)
 		if err == OptionNotFound {
 			return LimitExceededError
 		} else if err != nil {
 			return err
 		}
 
-		value, _ := strconv.ParseInt(targetOption.Value, 0, 64)
+		value := option.AsInt64()
 		l.Logger.Printf("(user=%v) current billing value(%s) value: %v\n", accountID, optionName, value)
 		if value <= 0 {
 			return LimitExceededError
@@ -192,7 +216,7 @@ func (l *BillingLimiter) CheckLimits(optionName string, accountID int64) error {
 }
 
 func (l *BillingLimiter) UpdateOption(tx *bolt.Tx, optionName string, accountID int64, f func(int64)int64) error {
-	b := tx.Bucket([]byte("billing"))
+	b := tx.Bucket([]byte(billingDatabaseName))
 	v := b.Get([]byte(fmt.Sprintf("%v", accountID)))
 
 	if len(v) == 0 {
