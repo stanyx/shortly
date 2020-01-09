@@ -2,12 +2,14 @@ package main
 
 import (
 	"bytes"
+	"database/sql"
 	"log"
 	"net/http"
 	"testing"
 	"io/ioutil"
 	"net/http/httptest"
 	"encoding/json"
+	"time"
 
 	"github.com/mitchellh/mapstructure"
 
@@ -42,7 +44,7 @@ func (repo *MockLinksRepository) GetUserLinks(_, _ int64, filters ...links.LinkF
 	}, nil
 }
 
-func (repo *MockLinksRepository) GetUserLinksCount(accountID int64) (int, error) {
+func (repo *MockLinksRepository) GetUserLinksCount(_ int64, _, _ time.Time) (int, error) {
 	return 2, nil
 }
 

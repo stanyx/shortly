@@ -4,7 +4,8 @@ CREATE TABLE public.links
     short_url character varying(20) COLLATE pg_catalog."default" NOT NULL,
     long_url text COLLATE pg_catalog."default" NOT NULL,
     account_id bigint DEFAULT 0,
-    description character varying COLLATE pg_catalog."default",
+    description character varying DEFAULT '' COLLATE pg_catalog."default",
+    created_at timestamp with time zone DEFAULT now(),
     CONSTRAINT urls_pkey PRIMARY KEY (id)
 );
 
