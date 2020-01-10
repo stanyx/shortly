@@ -53,7 +53,7 @@ func RegisterAccount(repo *accounts.UsersRepository, logger *log.Logger) http.Ha
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		if r.Method != "POST" {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			apiError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -61,7 +61,7 @@ func RegisterAccount(repo *accounts.UsersRepository, logger *log.Logger) http.Ha
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logger.Println(err)
-			http.Error(w, "decode form error", http.StatusInternalServerError)
+			apiError(w, "decode form error", http.StatusInternalServerError)
 			return
 		}
 
@@ -78,7 +78,7 @@ func RegisterAccount(repo *accounts.UsersRepository, logger *log.Logger) http.Ha
 		userID, err := repo.CreateAccount(user)
 		if err != nil {
 			logger.Println(err)
-			http.Error(w, "save user error", http.StatusInternalServerError)
+			apiError(w, "save user error", http.StatusInternalServerError)
 			return
 		}
 
@@ -105,7 +105,7 @@ func AddUser(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFun
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		if r.Method != "POST" {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			apiError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -113,7 +113,7 @@ func AddUser(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFun
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logger.Println(err)
-			http.Error(w, "decode form error", http.StatusInternalServerError)
+			apiError(w, "decode form error", http.StatusInternalServerError)
 			return
 		}
 
@@ -129,7 +129,7 @@ func AddUser(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFun
 		userID, err := repo.CreateUser(form.AccountID, user)
 		if err != nil {
 			logger.Println(err)
-			http.Error(w, "save user error", http.StatusInternalServerError)
+			apiError(w, "save user error", http.StatusInternalServerError)
 			return
 		}
 
@@ -151,7 +151,7 @@ func Login(repo *accounts.UsersRepository, logger *log.Logger, authConfig config
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		if r.Method != "POST" {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			apiError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -159,21 +159,21 @@ func Login(repo *accounts.UsersRepository, logger *log.Logger, authConfig config
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logger.Println(err)
-			http.Error(w, "decode form error", http.StatusInternalServerError)
+			apiError(w, "decode form error", http.StatusInternalServerError)
 			return
 		}
 
 		user, err := repo.GetUser(form.Username)
 		if err != nil {
 			logger.Println(err)
-			http.Error(w, "get user error", http.StatusInternalServerError)
+			apiError(w, "get user error", http.StatusInternalServerError)
 			return
 		}
 
 		err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(form.Password))
 		if err != nil && err == bcrypt.ErrMismatchedHashAndPassword {
 			logger.Println(err)
-			http.Error(w, "incorrect password", http.StatusBadRequest)
+			apiError(w, "incorrect password", http.StatusBadRequest)
 			return
 		}
 
@@ -196,7 +196,7 @@ func Login(repo *accounts.UsersRepository, logger *log.Logger, authConfig config
 		tokenSigned, err := token.SignedString([]byte(authConfig.Secret))
 		if err != nil {
 			logger.Println(err)
-			http.Error(w, "signing token error", http.StatusInternalServerError)
+			apiError(w, "signing token error", http.StatusInternalServerError)
 			return
 		}
 

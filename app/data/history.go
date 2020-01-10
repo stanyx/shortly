@@ -10,6 +10,7 @@ import (
 
 	bolt "go.etcd.io/bbolt"
 
+	"shortly/utils"
 	"shortly/app/billing"
 )
 
@@ -42,7 +43,7 @@ type HistoryDB struct {
 
 func (d *HistoryDB) Insert(link string, r *http.Request) error {
 
-	ipAddr := getIPAdress(r)
+	ipAddr := utils.GetIPAdress(r)
 
 	err := d.Update(func(tx *bolt.Tx) error {
 

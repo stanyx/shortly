@@ -134,6 +134,7 @@ func (l *BillingLimiter) LoadData() error {
 			case "users_limit":
 			case "tags_limit":
 			case "groups_limit":
+			case "rate_limit":
 			default:
 				return fmt.Errorf("billing option is not supported: %v", opt.Name)
 			}

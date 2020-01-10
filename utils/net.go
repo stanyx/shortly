@@ -1,4 +1,4 @@
-package data
+package utils
 
 import (
 	"bytes"
@@ -55,7 +55,7 @@ func isPrivateSubnet(ipAddress net.IP) bool {
 	return false
 }
 
-func getIPAdress(r *http.Request) string {
+func GetIPAdress(r *http.Request) string {
 	var ipAddress string
 	for _, h := range []string{"X-Forwarded-For", "X-Real-Ip"} {
 		for _, ip := range strings.Split(r.Header.Get(h), ",") {

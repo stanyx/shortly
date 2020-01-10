@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -18,6 +20,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	httpSwagger "github.com/swaggo/http-swagger"
 	bolt "go.etcd.io/bbolt"
+	"golang.org/x/time/rate"
 
 	"shortly/api"
 	"shortly/cache"
@@ -121,7 +124,7 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	if err := RunMigrations(database); err != nil {
+	if err := RunMigrations(database); err != nil && err.Error() != "no change" {
 		logger.Fatal(err)
 	}
 
@@ -196,6 +199,35 @@ func main() {
 
 	r := chi.NewRouter()
 
+	r.Use(utils.RateLimit(func(w http.ResponseWriter, r *http.Request) *rate.Limiter {
+
+		claims, _ := api.ParseToken(w, r, appConfig.Auth)
+
+		accountID := claims.AccountID
+		if accountID == 0 {
+			return rate.NewLimiter(rate.Every(rate.InfDuration), 1000)
+		}
+
+		option, _ := billingLimiter.GetOptionValue("rate_limit", accountID)
+
+		val := "10,100"
+		if option != nil {
+			val = option.Value
+		}
+
+		parts := strings.Split(val, ",")
+		rateV, _ := strconv.ParseInt(parts[0], 0, 64)
+		if rateV == 0 {
+			rateV = 10
+		}
+		burstV, _ := strconv.ParseInt(parts[1], 0, 64)
+		if burstV == 0 {
+			burstV = 1000
+		}
+
+		return rate.NewLimiter(rate.Every(time.Duration(rateV)*time.Second), int(burstV))
+	}))
+
 	r.Get("/swagger/*", httpSwagger.Handler(
 		httpSwagger.URL(fmt.Sprintf("http://localhost:%d/swagger/doc.json", serverConfig.Port)), //The url pointing to API definition"
 	))
@@ -240,7 +272,7 @@ func main() {
 	err = historyDB.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte("details"))
 		if err != nil {
-			return fmt.Errorf("create buket error, cause: %+v", err)
+			return fmt.Errorf("create bucket error, cause: %+v", err)
 		}
 		return nil
 	})

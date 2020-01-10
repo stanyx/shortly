@@ -13,6 +13,27 @@ import (
 	"shortly/config"
 )
 
+func ParseToken(w http.ResponseWriter, r *http.Request, authConfig config.JWTConfig) (*JWTClaims, error) {
+	var header = r.Header.Get("x-access-token")
+
+	if header == "" {
+		header = r.FormValue("x-access-token")
+	}
+
+	header = strings.TrimSpace(header)
+
+	claims := &JWTClaims{}
+	if header == "" {
+		return claims, nil
+	}
+
+	_, err := jwt.ParseWithClaims(header, claims, func(token *jwt.Token) (interface{}, error) {
+		return []byte(authConfig.Secret), nil
+	})
+
+	return claims, err
+}
+
 func AuthMiddleware(enforcer *casbin.Enforcer, authConfig config.JWTConfig, permissions map[string]rbac.Permission) func(rbac.Permission, http.Handler) http.HandlerFunc {
 	return func(permission rbac.Permission, next http.Handler) http.HandlerFunc {
 

@@ -20,6 +20,11 @@ import (
 	"shortly/app/links"
 )
 
+func GetAccountID(r *http.Request) int64 {
+	claims := r.Context().Value("user").(*JWTClaims)
+	return claims.AccountID
+}
+
 // Public API
 
 // TODO - auto expired links
@@ -67,10 +72,11 @@ func GetUserURLList(repo links.ILinksRepository, logger *log.Logger) http.Handle
 
 		claims := r.Context().Value("user").(*JWTClaims)
 
-		tagsFilter := r.URL.Query()["tags"]
-		shortUrlFilter := r.URL.Query()["shortUrl"]
-		longUrlFilter := r.URL.Query()["longUrl"]
-		fullTextFilter := r.URL.Query()["fullText"]
+		query := r.URL.Query()
+		tagsFilter := query["tags"]
+		shortUrlFilter := query["shortUrl"]
+		longUrlFilter := query["longUrl"]
+		fullTextFilter := query["fullText"]
 
 		var filters []links.LinkFilter
 		if len(tagsFilter) > 0 {
