@@ -1,12 +1,12 @@
 package api
 
 import (
+	"bufio"
+	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io"
-	"bufio"
 	"log"
-	"encoding/json"
-	"encoding/csv"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -15,11 +15,10 @@ import (
 	"shortly/cache"
 	"shortly/utils"
 
-	"shortly/app/links"
 	"shortly/app/billing"
 	"shortly/app/data"
+	"shortly/app/links"
 )
-
 
 // Public API
 
@@ -56,7 +55,7 @@ func GetURLList(repo links.ILinksRepository, logger *log.Logger) http.HandlerFun
 				Description: r.Description,
 			})
 		}
-		
+
 		response(w, list, http.StatusOK)
 	})
 
@@ -106,7 +105,7 @@ func GetUserURLList(repo links.ILinksRepository, logger *log.Logger) http.Handle
 				Tags:        r.Tags,
 			})
 		}
-		
+
 		response(w, list, http.StatusOK)
 	})
 
@@ -162,7 +161,76 @@ func CreateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *lo
 		urlCache.Store(link.Short, validLongURL.String())
 
 		response(w, &LinkResponse{
-			Short:       r.Host + "/" + link.Short, 
+			Short:       r.Host + "/" + link.Short,
+			Long:        link.Long,
+			Description: link.Description,
+		}, http.StatusOK)
+
+	})
+
+}
+
+type UpdateLinkForm struct {
+	LinkID      int64  `json:"linkId"`
+	Url         string `json:"url"`
+	Description string `json:"description"`
+}
+
+func UpdateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *log.Logger) http.HandlerFunc {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		claims := r.Context().Value("user").(*JWTClaims)
+		accountID := claims.AccountID
+
+		var form UpdateLinkForm
+
+		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
+			apiError(w, "decode form error", http.StatusBadRequest)
+			return
+		}
+
+		if form.LinkID == 0 {
+			apiError(w, "linkId parameter is required", http.StatusBadRequest)
+			return
+		}
+
+		longURL := form.Url
+
+		validLongURL, err := url.Parse(longURL)
+		if err != nil {
+			apiError(w, "url has incorrect format", http.StatusBadRequest)
+			return
+		}
+
+		link, err := repo.GetLinkByID(form.LinkID)
+		if err != nil {
+			logError(logger, err)
+			apiError(w, "get link error", http.StatusInternalServerError)
+			return
+		}
+
+		link.Long = longURL
+		link.Description = form.Description
+
+		tx, err := repo.UpdateUserLink(accountID, form.LinkID, &link)
+		if err != nil {
+			_ = tx.Rollback()
+			logError(logger, err)
+			apiError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		urlCache.Store(link.Short, validLongURL.String())
+
+		if err := tx.Commit(); err != nil {
+			logError(logger, err)
+			apiError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		response(w, &LinkResponse{
+			Short:       r.Host + "/" + link.Short,
 			Long:        link.Long,
 			Description: link.Description,
 		}, http.StatusOK)
@@ -242,7 +310,7 @@ func CreateUserLink(repo *links.LinksRepository, historyDB *data.HistoryDB, urlC
 
 		response(w, &LinkResponse{
 			ID:          linkID,
-			Short:       r.Host + "/" + link.Short, 
+			Short:       r.Host + "/" + link.Short,
 			Long:        link.Long,
 			Description: link.Description,
 		}, http.StatusOK)
@@ -300,14 +368,14 @@ func DeleteUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, billin
 			apiError(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		
+
 		ok(w)
 	})
 }
 
 type AddUrlToGroupForm struct {
 	GroupID int64 `json:"groupId"`
-	UrlID  int64  `json:"urlId"`
+	UrlID   int64 `json:"urlId"`
 }
 
 func AddUrlToGroup(repo *links.LinksRepository, logger *log.Logger) http.HandlerFunc {
@@ -339,7 +407,7 @@ func AddUrlToGroup(repo *links.LinksRepository, logger *log.Logger) http.Handler
 
 type DeleteUrlFromGroupForm struct {
 	GroupID int64 `json:"groupId"`
-	UrlID  int64  `json:"urlId"`
+	UrlID   int64 `json:"urlId"`
 }
 
 func DeleteUrlFromGroup(repo *links.LinksRepository, logger *log.Logger) http.HandlerFunc {
@@ -502,7 +570,7 @@ func UploadLinksInBulk(limiter *billing.BillingLimiter, repo *links.LinksReposit
 				fmt.Fprintf(w, "error")
 				return
 			}
-	
+
 			if err := historyDB.InsertDetail(l.Short, accountID); err != nil {
 				logError(logger, err)
 				fmt.Fprintf(w, "error")
@@ -513,4 +581,55 @@ func UploadLinksInBulk(limiter *billing.BillingLimiter, repo *links.LinksReposit
 
 		fmt.Fprintf(w, "ok")
 	})
+}
+
+type HideLinkForm struct {
+	LinkID int64 `json:"linkId"`
+}
+
+func HideUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, logger *log.Logger) http.HandlerFunc {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		claims := r.Context().Value("user").(*JWTClaims)
+		accountID := claims.AccountID
+
+		var form HideLinkForm
+
+		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
+			apiError(w, "decode form error", http.StatusBadRequest)
+			return
+		}
+
+		if form.LinkID == 0 {
+			apiError(w, "linkId parameter is required", http.StatusBadRequest)
+			return
+		}
+
+		link, err := repo.GetLinkByID(form.LinkID)
+		if err != nil {
+			apiError(w, "get link error", http.StatusBadRequest)
+			return
+		}
+
+		tx, err := repo.HideUserLink(accountID, form.LinkID)
+		if err != nil {
+			_ = tx.Rollback()
+			logError(logger, err)
+			apiError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		urlCache.Delete(link.Short)
+
+		if err := tx.Commit(); err != nil {
+			logError(logger, err)
+			apiError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		ok(w)
+
+	})
+
 }

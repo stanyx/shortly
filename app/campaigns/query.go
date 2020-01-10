@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	"shortly/app/links"
 	"shortly/app/data"
+	"shortly/app/links"
 )
 
 type CampaignLink struct {

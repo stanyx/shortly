@@ -3,12 +3,12 @@ package main
 import (
 	"bytes"
 	"database/sql"
+	"encoding/json"
+	"io/ioutil"
 	"log"
 	"net/http"
-	"testing"
-	"io/ioutil"
 	"net/http/httptest"
-	"encoding/json"
+	"testing"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
@@ -19,7 +19,6 @@ import (
 )
 
 type MockLinksRepository struct {
-
 }
 
 func (repo *MockLinksRepository) GetAllLinks() ([]links.Link, error) {
@@ -37,11 +36,19 @@ func (repo *MockLinksRepository) CreateLink(*links.Link) error {
 	return nil
 }
 
+func (repo *MockLinksRepository) GetLinkByID(_ int64) (links.Link, error) {
+	return links.Link{}, nil
+}
+
 func (repo *MockLinksRepository) GetUserLinks(_, _ int64, filters ...links.LinkFilter) ([]links.Link, error) {
 	return []links.Link{
 		{Short: "12345", Long: "www.facebook.com"},
 		{Short: "ABCDE", Long: "www.netflix.com"},
 	}, nil
+}
+
+func (repo *MockLinksRepository) UpdateUserLink(_, _ int64, _ *links.Link) (*sql.Tx, error) {
+	return nil, nil
 }
 
 func (repo *MockLinksRepository) GetUserLinksCount(_ int64, _, _ time.Time) (int, error) {
@@ -55,7 +62,6 @@ func (repo *MockLinksRepository) CreateUserLink(accountID int64, _ *links.Link) 
 func (repo *MockLinksRepository) DeleteUserLink(accountID int64, shortURL string) (*sql.Tx, int64, error) {
 	return nil, 0, nil
 }
-
 
 func TestGetLinks(t *testing.T) {
 
@@ -94,7 +100,7 @@ func TestGetLinks(t *testing.T) {
 
 	if len(rows) != 2 {
 		t.Errorf("response length != 2, %v", len(rows))
-	}	
+	}
 
 	for i, u := range rows {
 

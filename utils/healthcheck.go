@@ -1,10 +1,10 @@
 package utils
 
 import (
-	"fmt"
-	"log"
 	"context"
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -36,7 +36,7 @@ func HealthCheck(checkers []HealthChecker, logger *log.Logger) http.HandlerFunc 
 			wg.Add(1)
 
 			go func(serviceID int, checker HealthChecker) {
-				ctx, cancel := context.WithTimeout(r.Context(), time.Duration(10) * time.Second)
+				ctx, cancel := context.WithTimeout(r.Context(), time.Duration(10)*time.Second)
 				defer cancel()
 				defer wg.Done()
 
@@ -74,7 +74,7 @@ func HealthCheck(checkers []HealthChecker, logger *log.Logger) http.HandlerFunc 
 		} else {
 			response.Status = "unhealthy"
 		}
-		
+
 		if err := json.NewEncoder(w).Encode(&response); err != nil {
 			_, _ = w.Write([]byte("error"))
 		}

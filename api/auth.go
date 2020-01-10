@@ -1,16 +1,16 @@
 package api
 
 import (
-	"fmt"
-	"strings"
-	"net/http"
 	"context"
+	"fmt"
+	"net/http"
+	"strings"
 
-	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/casbin/casbin/v2"
+	jwt "github.com/dgrijalva/jwt-go"
 
-	"shortly/config"
 	"shortly/app/rbac"
+	"shortly/config"
 )
 
 func AuthMiddleware(enforcer *casbin.Enforcer, authConfig config.JWTConfig, permissions map[string]rbac.Permission) func(rbac.Permission, http.Handler) http.HandlerFunc {
@@ -23,7 +23,7 @@ func AuthMiddleware(enforcer *casbin.Enforcer, authConfig config.JWTConfig, perm
 			var header = r.Header.Get("x-access-token")
 
 			if header == "" {
-				header = r.FormValue("x-access-token");
+				header = r.FormValue("x-access-token")
 			}
 
 			header = strings.TrimSpace(header)
@@ -59,7 +59,7 @@ func AuthMiddleware(enforcer *casbin.Enforcer, authConfig config.JWTConfig, perm
 					return
 				}
 			}
-			
+
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

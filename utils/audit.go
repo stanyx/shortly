@@ -1,8 +1,8 @@
 package utils
 
 import (
-	"fmt"
 	"database/sql"
+	"fmt"
 	"strings"
 )
 
@@ -11,7 +11,6 @@ type AuditRequest struct {
 }
 
 type AuditQuery struct {
-
 }
 
 func (i *AuditQuery) doInsertQuery(entityName string, tx *sql.Tx, query string, args ...interface{}) (int64, error) {
@@ -50,15 +49,15 @@ func (i *AuditQuery) doDeleteQuery(entityName string, tx *sql.Tx, query string, 
 	return rowID, err
 }
 
-func(i *AuditQuery) Create(entityName string, tx *sql.Tx, query string, args ...interface{}) (int64, error) {
+func (i *AuditQuery) Create(entityName string, tx *sql.Tx, query string, args ...interface{}) (int64, error) {
 	return i.doInsertQuery(entityName, tx, query, args...)
 }
 
-func(i *AuditQuery) Delete(entityName string, tx *sql.Tx, query string, args ...interface{}) (int64, error) {
+func (i *AuditQuery) Delete(entityName string, tx *sql.Tx, query string, args ...interface{}) (int64, error) {
 	return i.doDeleteQuery(entityName, tx, query, args...)
 }
 
-func(i *AuditQuery) CreateTx(entityName string, db *sql.DB, query string, args ...interface{}) (int64, error) {
+func (i *AuditQuery) CreateTx(entityName string, db *sql.DB, query string, args ...interface{}) (int64, error) {
 	tx, err := db.Begin()
 	if err != nil {
 		return 0, err
@@ -74,7 +73,7 @@ func(i *AuditQuery) CreateTx(entityName string, db *sql.DB, query string, args .
 	return rowID, nil
 }
 
-func(i *AuditQuery) DeleteTx(entityName string, db *sql.DB, query string, args ...interface{}) (int64, error) {
+func (i *AuditQuery) DeleteTx(entityName string, db *sql.DB, query string, args ...interface{}) (int64, error) {
 	tx, err := db.Begin()
 	if err != nil {
 		return 0, err

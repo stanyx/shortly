@@ -1,12 +1,11 @@
 package billing
 
 import (
-
 	"database/sql"
 )
 
 type BillingRepository struct {
- 	DB *sql.DB
+	DB *sql.DB
 }
 
 func (r *BillingRepository) GetBillingPlanCost(planID int64) (string, error) {

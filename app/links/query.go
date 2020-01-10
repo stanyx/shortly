@@ -1,9 +1,9 @@
 package links
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
-	"database/sql"
 	"strings"
 	"time"
 
@@ -13,6 +13,8 @@ import (
 )
 
 type ILinksRepository interface {
+	GetLinkByID(int64) (Link, error)
+	UpdateUserLink(int64, int64, *Link) (*sql.Tx, error)
 	GetAllLinks() ([]Link, error)
 	GenerateLink() string
 	CreateLink(*Link) error
@@ -43,8 +45,8 @@ func (repo *LinksRepository) GetAllLinks() ([]Link, error) {
 			return nil, err
 		}
 		list = append(list, Link{
-			Short: shortURL, 
-			Long: longURL,
+			Short: shortURL,
+			Long:  longURL,
 		})
 	}
 
@@ -65,10 +67,10 @@ func (repo *LinksRepository) CreateLink(link *Link) error {
 }
 
 type LinkFilter struct {
-	ShortUrl    []string
-	LongUrl     []string
-	Tags        []string
-	FullText    string
+	ShortUrl []string
+	LongUrl  []string
+	Tags     []string
+	FullText string
 }
 
 func (repo *LinksRepository) GetUserLinks(accountID, userID int64, filters ...LinkFilter) ([]Link, error) {
@@ -98,35 +100,35 @@ func (repo *LinksRepository) GetUserLinks(accountID, userID int64, filters ...Li
 
 	for _, f := range filters {
 		if len(f.Tags) > 0 {
-			exp := []string{fmt.Sprintf("u.tl && $%d", len(queryArgs) + 1)}
+			exp := []string{fmt.Sprintf("u.tl && $%d", len(queryArgs)+1)}
 			queryArgs = append(queryArgs, pq.Array(f.Tags))
 			filterExpressions = append(filterExpressions, fmt.Sprintf("(%s)", strings.Join(exp, " OR ")))
 		}
 		if len(f.ShortUrl) > 0 {
 			exp := []string{}
 			for _, v := range f.ShortUrl {
-				exp = append(exp, fmt.Sprintf("u.short_url LIKE $%d", len(queryArgs) + 1))
-				queryArgs = append(queryArgs, v + "%")
+				exp = append(exp, fmt.Sprintf("u.short_url LIKE $%d", len(queryArgs)+1))
+				queryArgs = append(queryArgs, v+"%")
 			}
 			filterExpressions = append(filterExpressions, fmt.Sprintf("(%s)", strings.Join(exp, " OR ")))
 		}
 		if len(f.LongUrl) > 0 {
 			exp := []string{}
 			for _, v := range f.LongUrl {
-				exp = append(exp, fmt.Sprintf("u.long_url LIKE $%d", len(queryArgs) + 1))
-				queryArgs = append(queryArgs, v + "%")
+				exp = append(exp, fmt.Sprintf("u.long_url LIKE $%d", len(queryArgs)+1))
+				queryArgs = append(queryArgs, v+"%")
 			}
 			filterExpressions = append(filterExpressions, fmt.Sprintf("(%s)", strings.Join(exp, " OR ")))
 		}
 		if f.FullText != "" {
 			exp := []string{
-				fmt.Sprintf("u.tl && $%d", len(queryArgs) + 1),
-				fmt.Sprintf("u.short_url LIKE $%d", len(queryArgs) + 2),
-				fmt.Sprintf("u.long_url LIKE $%d", len(queryArgs) + 3),
+				fmt.Sprintf("u.tl && $%d", len(queryArgs)+1),
+				fmt.Sprintf("u.short_url LIKE $%d", len(queryArgs)+2),
+				fmt.Sprintf("u.long_url LIKE $%d", len(queryArgs)+3),
 			}
 			queryArgs = append(queryArgs, pq.Array([]string{f.FullText}))
-			queryArgs = append(queryArgs, f.FullText + "%")
-			queryArgs = append(queryArgs, f.FullText + "%")
+			queryArgs = append(queryArgs, f.FullText+"%")
+			queryArgs = append(queryArgs, f.FullText+"%")
 			filterExpressions = append(filterExpressions, fmt.Sprintf("(%s)", strings.Join(exp, " OR ")))
 		}
 	}
@@ -153,6 +155,16 @@ func (repo *LinksRepository) GetUserLinks(accountID, userID int64, filters ...Li
 	}
 
 	return list, nil
+}
+
+func (repo *LinksRepository) GetLinkByID(linkID int64) (Link, error) {
+
+	var link Link
+	err := repo.DB.QueryRow(`
+		 select short_url, long_url, description from "links" where id = $1
+	`, linkID).Scan(&link.Short, &link.Long, &link.Description)
+
+	return link, err
 }
 
 func (repo *LinksRepository) GetUserLinksCount(accountID int64, createdStartTime, createdEndTime time.Time) (int, error) {
@@ -183,6 +195,18 @@ func (repo *LinksRepository) CreateUserLink(accountID int64, link *Link) (*sql.T
 		link.Short, link.Long, accountID,
 	).Scan(&rowID)
 	return tx, rowID, err
+}
+
+func (repo *LinksRepository) UpdateUserLink(accountID, linkID int64, link *Link) (*sql.Tx, error) {
+	tx, err := repo.DB.Begin()
+	if err != nil {
+		return nil, err
+	}
+	_, err = tx.Exec(
+		"update links set long_url = $1, description = $2 where id = $3 and account_id = $4",
+		link.Long, link.Description, linkID, accountID,
+	)
+	return tx, err
 }
 
 func (repo *LinksRepository) DeleteUserLink(accountID int64, link string) (*sql.Tx, int64, error) {
@@ -221,7 +245,7 @@ func (repo *LinksRepository) BulkCreateLinks(accountID int64, links []string) ([
 		if i > 0 {
 			query += ", "
 		}
-		query += fmt.Sprintf("($%v, $%v, $%v)", i * 3 + 1, i * 3 + 2, i * 3 + 3)
+		query += fmt.Sprintf("($%v, $%v, $%v)", i*3+1, i*3+2, i*3+3)
 
 		shortURL := repo.GenerateLink()
 		queryArgs = append(queryArgs, []interface{}{
@@ -229,10 +253,24 @@ func (repo *LinksRepository) BulkCreateLinks(accountID int64, links []string) ([
 		}...)
 		createdLinks = append(createdLinks, Link{
 			Short: shortURL,
-			Long: l,
+			Long:  l,
 		})
 	}
 
 	_, err := repo.DB.Exec(query, queryArgs...)
 	return createdLinks, err
+}
+
+func (repo *LinksRepository) HideUserLink(accountID int64, linkID int64) (*sql.Tx, error) {
+
+	tx, err := repo.DB.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	query := "update links set hide = true where id = $1 and account_id = $2"
+	queryArgs := []interface{}{linkID, accountID}
+
+	_, err = tx.Exec(query, queryArgs...)
+	return tx, err
 }

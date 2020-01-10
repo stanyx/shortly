@@ -1,8 +1,8 @@
 package tags
 
 import (
-	"log"
 	"database/sql"
+	"log"
 
 	"shortly/app/links"
 )
@@ -14,7 +14,7 @@ type TagsRepository struct {
 
 func (r *TagsRepository) GetAllLinkTags(linkID int64) ([]string, error) {
 	rows, err := r.DB.Query(
-		"select tag from tags where link_id = $1", 
+		"select tag from tags where link_id = $1",
 		linkID,
 	)
 	if err != nil {
@@ -75,7 +75,7 @@ func (r *TagsRepository) GetAllLinksForTags(tags []string) ([]links.Link, error)
 func (r *TagsRepository) AddTagToLink(linkID int64, tag string) (int64, error) {
 	var rowID int64
 	err := r.DB.QueryRow(
-		"insert into tags (tag, link_id) values ($1, $2) returning id", 
+		"insert into tags (tag, link_id) values ($1, $2) returning id",
 		tag, linkID,
 	).Scan(&rowID)
 	return rowID, err

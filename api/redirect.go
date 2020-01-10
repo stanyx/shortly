@@ -1,15 +1,15 @@
 package api
 
 import (
-	"log"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
 
+	"shortly/app/data"
 	"shortly/cache"
 	"shortly/utils"
-	"shortly/app/data"
 )
 
 type LinkRedirect struct {
@@ -17,7 +17,6 @@ type LinkRedirect struct {
 	LongUrl  string
 	Headers  http.Header
 }
-
 
 func Redirect(redirectLogger utils.DbLogger, historyDB *data.HistoryDB, urlCache cache.UrlCache, logger *log.Logger) http.HandlerFunc {
 
@@ -81,5 +80,3 @@ func Redirect(redirectLogger utils.DbLogger, historyDB *data.HistoryDB, urlCache
 
 	})
 }
-
-

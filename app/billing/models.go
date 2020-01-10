@@ -10,7 +10,7 @@ type BillingPlan struct {
 	Name        string
 	Description string
 	PeriodType  string
-	Price 	    string
+	Price       string
 	Options     []BillingOption
 	AccountID   int64
 	IsAnnual    bool
@@ -18,8 +18,8 @@ type BillingPlan struct {
 
 type AccountBillingPlan struct {
 	BillingPlan
-	Start     time.Time
-	End       time.Time
+	Start time.Time
+	End   time.Time
 }
 
 type BillingOption struct {

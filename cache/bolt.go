@@ -10,7 +10,7 @@ import (
 const cacheBucketName = "urls"
 
 type BoltDBCache struct {
-	db      *bolt.DB
+	db     *bolt.DB
 	logger *log.Logger
 }
 
@@ -27,7 +27,7 @@ func NewBoltDBCache(db *bolt.DB, logger *log.Logger) (*BoltDBCache, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &BoltDBCache{
 		db:     db,
 		logger: logger,

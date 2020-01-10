@@ -3,13 +3,13 @@ package data
 import (
 	"bytes"
 	"net"
-	"strings"
 	"net/http"
+	"strings"
 )
 
 type ipRange struct {
 	start net.IP
-	end net.IP
+	end   net.IP
 }
 
 func inRange(r ipRange, ipAddress net.IP) bool {
@@ -43,12 +43,11 @@ var privateRanges = []ipRange{
 	},
 }
 
-
 // isPrivateSubnet - check to see if this ip is in a private subnet
 func isPrivateSubnet(ipAddress net.IP) bool {
 	if ipCheck := ipAddress.To4(); ipCheck != nil {
 		for _, r := range privateRanges {
-			if inRange(r, ipAddress){
+			if inRange(r, ipAddress) {
 				return true
 			}
 		}
@@ -65,7 +64,7 @@ func getIPAdress(r *http.Request) string {
 			if !realIP.IsGlobalUnicast() || isPrivateSubnet(realIP) {
 				continue
 			}
-			
+
 			return ip
 		}
 	}

@@ -1,9 +1,9 @@
 package api
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
-	"encoding/json"
 	"strconv"
 
 	"shortly/app/accounts"
@@ -12,35 +12,35 @@ import (
 	"github.com/go-chi/chi"
 )
 
-func RbacRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.HandlerFunc, permissions map[string]rbac.Permission, userRepo *users.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) {
+func RbacRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.HandlerFunc, permissions map[string]rbac.Permission, userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) {
 
 	r.Get("/api/v1/users/roles", auth(
-		rbac.NewPermission("/api/v1/users/roles", "read_roles", "GET"), 
+		rbac.NewPermission("/api/v1/users/roles", "read_roles", "GET"),
 		GetUserRoles(userRepo, repo, logger),
 	))
 
 	r.Post("/api/v1/users/roles/create", auth(
-		rbac.NewPermission("/api/v1/users/roles/create", "create_role", "POST"), 
+		rbac.NewPermission("/api/v1/users/roles/create", "create_role", "POST"),
 		CreateUserRole(userRepo, repo, logger),
 	))
 
 	r.Delete("/api/v1/users/roles/delete", auth(
-		rbac.NewPermission("/api/v1/users/roles/delete", "delete_role", "DELETE"), 
+		rbac.NewPermission("/api/v1/users/roles/delete", "delete_role", "DELETE"),
 		DeleteUserRole(userRepo, repo, logger),
 	))
 
 	r.Post("/api/v1/users/roles/set", auth(
-		rbac.NewPermission("/api/v1/users/roles/set", "set_user_role", "POST"), 
+		rbac.NewPermission("/api/v1/users/roles/set", "set_user_role", "POST"),
 		SetUserRole(userRepo, repo, logger),
 	))
 
 	r.Post("/api/v1/users/roles/grant", auth(
-		rbac.NewPermission("/api/v1/users/roles/grant", "grant_permission", "POST"), 
+		rbac.NewPermission("/api/v1/users/roles/grant", "grant_permission", "POST"),
 		GrantAccessForRole(userRepo, repo, logger),
 	))
 
 	r.Post("/api/v1/users/roles/revoke", auth(
-		rbac.NewPermission("/api/v1/users/roles/revoke", "revoke_permission", "POST"), 
+		rbac.NewPermission("/api/v1/users/roles/revoke", "revoke_permission", "POST"),
 		RevokeAccessForRole(userRepo, repo, logger),
 	))
 
@@ -51,7 +51,7 @@ func RbacRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.Hand
 
 }
 
-func GetUserRoles(userRepo *users.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
+func GetUserRoles(userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		accountID := r.Context().Value("user").(*JWTClaims).AccountID
@@ -77,7 +77,6 @@ func GetUserRoles(userRepo *users.UsersRepository, repo *rbac.RbacRepository, lo
 	})
 }
 
-
 type CreateRoleForm struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
@@ -89,7 +88,7 @@ type RoleResponse struct {
 	Description string `json:"description"`
 }
 
-func CreateUserRole(userRepo *users.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
+func CreateUserRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -128,7 +127,7 @@ type SetRoleForm struct {
 	RoleID int64 `json:"roleId"`
 }
 
-func SetUserRole(userRepo *users.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
+func SetUserRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var form SetRoleForm
@@ -178,7 +177,7 @@ type DeleteRoleForm struct {
 	RoleID int64 `json:"roleId"`
 }
 
-func DeleteUserRole(userRepo *users.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
+func DeleteUserRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var form DeleteRoleForm
@@ -229,7 +228,7 @@ type GrantRoleForm struct {
 	Method   string `json:"method"`
 }
 
-func GrantAccessForRole(userRepo *users.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
+func GrantAccessForRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var form GrantRoleForm
 
@@ -262,7 +261,7 @@ type RevokeRoleForm struct {
 	Method   string `json:"method"`
 }
 
-func RevokeAccessForRole(userRepo *users.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
+func RevokeAccessForRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var form RevokeRoleForm
 
@@ -292,11 +291,11 @@ func RevokeAccessForRole(userRepo *users.UsersRepository, repo *rbac.RbacReposit
 type PermissionResponse struct {
 	Url           string `json:"url"`
 	Name          string `json:"name"`
- 	Method        string `json:"method"`
+	Method        string `json:"method"`
 	AccessGranted bool   `json:"accessGranted"`
 }
 
-func GetAllPermissions(permissions map[string]rbac.Permission, userRepo *users.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
+func GetAllPermissions(permissions map[string]rbac.Permission, userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		roleIds := r.URL.Query()["roleId"]

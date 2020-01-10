@@ -1,12 +1,13 @@
 package rbac
 
 import (
+	"database/sql"
 	"os"
 	"path"
-	"database/sql"
+
 	// "github.com/casbin/casbin-pg-adapter"
-	pgadapter "github.com/cychiuae/casbin-pg-adapter"
 	"github.com/casbin/casbin/v2"
+	pgadapter "github.com/cychiuae/casbin-pg-adapter"
 
 	"shortly/config"
 )
