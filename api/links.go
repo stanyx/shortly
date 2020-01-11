@@ -166,8 +166,13 @@ func CreateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *lo
 
 		urlCache.Store(link.Short, validLongURL.String())
 
+		urlScheme := "http"
+		if r.URL.Scheme != "" {
+			urlScheme = r.URL.Scheme
+		}
+
 		response(w, &LinkResponse{
-			Short:       r.Host + "/" + link.Short,
+			Short:       urlScheme + "://" + r.Host + "/" + link.Short,
 			Long:        link.Long,
 			Description: link.Description,
 		}, http.StatusOK)
@@ -236,7 +241,7 @@ func UpdateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *lo
 		}
 
 		response(w, &LinkResponse{
-			Short:       r.Host + "/" + link.Short,
+			Short:       r.URL.Scheme + "://" + r.Host + "/" + link.Short,
 			Long:        link.Long,
 			Description: link.Description,
 		}, http.StatusOK)
@@ -316,7 +321,7 @@ func CreateUserLink(repo *links.LinksRepository, historyDB *data.HistoryDB, urlC
 
 		response(w, &LinkResponse{
 			ID:          linkID,
-			Short:       r.Host + "/" + link.Short,
+			Short:       r.URL.Scheme + "://" + r.Host + "/" + link.Short,
 			Long:        link.Long,
 			Description: link.Description,
 		}, http.StatusOK)

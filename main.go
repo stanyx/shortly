@@ -235,7 +235,7 @@ func main() {
 	fs := http.FileServer(http.Dir("static"))
 	fsHandler := http.StripPrefix("/static", fs)
 
-	r.Get("/static", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/static/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fsHandler.ServeHTTP(w, r)
 	}))
 
@@ -253,7 +253,7 @@ func main() {
 
 	totalLinkCreatedPromMiddleware := utils.PrometheusMiddleware("totalLinksCreated", "TODO description")
 	r.Get("/api/v1/links", api.GetURLList(linksRepository, logger))
-	r.Post("/api/v1/links/create", totalLinkCreatedPromMiddleware(
+	r.Post("/api/v1/links", totalLinkCreatedPromMiddleware(
 		api.CreateLink(linksRepository, urlCache, logger)))
 
 	// storage metadata preparation

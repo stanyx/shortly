@@ -1,3 +1,4 @@
 *.db
 *.crt
 *.key
+node_modules
