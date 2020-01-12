@@ -1317,4 +1317,35 @@ footer {
     font-weith: 400;
     margin: 0 0 20px; }
 
+/* register */
+.register-block, .login-block {
+  padding-top: 40px;
+  margin: 0px auto;
+}
+
+.register-block form, .login-block form {
+  margin: 0px auto;
+}
+
+.register-block form .form-title, .login-block form .form-title {
+  text-align: center;
+}
+
+.register-block form label, .login-block form label {
+  font-size: 1.5em;
+}
+
+.register-block form label, input, .login-block form label, input{
+  width: 100%;
+  line-height: 40px;
+  margin-bottom: 20px;
+}
+
+.button-full {
+  width: 100%;
+  font-size: 2em;
+  height: 60px;
+  margin-bottom: 20px;
+}
+
 /*# sourceMappingURL=main.css.map */

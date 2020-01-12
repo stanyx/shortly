@@ -8,13 +8,25 @@ type BillingRepository struct {
 	DB *sql.DB
 }
 
-func (r *BillingRepository) GetBillingPlanCost(planID int64) (string, error) {
+func (r *BillingRepository) GetBillingPlanCost(planID int64, isAnnual bool) (string, error) {
 
 	var cost string
-	err := r.DB.QueryRow(`
-		SELECT bp.price FROM billing_plans bp WHERE bp.id = $1
-	`, planID).Scan(&cost)
 
+	queryArgs := []interface{}{planID}
+
+	query := `
+		SELECT p.price FROM billing_plans bp
+		INNER JOIN billing_price p ON bp.id = p.plan_id
+		WHERE bp.id = $1
+	`
+
+	if isAnnual {
+		query += " AND p.is_annual = true"
+	} else {
+		query += " AND p.is_annual = false"
+	}
+
+	err := r.DB.QueryRow(query, queryArgs...).Scan(&cost)
 	if err != nil {
 		return "", err
 	}
@@ -99,7 +111,13 @@ func (r *BillingRepository) GetAllBillingPlans() ([]BillingPlan, error) {
 	}
 
 	rows2, err := r.DB.Query(`
-		SELECT id, name, description, price FROM billing_plans
+		SELECT a.id, a.name, a.description, a.prices[0] price, a.prices[1] annual_price FROM (
+			SELECT bp.id, bp.name, bp.description, array_agg(p.price) prices
+			INNER JOIN billing_price p ON p.plan_id = bp.id
+			FROM billing_plans bp
+			GROUP BY bp.id, bp.name, bp.description, p.is_annual
+			ORDER BY p.is_annual
+		) a
 	`)
 
 	if err != nil {
@@ -111,7 +129,7 @@ func (r *BillingRepository) GetAllBillingPlans() ([]BillingPlan, error) {
 	var plans []BillingPlan
 	for rows2.Next() {
 		var bp BillingPlan
-		if err := rows2.Scan(&bp.ID, &bp.Name, &bp.Description, &bp.Price); err != nil {
+		if err := rows2.Scan(&bp.ID, &bp.Name, &bp.Description, &bp.Price, &bp.AnnualPrice); err != nil {
 			return nil, err
 		}
 		bp.Options = optionByPlan[bp.ID]
@@ -127,7 +145,7 @@ func (r *BillingRepository) GetAllBillingPlans() ([]BillingPlan, error) {
 
 func (r *BillingRepository) GetActiveBillingPlans(accountID int64) ([]AccountBillingPlan, error) {
 	query := `
-		SELECT ubp.account_id, ubp.started_at, ubp.ended_at, bp.id, bp.name, bp.description, bp.price 
+		SELECT ubp.account_id, ubp.started_at, ubp.ended_at, bp.id, bp.name, bp.description 
 		FROM billing_accounts ubp
 		INNER JOIN billing_plans bp ON bp.id = ubp.plan_id
 		WHERE ubp.active = true
@@ -155,7 +173,6 @@ func (r *BillingRepository) GetActiveBillingPlans(accountID int64) ([]AccountBil
 			&bp.ID,
 			&bp.Name,
 			&bp.Description,
-			&bp.Price,
 		); err != nil {
 			return nil, err
 		}
@@ -209,7 +226,7 @@ func (r *BillingRepository) GetPlansOptions(accountID int64) (map[int64][]Billin
 	}
 
 	return optionByAccount, nil
-} 
+}
 
 func (r *BillingRepository) GetAllUserBillingPlans(accountID int64) ([]AccountBillingPlan, error) {
 

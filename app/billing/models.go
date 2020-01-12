@@ -11,6 +11,7 @@ type BillingPlan struct {
 	Description string
 	PeriodType  string
 	Price       string
+	AnnualPrice string
 	Options     []BillingOption
 	AccountID   int64
 	IsAnnual    bool

@@ -84,7 +84,7 @@ func (r *UsersRepository) CreateUser(accountID int64, u User) (int64, error) {
 	)
 }
 
-func (r *UsersRepository) GetUser(username string) (*User, error) {
+func (r *UsersRepository) GetUserByEmail(email string) (*User, error) {
 
 	var user User
 
@@ -94,8 +94,8 @@ func (r *UsersRepository) GetUser(username string) (*User, error) {
 
 	err := r.DB.QueryRow(`
 		select id, username, password, phone, email, company, is_staff, account_id, role_id 
-		from "users" where username = $1`,
-		username,
+		from "users" where email = $1`,
+		email,
 	).Scan(
 		&user.ID,
 		&user.Username,

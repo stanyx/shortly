@@ -26,21 +26,16 @@ type JWTClaims struct {
 }
 
 type AccountRegistrationForm struct {
-	Username string `json:"username"`
 	Password string `json:"password"`
 	Phone    string `json:"phone"`
 	Email    string `json:"email"`
 	Company  string `json:"company"`
-	IsStaff  bool   `json:"isStaff"`
-	RoleID   int64  `json:"roleId"`
 }
 
 type UserResponse struct {
-	ID       int64  `json:"id,omitempty"`
-	Username string `json:"username"`
-	Phone    string `json:"phone"`
-	Email    string `json:"email"`
-	Company  string `json:"company"`
+	ID      int64  `json:"id,omitempty"`
+	Email   string `json:"email"`
+	Company string `json:"company"`
 }
 
 type LoginResponse struct {
@@ -65,29 +60,41 @@ func RegisterAccount(repo *accounts.UsersRepository, logger *log.Logger) http.Ha
 			return
 		}
 
+		if form.Email == "" {
+			apiError(w, "email is required field", http.StatusBadRequest)
+			return
+		}
+
+		if form.Phone == "" {
+			apiError(w, "phone is required field", http.StatusBadRequest)
+			return
+		}
+
+		// TODO - password check
+		if form.Password == "" {
+			apiError(w, "password is required field", http.StatusBadRequest)
+			return
+		}
+
 		user := accounts.User{
-			Username: form.Username,
+			Username: form.Email,
 			Password: form.Password,
 			Phone:    form.Phone,
 			Email:    form.Email,
 			Company:  form.Company,
-			IsStaff:  form.IsStaff,
-			RoleID:   form.RoleID,
 		}
 
 		userID, err := repo.CreateAccount(user)
 		if err != nil {
 			logger.Println(err)
-			apiError(w, "save user error", http.StatusInternalServerError)
+			apiError(w, "create account error", http.StatusInternalServerError)
 			return
 		}
 
 		response(w, &UserResponse{
-			ID:       userID,
-			Username: user.Username,
-			Phone:    user.Phone,
-			Email:    user.Email,
-			Company:  user.Company,
+			ID:      userID,
+			Email:   user.Email,
+			Company: user.Company,
 		}, http.StatusOK)
 	})
 }
@@ -134,16 +141,15 @@ func AddUser(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFun
 		}
 
 		response(w, &UserResponse{
-			ID:       userID,
-			Username: user.Username,
-			Phone:    user.Phone,
-			Email:    user.Email,
+			ID:      userID,
+			Email:   user.Email,
+			Company: user.Company,
 		}, http.StatusOK)
 	})
 }
 
 type LoginForm struct {
-	Username string `json:"username"`
+	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
@@ -163,7 +169,7 @@ func Login(repo *accounts.UsersRepository, logger *log.Logger, authConfig config
 			return
 		}
 
-		user, err := repo.GetUser(form.Username)
+		user, err := repo.GetUserByEmail(form.Email)
 		if err != nil {
 			logger.Println(err)
 			apiError(w, "get user error", http.StatusInternalServerError)
@@ -202,12 +208,35 @@ func Login(repo *accounts.UsersRepository, logger *log.Logger, authConfig config
 
 		response(w, &LoginResponse{
 			User: UserResponse{
-				Username: user.Username,
-				Phone:    user.Phone,
-				Email:    user.Email,
-				Company:  user.Company,
+				ID:      user.ID,
+				Email:   user.Email,
+				Company: user.Company,
 			},
 			Token: tokenSigned,
+		}, http.StatusOK)
+
+	})
+}
+
+func GetLoggedInUser(repo *accounts.UsersRepository, logger *log.Logger, authConfig config.JWTConfig) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		claims, err := ParseToken(w, r, authConfig)
+		if err != nil {
+			response(w, &UserResponse{}, http.StatusOK)
+			return
+		}
+
+		user, err := repo.GetUserByID(claims.UserID)
+		if err != nil {
+			apiError(w, "get user error", http.StatusInternalServerError)
+			return
+		}
+
+		response(w, &UserResponse{
+			ID:      user.ID,
+			Email:   user.Email,
+			Company: user.Company,
 		}, http.StatusOK)
 
 	})

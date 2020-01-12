@@ -17,7 +17,16 @@ import (
 
 const billingDatabaseName = "billing"
 
-var LimitExceededError = errors.New("limit exceeded error")
+var (
+	LimitExceededError         = errors.New("limit exceeded error")
+	BillingAccountExpiredError = errors.New("billing account expired")
+)
+
+type BillingAccount struct {
+	Start   time.Time
+	End     time.Time
+	Options []BillingOption
+}
 
 type BillingLimiter struct {
 	UrlRepo *links.LinksRepository
@@ -94,13 +103,13 @@ func (l *BillingLimiter) Reset(optionName string, accountID int64) error {
 	})
 }
 
-func (l *BillingLimiter) SetPlanOptions(accountID int64, options []BillingOption) error {
+func (l *BillingLimiter) UpdateAccount(accountID int64, account BillingAccount) error {
 
 	return l.DB.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(billingDatabaseName))
 
 		buff := bytes.NewBuffer([]byte{})
-		if err := json.NewEncoder(buff).Encode(&options); err != nil {
+		if err := json.NewEncoder(buff).Encode(&account); err != nil {
 			return err
 		}
 
@@ -140,7 +149,12 @@ func (l *BillingLimiter) LoadData() error {
 			}
 		}
 
-		if err := l.SetPlanOptions(p.AccountID, p.Options); err != nil {
+		billingAccount := BillingAccount{
+			Start:   p.Start,
+			End:     p.End,
+			Options: p.Options,
+		}
+		if err := l.UpdateAccount(p.AccountID, billingAccount); err != nil {
 			return err
 		}
 	}
@@ -153,7 +167,7 @@ var OptionNotFound = errors.New("option not found")
 func (l *BillingLimiter) GetOptionValue(optionName string, accountID int64) (*BillingOption, error) {
 	var optionValue *BillingOption
 	err := l.DB.View(func(tx *bolt.Tx) error {
-		v, err := l.GetValue(tx, optionName, accountID)
+		v, err := l.getOption(tx, optionName, accountID)
 		if err == nil {
 			optionValue = v
 		}
@@ -163,7 +177,7 @@ func (l *BillingLimiter) GetOptionValue(optionName string, accountID int64) (*Bi
 }
 
 // GetValue returns an actual billing value for provided option
-func (l *BillingLimiter) GetValue(tx *bolt.Tx, optionName string, accountID int64) (*BillingOption, error) {
+func (l *BillingLimiter) getOption(tx *bolt.Tx, optionName string, accountID int64) (*BillingOption, error) {
 
 	b := tx.Bucket([]byte(billingDatabaseName))
 
@@ -178,13 +192,17 @@ func (l *BillingLimiter) GetValue(tx *bolt.Tx, optionName string, accountID int6
 	}
 
 	buff := bytes.NewBuffer(v)
-
-	var options []BillingOption
-	if err := json.NewDecoder(buff).Decode(&options); err != nil {
+	var acc BillingAccount
+	if err := json.NewDecoder(buff).Decode(&acc); err != nil {
 		return nil, err
 	}
 
-	for _, option := range options {
+	curTime := time.Now()
+	if !(curTime.After(acc.Start) && curTime.Before(acc.End)) {
+		return nil, BillingAccountExpiredError
+	}
+
+	for _, option := range acc.Options {
 		if option.Name == optionName {
 			return &option, nil
 		}
@@ -197,7 +215,7 @@ func (l *BillingLimiter) CheckLimits(optionName string, accountID int64) error {
 
 	return l.DB.Update(func(tx *bolt.Tx) error {
 
-		option, err := l.GetValue(tx, optionName, accountID)
+		option, err := l.getOption(tx, optionName, accountID)
 		if err == OptionNotFound {
 			return LimitExceededError
 		} else if err != nil {
@@ -215,23 +233,35 @@ func (l *BillingLimiter) CheckLimits(optionName string, accountID int64) error {
 
 }
 
-func (l *BillingLimiter) UpdateOption(tx *bolt.Tx, optionName string, accountID int64, f func(int64) int64) error {
+func (l *BillingLimiter) getAccount(tx *bolt.Tx, accountID int64) (*BillingAccount, error) {
+
 	b := tx.Bucket([]byte(billingDatabaseName))
 	v := b.Get([]byte(fmt.Sprintf("%v", accountID)))
 
 	if len(v) == 0 {
-		return LimitExceededError
+		return nil, LimitExceededError
 	}
 
 	buff := bytes.NewBuffer(v)
 
-	var options []BillingOption
-	if err := json.NewDecoder(buff).Decode(&options); err != nil {
+	var acc BillingAccount
+	if err := json.NewDecoder(buff).Decode(&acc); err != nil {
+		return nil, err
+	}
+
+	return &acc, nil
+}
+
+func (l *BillingLimiter) UpdateOption(tx *bolt.Tx, optionName string, accountID int64, f func(int64) int64) error {
+
+	b := tx.Bucket([]byte(billingDatabaseName))
+	account, err := l.getAccount(tx, accountID)
+	if err != nil {
 		return err
 	}
 
 	var update bool
-	for i, option := range options {
+	for i, option := range account.Options {
 		if option.Name == optionName {
 			value, _ := strconv.ParseInt(option.Value, 0, 64)
 			updatedValue := f(value)
@@ -239,7 +269,7 @@ func (l *BillingLimiter) UpdateOption(tx *bolt.Tx, optionName string, accountID 
 				return errors.New("value is below zero")
 			}
 			l.Logger.Printf("(user=%v) changed billing value(%s) to %v", accountID, optionName, updatedValue)
-			options[i].Value = fmt.Sprintf("%v", updatedValue)
+			account.Options[i].Value = fmt.Sprintf("%v", updatedValue)
 			update = true
 			break
 		}
@@ -247,7 +277,7 @@ func (l *BillingLimiter) UpdateOption(tx *bolt.Tx, optionName string, accountID 
 
 	if update {
 		buff := bytes.NewBuffer([]byte{})
-		if err := json.NewEncoder(buff).Encode(&options); err != nil {
+		if err := json.NewEncoder(buff).Encode(&account); err != nil {
 			return err
 		}
 		return b.Put([]byte(fmt.Sprintf("%v", accountID)), buff.Bytes())

@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/stripe/stripe-go"
 	"github.com/stripe/stripe-go/charge"
@@ -69,6 +70,7 @@ func ListBillingPlans(repo *billing.BillingRepository, logger *log.Logger) http.
 type ApplyBillingPlanForm struct {
 	PlanID      int64  `json:"plan_id"`
 	StripeToken string `json:"paymentToken"`
+	IsAnnual    bool   `json:"isAnnual"`
 }
 
 func ApplyBillingPlan(repo *billing.BillingRepository, billingLimiter *billing.BillingLimiter, paymentConfig config.PaymentConfig, logger *log.Logger) http.HandlerFunc {
@@ -107,11 +109,19 @@ func ApplyBillingPlan(repo *billing.BillingRepository, billingLimiter *billing.B
 
 		claims := r.Context().Value("user").(*JWTClaims)
 
-		planCost, err := repo.GetBillingPlanCost(form.PlanID)
+		planCost, err := repo.GetBillingPlanCost(form.PlanID, form.IsAnnual)
 		if err != nil {
 			logError(logger, err)
 			apiError(w, "get billing plan error", http.StatusInternalServerError)
 			return
+		}
+
+		tNow := time.Now()
+		start := time.Date(tNow.Year(), tNow.Month(), tNow.Day(), 0, 0, 0, 0, time.UTC)
+		end := start.Add(time.Hour * 24 * 30)
+
+		if form.IsAnnual {
+			end = start.Add(time.Hour * 24 * 365)
 		}
 
 		if err := createPaymentCharge(planCost, r); err != nil {
@@ -133,7 +143,13 @@ func ApplyBillingPlan(repo *billing.BillingRepository, billingLimiter *billing.B
 			return
 		}
 
-		if err := billingLimiter.SetPlanOptions(claims.AccountID, options); err != nil {
+		billingAccount := billing.BillingAccount{
+			Start:   start,
+			End:     end,
+			Options: options,
+		}
+
+		if err := billingLimiter.UpdateAccount(claims.AccountID, billingAccount); err != nil {
 			logError(logger, err)
 			apiError(w, "set plan error", http.StatusInternalServerError)
 			return

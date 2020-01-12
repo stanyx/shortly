@@ -351,6 +351,7 @@ func main() {
 	r.Post("/api/v1/registration", api.RegisterAccount(usersRepository, logger))
 	r.Post("/api/v1/accounts/users", api.AddUser(usersRepository, logger))
 	r.Post("/api/v1/login", api.Login(usersRepository, logger, appConfig.Auth))
+	r.Get("/api/v1/user", api.GetLoggedInUser(usersRepository, logger, appConfig.Auth))
 
 	r.Post("/api/v1/users/links/create", auth(
 		rbac.NewPermission("/api/v1/users/links/create", "create_link", "POST"),

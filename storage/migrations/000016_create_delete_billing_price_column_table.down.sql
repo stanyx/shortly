@@ -1,0 +1,1 @@
+ALTER TABLE public.billing_plans ADD COLUMN price character varying COLLATE pg_catalog."default";
