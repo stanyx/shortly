@@ -277,7 +277,7 @@ func (l *BillingLimiter) UpdateOption(tx *bolt.Tx, optionName string, accountID 
 
 	if update {
 		buff := bytes.NewBuffer([]byte{})
-		if err := json.NewEncoder(buff).Encode(&account); err != nil {
+		if err := json.NewEncoder(buff).Encode(account); err != nil {
 			return err
 		}
 		return b.Put([]byte(fmt.Sprintf("%v", accountID)), buff.Bytes())
