@@ -188,6 +188,10 @@ func main() {
 		}
 		return nil
 	})
+	if err != nil {
+		logger.Fatal(err)
+	}
+
 	webhooksRepository := &webhooks.WebhooksRepository{DB: database, Cache: serviceStorage, Logger: logger}
 	if err := webhooksRepository.InitCache(); err != nil {
 		logger.Fatal(err)
