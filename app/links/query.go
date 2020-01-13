@@ -25,8 +25,36 @@ type ILinksRepository interface {
 }
 
 type LinksRepository struct {
-	DB     *sql.DB
-	Logger *log.Logger
+	DB        *sql.DB
+	Logger    *log.Logger
+	callbacks map[string]func(int64, interface{})
+}
+
+func (repo *LinksRepository) addCallback(name string, f func(int64, interface{})) {
+	if repo.callbacks == nil {
+		repo.callbacks = make(map[string]func(int64, interface{}))
+	}
+	repo.callbacks[name] = f
+}
+
+func (repo *LinksRepository) callback(name string, accountID int64, payload interface{}) {
+	cb, ok := repo.callbacks[name]
+	if !ok {
+		return
+	}
+	cb(accountID, payload)
+}
+
+func (repo *LinksRepository) OnCreate(f func(int64, interface{})) {
+	repo.addCallback("Create", f)
+}
+
+func (repo *LinksRepository) OnDelete(f func(int64, interface{})) {
+	repo.addCallback("Delete", f)
+}
+
+func (repo *LinksRepository) OnHide(f func(int64, interface{})) {
+	repo.addCallback("Hide", f)
 }
 
 func (repo *LinksRepository) GetAllLinks() ([]Link, error) {
@@ -63,7 +91,10 @@ func (repo *LinksRepository) CreateLink(link *Link) error {
 	_, err := repo.DB.Exec(`
 		insert into "links" (short_url, long_url, description) VALUES ( $1, $2, $3 )
 	`, link.Short, link.Long, link.Description)
-	return err
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 type LinkFilter struct {
@@ -194,6 +225,11 @@ func (repo *LinksRepository) CreateUserLink(accountID int64, link *Link) (*sql.T
 		"insert into links (short_url, long_url, account_id, created_at) values ($1, $2, $3, now()) returning id",
 		link.Short, link.Long, accountID,
 	).Scan(&rowID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	repo.callback("Create", accountID, link)
 	return tx, rowID, err
 }
 
@@ -218,6 +254,10 @@ func (repo *LinksRepository) DeleteUserLink(accountID int64, link string) (*sql.
 	err = tx.QueryRow(
 		"delete from links WHERE short_url = $1 AND account_id = $2 returning id", link, accountID,
 	).Scan(&rowID)
+	if err != nil {
+		return nil, 0, err
+	}
+	repo.callback("Delete", accountID, link)
 	return tx, rowID, err
 }
 
@@ -272,5 +312,10 @@ func (repo *LinksRepository) HideUserLink(accountID int64, linkID int64) (*sql.T
 	queryArgs := []interface{}{linkID, accountID}
 
 	_, err = tx.Exec(query, queryArgs...)
+	if err != nil {
+		return nil, err
+	}
+
+	repo.callback("Hide", accountID, linkID)
 	return tx, err
 }

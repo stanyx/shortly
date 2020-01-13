@@ -18,6 +18,8 @@ Billing:
     Key: ''
 LinkDB:
   Dir: .
+ServiceDB:
+  Dir: .
 RedirectLogger:
   Storage: postgres
   Mode: sync

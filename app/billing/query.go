@@ -240,8 +240,8 @@ func (r *BillingRepository) GetAllUserBillingPlans(accountID int64) ([]AccountBi
 		return nil, err
 	}
 
-	for _, bp := range plans {
-		bp.Options = optionByAccount[bp.AccountID]
+	for i, bp := range plans {
+		plans[i].Options = optionByAccount[bp.AccountID]
 	}
 
 	return plans, nil

@@ -43,6 +43,10 @@ type LinksDBConfig struct {
 	Dir string
 }
 
+type ServiceDBConfig struct {
+	Dir string
+}
+
 type RedisConfig struct {
 	Host string
 	Port int
@@ -63,6 +67,7 @@ type ApplicationConfig struct {
 
 	Billing        BillingConfig
 	LinkDB         LinksDBConfig
+	ServiceDB      ServiceDBConfig
 	RedirectLogger RedirectLoggerConfig
 }
 
