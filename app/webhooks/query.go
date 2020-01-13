@@ -57,7 +57,7 @@ func (r *WebhooksRepository) GetWebhooks(accountID int64) ([]Webhook, error) {
 		queryArgs = append(queryArgs, accountID)
 	}
 
-	rows, err := r.DB.Query(query)
+	rows, err := r.DB.Query(query, queryArgs)
 	if err != nil {
 		return nil, err
 	}
