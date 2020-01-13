@@ -36,6 +36,7 @@ import (
 	"shortly/app/links"
 	"shortly/app/rbac"
 	"shortly/app/tags"
+	"shortly/app/webhooks"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -155,6 +156,7 @@ func main() {
 
 	historyDB := &data.HistoryDB{DB: linksStorage, Limiter: billingLimiter}
 	campaignsRepository := &campaigns.Repository{DB: database, HistoryDB: historyDB, Logger: logger}
+	webhooksRepository := &webhooks.WebhooksRepository{DB: database, Logger: logger}
 
 	// cache initialization
 
@@ -390,6 +392,7 @@ func main() {
 
 	api.RbacRoutes(r, auth, permissionRegistry, usersRepository, rbacRepository, logger)
 	api.CampaignRoutes(r, auth, campaignsRepository, logger)
+	api.WebhooksRoutes(r, auth, webhooksRepository, logger)
 
 	totalRedirectsPromMiddleware := utils.PrometheusMiddleware("totalRedirects", "TODO description")
 
