@@ -139,7 +139,31 @@ func main() {
 		logger.Fatal(err)
 	}
 
+	serviceStorage, err := bolt.Open(appConfig.ServiceDB.Dir+"/service.db", 0666, nil)
+	if err != nil {
+		logger.Fatal(err)
+	}
+
+	webhooks.DefaultSender.Cache = serviceStorage
+	webhooks.DefaultSender.Logger = logger
+
 	linksRepository := &links.LinksRepository{DB: database, Logger: logger}
+
+	linksRepository.OnCreate(webhooks.Send("link__created"))
+	linksRepository.OnDelete(webhooks.Send("link__deleted"))
+	linksRepository.OnHide(webhooks.Send("link__hide"))
+
+	err = billingDataStorage.Update(func(tx *bolt.Tx) error {
+		_, err := tx.CreateBucketIfNotExists([]byte("billing"))
+		if err != nil {
+			return fmt.Errorf("create bucket: %s", err)
+		}
+		return nil
+	})
+
+	if err != nil {
+		logger.Fatal(err)
+	}
 
 	billingRepository := &billing.BillingRepository{DB: database}
 	billingLimiter := &billing.BillingLimiter{
@@ -156,8 +180,22 @@ func main() {
 
 	historyDB := &data.HistoryDB{DB: linksStorage, Limiter: billingLimiter}
 	campaignsRepository := &campaigns.Repository{DB: database, HistoryDB: historyDB, Logger: logger}
-	webhooksRepository := &webhooks.WebhooksRepository{DB: database, Logger: logger}
 
+	err = serviceStorage.Update(func(tx *bolt.Tx) error {
+		_, err := tx.CreateBucketIfNotExists([]byte("webhooks"))
+		if err != nil {
+			return fmt.Errorf("create bucket: %s", err)
+		}
+		return nil
+	})
+	if err != nil {
+		logger.Fatal(err)
+	}
+
+	webhooksRepository := &webhooks.WebhooksRepository{DB: database, Cache: serviceStorage, Logger: logger}
+	if err := webhooksRepository.InitCache(); err != nil {
+		logger.Fatal(err)
+	}
 	// cache initialization
 
 	var urlCache cache.UrlCache
@@ -259,17 +297,6 @@ func main() {
 		api.CreateLink(linksRepository, urlCache, logger)))
 
 	// storage metadata preparation
-	err = billingDataStorage.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte("billing"))
-		if err != nil {
-			return fmt.Errorf("create bucket: %s", err)
-		}
-		return nil
-	})
-
-	if err != nil {
-		logger.Fatal(err)
-	}
 
 	err = historyDB.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte("details"))
