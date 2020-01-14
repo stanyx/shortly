@@ -4,7 +4,7 @@ CREATE TABLE public.webhooks
     account_id bigint NOT NULL,
     name character varying NOT NULL DEFAULT '',
     description character varying NOT NULL DEFAULT '',
-    events []character varying NOT NULL DEFAULT {},
+    events character varying[] NOT NULL DEFAULT '{}',
     url character varying NOT NULL DEFAULT '',
     active boolean NOT NULL DEFAULT true,
     CONSTRAINT webhooks_pk PRIMARY KEY (id)
