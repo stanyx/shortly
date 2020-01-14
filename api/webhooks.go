@@ -50,6 +50,7 @@ type WebhookResponse struct {
 	Description string   `json:"description"`
 	Events      []string `json:"events"`
 	URL         string   `json:"url"`
+	Active      bool     `json:"active"`
 }
 
 func GetWebhooks(repo webhooks.Repository, logger *log.Logger) http.Handler {
@@ -61,6 +62,7 @@ func GetWebhooks(repo webhooks.Repository, logger *log.Logger) http.Handler {
 		if err != nil {
 			logError(logger, err)
 			apiError(w, "get webhooks error", http.StatusBadRequest)
+			return
 		}
 
 		var resp []WebhookResponse
@@ -71,6 +73,7 @@ func GetWebhooks(repo webhooks.Repository, logger *log.Logger) http.Handler {
 				Description: r.Description,
 				Events:      r.Events,
 				URL:         r.URL,
+				Active:      r.Active,
 			})
 		}
 
@@ -168,7 +171,7 @@ func UpdateWebhook(repo webhooks.Repository, logger *log.Logger) http.Handler {
 		err := repo.UpdateWebhook(claims.AccountID, m)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			apiError(w, "update webhook error", http.StatusBadRequest)
 			return
 		}
 
@@ -200,7 +203,7 @@ func EnableWebhook(repo webhooks.Repository, logger *log.Logger) http.Handler {
 		err := repo.EnableWebhook(claims.AccountID, form.ID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			apiError(w, "enable webhook error", http.StatusBadRequest)
 			return
 		}
 
@@ -227,7 +230,7 @@ func DisableWebhook(repo webhooks.Repository, logger *log.Logger) http.Handler {
 		err := repo.DisableWebhook(claims.AccountID, form.ID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			apiError(w, "disable webhook error", http.StatusBadRequest)
 			return
 		}
 
@@ -254,7 +257,7 @@ func DeleteWebhook(repo webhooks.Repository, logger *log.Logger) http.Handler {
 		err := repo.DeleteWebhook(claims.AccountID, form.ID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			apiError(w, "delete webhook error", http.StatusBadRequest)
 			return
 		}
 

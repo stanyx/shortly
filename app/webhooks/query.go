@@ -128,6 +128,7 @@ func (r *WebhooksRepository) UpdateWebhook(accountID int64, m Webhook) error {
 	_, err := r.DB.Exec(`
 		update "webhooks" set name = $1, description = $2, events = $3, url = $4 where id = $5 and account_id = $6
 	`, m.Name, m.Description, pq.Array(m.Events), m.URL, m.ID, accountID)
+
 	if err != nil {
 		return err
 	}
