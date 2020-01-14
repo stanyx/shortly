@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -24,8 +25,14 @@ func Redirect(redirectLogger utils.DbLogger, historyDB *data.HistoryDB, urlCache
 
 		shortURL := strings.TrimPrefix(r.URL.Path, "/")
 
+		fmt.Println("url", shortURL)
 		if shortURL == "/" || shortURL == "" {
 			http.ServeFile(w, r, "./static/index.html")
+			return
+		}
+
+		if shortURL == "admin" {
+			http.ServeFile(w, r, "./static/admin/index.html")
 			return
 		}
 

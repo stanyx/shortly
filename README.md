@@ -28,11 +28,15 @@ Urlshortener application, inspired by Bit.ly, TinyURL, Google
 
 Using TLS with server
 
+```bash
     openssl genrsa -out server.key 2048
     openssl ecparam -genkey -name secp384r1 -out server.key
     openssl req -new -x509 -sha256 -key server.key -out server.crt -days 3650
+```
 
 ## Installing from Docker
 
+```bash
     docker pull stanyx/shortly
     docker run --expose=[port] -p [port]:[port] shortly
+```

@@ -1,6 +1,8 @@
 package webhooks
 
 import (
+	"fmt"
+
 	"database/sql"
 	"log"
 	"strconv"
@@ -57,7 +59,7 @@ func (r *WebhooksRepository) GetWebhooks(accountID int64) ([]Webhook, error) {
 		queryArgs = append(queryArgs, accountID)
 	}
 
-	rows, err := r.DB.Query(query, queryArgs)
+	rows, err := r.DB.Query(query, queryArgs...)
 	if err != nil {
 		return nil, err
 	}
@@ -66,6 +68,7 @@ func (r *WebhooksRepository) GetWebhooks(accountID int64) ([]Webhook, error) {
 		var m Webhook
 		err := rows.Scan(&m.ID, &m.Name, &m.Description, pq.Array(&m.Events), &m.URL, &m.Active)
 		if err != nil {
+			fmt.Println("Scan webhook error", err)
 			return nil, err
 		}
 		list = append(list, m)

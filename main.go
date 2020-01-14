@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/NYTimes/gziphandler"
 	"github.com/go-chi/chi"
 	"github.com/kr/pretty"
 	_ "github.com/lib/pq"
@@ -268,6 +269,8 @@ func main() {
 		return rate.NewLimiter(rate.Every(time.Duration(rateV)*time.Second), int(burstV))
 	}))
 
+	r.Use(gziphandler.GzipHandler)
+
 	r.Get("/swagger/*", httpSwagger.Handler(
 		httpSwagger.URL(fmt.Sprintf("http://localhost:%d/swagger/doc.json", serverConfig.Port)), //The url pointing to API definition"
 	))
@@ -275,8 +278,15 @@ func main() {
 	fs := http.FileServer(http.Dir("static"))
 	fsHandler := http.StripPrefix("/static", fs)
 
+	adminFs := http.FileServer(http.Dir("static/admin"))
+	adminFsHandler := http.StripPrefix("/static/admin", adminFs)
+
 	r.Get("/static/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fsHandler.ServeHTTP(w, r)
+	}))
+
+	r.Get("/admin/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		adminFsHandler.ServeHTTP(w, r)
 	}))
 
 	r.Get("/health", utils.HealthCheck(

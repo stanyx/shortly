@@ -3,6 +3,7 @@ module shortly
 go 1.12
 
 require (
+	github.com/NYTimes/gziphandler v1.1.1
 	github.com/adjust/rmq v1.0.0
 	github.com/adjust/uniuri v0.0.0-20130923163420-498743145e60 // indirect
 	github.com/bradfitz/gomemcache v0.0.0-20190913173617-a41fca850d0b
