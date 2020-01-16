@@ -3,6 +3,7 @@ module shortly
 go 1.12
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.4.0
 	github.com/NYTimes/gziphandler v1.1.1
 	github.com/adjust/rmq v1.0.0
 	github.com/adjust/uniuri v0.0.0-20130923163420-498743145e60 // indirect
@@ -25,6 +26,7 @@ require (
 	github.com/mailru/easyjson v0.7.0 // indirect
 	github.com/mattn/go-isatty v0.0.11 // indirect
 	github.com/mitchellh/mapstructure v1.1.2
+	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v0.9.3
 	github.com/russross/blackfriday v2.0.0+incompatible // indirect
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
@@ -44,7 +46,7 @@ require (
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 // indirect
 	google.golang.org/genproto v0.0.0-20190425155659-357c62f0e4bb
 	gopkg.in/bsm/ratelimit.v1 v1.0.0-20160220154919-db14e161995a // indirect
-	gopkg.in/go-playground/validator.v9 v9.31.0 // indirect
+	gopkg.in/go-playground/validator.v9 v9.31.0
 	gopkg.in/redis.v3 v3.6.4 // indirect
 	gopkg.in/yaml.v2 v2.2.7 // indirect
 )
