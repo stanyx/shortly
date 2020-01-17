@@ -35,6 +35,7 @@ type LinkResponse struct {
 	Long        string   `json:"long"`
 	Description string   `json:"description"`
 	Tags        []string `json:"tags"`
+	Active      bool     `json:"is_active"`
 }
 
 // TODO refactor to top links
@@ -109,6 +110,7 @@ func GetUserURLList(repo links.ILinksRepository, logger *log.Logger) http.Handle
 				Long:        r.Long,
 				Description: r.Description,
 				Tags:        r.Tags,
+				Active:      !r.Hidden,
 			})
 		}
 
@@ -240,8 +242,13 @@ func UpdateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *lo
 			return
 		}
 
+		urlScheme := "http"
+		if r.URL.Scheme != "" {
+			urlScheme = r.URL.Scheme
+		}
+
 		response(w, &LinkResponse{
-			Short:       r.URL.Scheme + "://" + r.Host + "/" + link.Short,
+			Short:       urlScheme + "://" + r.Host + "/" + link.Short,
 			Long:        link.Long,
 			Description: link.Description,
 		}, http.StatusOK)
@@ -319,9 +326,14 @@ func CreateUserLink(repo *links.LinksRepository, historyDB *data.HistoryDB, urlC
 
 		urlCache.Store(link.Short, link.Long)
 
+		urlScheme := "http"
+		if r.URL.Scheme != "" {
+			urlScheme = r.URL.Scheme
+		}
+
 		response(w, &LinkResponse{
 			ID:          linkID,
-			Short:       r.URL.Scheme + "://" + r.Host + "/" + link.Short,
+			Short:       urlScheme + "://" + r.Host + "/" + link.Short,
 			Long:        link.Long,
 			Description: link.Description,
 		}, http.StatusOK)

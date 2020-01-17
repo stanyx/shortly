@@ -6,4 +6,5 @@ type Link struct {
 	Long        string
 	Description string
 	Tags        []string
+	Hidden      bool
 }

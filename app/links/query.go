@@ -115,7 +115,7 @@ func (repo *LinksRepository) GetUserLinks(accountID, userID int64, filters ...Li
 		select link_id, array_agg(tags.tag) tags_list from tags 
 		group by link_id
 	)
-	select u.short_url, u.long_url, u.description, u.tl
+	select u.short_url, u.long_url, u.description, u.tl, u.hide
 	from (
 		select *, t.tags_list tl from links
 		left join url_group ug on ug.link_id = links.id
@@ -178,7 +178,7 @@ func (repo *LinksRepository) GetUserLinks(accountID, userID int64, filters ...Li
 
 	for rows.Next() {
 		var link Link
-		err := rows.Scan(&link.Short, &link.Long, &link.Description, pq.Array(&link.Tags))
+		err := rows.Scan(&link.Short, &link.Long, &link.Description, pq.Array(&link.Tags), &link.Hidden)
 		if err != nil {
 			return nil, err
 		}
