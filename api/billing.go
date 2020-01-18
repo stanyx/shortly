@@ -130,7 +130,7 @@ func ApplyBillingPlan(repo *billing.BillingRepository, billingLimiter *billing.B
 			return
 		}
 
-		if err := repo.ApplyBillingPlan(claims.AccountID, form.PlanID); err != nil {
+		if err := repo.ApplyBillingPlan(claims.AccountID, form.PlanID, start, end); err != nil {
 			logError(logger, err)
 			apiError(w, "apply plan error", http.StatusInternalServerError)
 			return

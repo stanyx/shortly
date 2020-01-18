@@ -34,7 +34,8 @@ type BillingLimiter struct {
 	DB      *bolt.DB
 	Logger  *log.Logger
 
-	locks sync.Map
+	locks              sync.Map
+	defaultAccountPlan AccountBillingPlan
 }
 
 func (l *BillingLimiter) Lock(accountID int64) *sync.Mutex {
@@ -119,8 +120,65 @@ func (l *BillingLimiter) UpdateAccount(accountID int64, account BillingAccount) 
 
 }
 
+func (l *BillingLimiter) DowngradeToDefaultPlan(accountID int64) error {
+	l.Logger.Printf("plan for account(%v) expired, init account downgrade to default billing plan\n", accountID)
+	defaultPlan := l.defaultAccountPlan
+	defaultPlan.AccountID = accountID
+	return l.ActualizePlanCounters(defaultPlan)
+}
+
+func (l *BillingLimiter) ActualizePlanCounters(p AccountBillingPlan) error {
+
+	for i, opt := range p.Options {
+		switch opt.Name {
+		case "url_limit":
+			cnt, err := l.UrlRepo.GetUserLinksCount(p.AccountID, p.Start, p.End)
+			if err != nil {
+				return err
+			}
+			topCount := p.Options[i].AsInt64()
+			l.Logger.Printf("(account_id=%v) set billing value(%s) to %v, max=%v, value=%v", p.AccountID, opt.Name, topCount-int64(cnt), topCount, cnt)
+			p.Options[i].Value = fmt.Sprintf("%v", topCount-int64(cnt))
+		case "timedata_limit":
+		case "users_limit":
+		case "tags":
+		case "tags_limit":
+		case "groups":
+		case "groups_limit":
+		case "campaigns":
+		case "campaigns_limit":
+		case "rate_limit":
+		default:
+			return fmt.Errorf("billing option is not supported: %v", opt.Name)
+		}
+	}
+
+	billingAccount := BillingAccount{
+		Start:   p.Start,
+		End:     p.End,
+		Options: p.Options,
+	}
+
+	if err := l.UpdateAccount(p.AccountID, billingAccount); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // LoadData fill billing database with actual billing information
 func (l *BillingLimiter) LoadData() error {
+
+	defaultPlan, err := l.Repo.GetDefaultPlan()
+	if err != nil {
+		return nil
+	}
+
+	l.defaultAccountPlan = AccountBillingPlan{
+		BillingPlan: *defaultPlan,
+		Start:       time.Now(),
+		End:         time.Now().Add(24 * 365 * 100 * time.Hour),
+	}
 
 	plans, err := l.Repo.GetAllUserBillingPlans(0)
 	if err != nil {
@@ -129,32 +187,16 @@ func (l *BillingLimiter) LoadData() error {
 
 	for _, p := range plans {
 
-		for i, opt := range p.Options {
-			switch opt.Name {
-			case "url_limit":
-				cnt, err := l.UrlRepo.GetUserLinksCount(p.AccountID, p.Start, p.End)
-				if err != nil {
-					return err
-				}
-				topCount := p.Options[i].AsInt64()
-				l.Logger.Printf("(user=%v) set billing value(%s) to %v, max=%v, value=%v", p.AccountID, opt.Name, topCount-int64(cnt), topCount, cnt)
-				p.Options[i].Value = fmt.Sprintf("%v", topCount-int64(cnt))
-			case "timedata_limit":
-			case "users_limit":
-			case "tags_limit":
-			case "groups_limit":
-			case "rate_limit":
-			default:
-				return fmt.Errorf("billing option is not supported: %v", opt.Name)
+		// if current plan expired reset to default plan
+		curTime := time.Now()
+		if !(p.Start.Before(curTime) && p.End.After(curTime)) {
+			if err := l.DowngradeToDefaultPlan(p.AccountID); err != nil {
+				return err
 			}
+			continue
 		}
 
-		billingAccount := BillingAccount{
-			Start:   p.Start,
-			End:     p.End,
-			Options: p.Options,
-		}
-		if err := l.UpdateAccount(p.AccountID, billingAccount); err != nil {
+		if err := l.ActualizePlanCounters(p); err != nil {
 			return err
 		}
 	}
@@ -218,12 +260,16 @@ func (l *BillingLimiter) CheckLimits(optionName string, accountID int64) error {
 		option, err := l.getOption(tx, optionName, accountID)
 		if err == OptionNotFound {
 			return LimitExceededError
+		} else if err == BillingAccountExpiredError {
+			if err := l.DowngradeToDefaultPlan(accountID); err != nil {
+				return err
+			}
 		} else if err != nil {
 			return err
 		}
 
 		value := option.AsInt64()
-		l.Logger.Printf("(user=%v) current billing value(%s) value: %v\n", accountID, optionName, value)
+		l.Logger.Printf("(account_id=%v) current billing value(%s) value: %v\n", accountID, optionName, value)
 		if value <= 0 {
 			return LimitExceededError
 		}

@@ -2,6 +2,8 @@ package billing
 
 import (
 	"database/sql"
+	"errors"
+	"time"
 )
 
 type BillingRepository struct {
@@ -34,20 +36,58 @@ func (r *BillingRepository) GetBillingPlanCost(planID int64, isAnnual bool) (str
 	return cost, nil
 }
 
-func (r *BillingRepository) ApplyBillingPlan(accountID, planID int64) error {
+func (r *BillingRepository) ApplyBillingPlan(accountID, planID int64, start, end time.Time) error {
 
 	if _, err := r.DB.Exec("UPDATE billing_accounts SET active = false WHERE account_id = $1", accountID); err != nil {
 		return err
 	}
 
+	if start.Unix() == 0 {
+		start = time.Now()
+	}
+
+	if end.Unix() == 0 {
+		end = time.Now().Add(time.Hour * 24 * 30)
+	}
+
 	if _, err := r.DB.Exec(`
 		insert into "billing_accounts" (account_id, plan_id, started_at, ended_at, active) 
-		values ($1, $2, date_trunc('day', now()), date_trunc('day', now()) + '30 day'::interval, true)
-	`, accountID, planID); err != nil {
+		values ($1, $2, $3, $4, true)
+	`, accountID, planID, start, end); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (r *BillingRepository) GetDefaultPlanOptions(planID int64) ([]BillingOption, error) {
+	rows, err := r.DB.Query(`
+		SELECT bp.id, opts.id, opts.name, opts.description, opts.value 
+		FROM billing_plans bp
+		INNER JOIN billing_options opts ON bp.id = opts.plan_id
+		WHERE bp.id = $1
+	`, planID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var options []BillingOption
+	for rows.Next() {
+		var bo BillingOption
+		if err := rows.Scan(&bo.PlanID, &bo.ID, &bo.Name, &bo.Description, &bo.Value); err != nil {
+			return nil, err
+		}
+		options = append(options, bo)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return options, err
 }
 
 func (r *BillingRepository) GetBillingPlanOptions(accountID, planID int64) ([]BillingOption, error) {
@@ -245,4 +285,71 @@ func (r *BillingRepository) GetAllUserBillingPlans(accountID int64) ([]AccountBi
 	}
 
 	return plans, nil
+}
+
+func (r *BillingRepository) GetDefaultPlan() (*BillingPlan, error) {
+
+	var defaultPlan BillingPlan
+
+	err := r.DB.QueryRow("select id from billing_plans where name = 'free' limit 1").Scan(&defaultPlan.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	options, err := r.GetDefaultPlanOptions(defaultPlan.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	defaultPlan.Options = options
+
+	return &defaultPlan, nil
+}
+
+func (r *BillingRepository) IsAttachToPlan(accountID int64) (bool, error) {
+
+	plans, err := r.GetAllUserBillingPlans(accountID)
+	if err != nil {
+		return false, err
+	}
+
+	if len(plans) == 0 {
+		return false, err
+	}
+
+	return true, nil
+}
+
+var ErrBillingAccountAlreadyExists = errors.New("account already attached to billing")
+
+func (r *BillingRepository) AttachToDefaultBilling(accountID, planID int64) (*BillingAccount, error) {
+
+	ok, err := r.IsAttachToPlan(accountID)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
+		return nil, ErrBillingAccountAlreadyExists
+	}
+
+	tNow := time.Now()
+	start := time.Date(tNow.Year(), tNow.Month(), tNow.Day(), 0, 0, 0, 0, time.UTC)
+	end := start.Add(time.Duration(24*365*100) * time.Hour)
+
+	if err := r.ApplyBillingPlan(accountID, planID, start, end); err != nil {
+		return nil, err
+	}
+
+	options, err := r.GetBillingPlanOptions(accountID, planID)
+	if err != nil {
+		return nil, err
+	}
+
+	billingAccount := &BillingAccount{
+		Start:   start,
+		End:     end,
+		Options: options,
+	}
+
+	return billingAccount, err
 }

@@ -285,10 +285,6 @@ func main() {
 		fsHandler.ServeHTTP(w, r)
 	}))
 
-	r.Get("/admin/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		adminFsHandler.ServeHTTP(w, r)
-	}))
-
 	r.Get("/health", utils.HealthCheck(
 		[]utils.HealthChecker{
 			utils.HealthCheckFunc(func(_ context.Context) error {
@@ -333,6 +329,19 @@ func main() {
 		Logger:   logger,
 		Enforcer: enforcer,
 	}
+
+	r.Get("/admin/*", func(w http.ResponseWriter, r *http.Request) {
+		// claims, err := api.ParseToken(w, r, appConfig.Auth)
+		// if claims.AccountID == 0 || err != nil {
+		// 	scheme := r.URL.Scheme
+		// 	if scheme == "" {
+		// 		scheme = "http://"
+		// 	}
+		// 	http.Redirect(w, r, scheme+r.Host, http.StatusTemporaryRedirect)
+		// 	return
+		// }
+		adminFsHandler.ServeHTTP(w, r)
+	})
 
 	//   billing api
 
@@ -387,7 +396,7 @@ func main() {
 	// account api
 	usersRepository := &accounts.UsersRepository{DB: database}
 
-	r.Post("/api/v1/registration", api.RegisterAccount(usersRepository, logger))
+	r.Post("/api/v1/registration", api.RegisterAccount(usersRepository, billingRepository, billingLimiter, logger))
 	r.Post("/api/v1/accounts/users", api.AddUser(usersRepository, logger))
 	r.Post("/api/v1/login", api.Login(usersRepository, logger, appConfig.Auth))
 	r.Get("/api/v1/user", api.GetLoggedInUser(usersRepository, logger, appConfig.Auth))
