@@ -278,9 +278,6 @@ func main() {
 	fs := http.FileServer(http.Dir("static"))
 	fsHandler := http.StripPrefix("/static", fs)
 
-	adminFs := http.FileServer(http.Dir("static/admin"))
-	adminFsHandler := http.StripPrefix("/static/admin", adminFs)
-
 	r.Get("/static/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fsHandler.ServeHTTP(w, r)
 	}))
@@ -329,19 +326,6 @@ func main() {
 		Logger:   logger,
 		Enforcer: enforcer,
 	}
-
-	r.Get("/admin/*", func(w http.ResponseWriter, r *http.Request) {
-		// claims, err := api.ParseToken(w, r, appConfig.Auth)
-		// if claims.AccountID == 0 || err != nil {
-		// 	scheme := r.URL.Scheme
-		// 	if scheme == "" {
-		// 		scheme = "http://"
-		// 	}
-		// 	http.Redirect(w, r, scheme+r.Host, http.StatusTemporaryRedirect)
-		// 	return
-		// }
-		adminFsHandler.ServeHTTP(w, r)
-	})
 
 	//   billing api
 

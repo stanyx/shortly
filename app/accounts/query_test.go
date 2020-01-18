@@ -45,7 +45,7 @@ func TestCreateAccount(t *testing.T) {
 
 	repo := &UsersRepository{DB: db}
 
-	if _, err := repo.CreateAccount(u); err != nil {
+	if _, _, err := repo.CreateAccount(u); err != nil {
 		t.Errorf("error create account: %s", err)
 	}
 
