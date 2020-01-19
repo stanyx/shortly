@@ -278,15 +278,8 @@ func main() {
 	fs := http.FileServer(http.Dir("static"))
 	fsHandler := http.StripPrefix("/static", fs)
 
-	adminFs := http.FileServer(http.Dir("static/admin"))
-	adminFsHandler := http.StripPrefix("/static/admin", adminFs)
-
 	r.Get("/static/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fsHandler.ServeHTTP(w, r)
-	}))
-
-	r.Get("/admin/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		adminFsHandler.ServeHTTP(w, r)
 	}))
 
 	r.Get("/health", utils.HealthCheck(
@@ -364,33 +357,19 @@ func main() {
 	))
 
 	// links api
-	r.Get("/api/v1/users/links", auth(
-		rbac.NewPermission("/api/v1/users/links", "read_links", "GET"),
-		api.GetUserURLList(linksRepository, logger),
-	))
-
-	r.Get("/api/v1/users/links/clicks", auth(
-		rbac.NewPermission("/api/v1/users/links/clicks", "get_links_clicks", "GET"),
-		api.GetClicksData(historyDB, logger),
-	))
-
-	r.Post("/api/v1/users/links/add_group", auth(
-		rbac.NewPermission("/api/v1/users/links/add_group", "add_link_to_group", "POST"),
-		api.AddUrlToGroup(linksRepository, logger),
-	))
-
-	r.Delete("/api/v1/users/links/delete_group", auth(
-		rbac.NewPermission("/api/v1/users/links/delete_group", "delete_link_from_group", "DELETE"),
-		api.DeleteUrlFromGroup(linksRepository, logger),
-	))
+	api.LinksRoutes(r, auth, linksRepository, logger, historyDB)
 
 	// account api
 	usersRepository := &accounts.UsersRepository{DB: database}
 
-	r.Post("/api/v1/registration", api.RegisterAccount(usersRepository, logger))
+	r.Post("/api/v1/registration", api.RegisterAccount(usersRepository, billingRepository, billingLimiter, logger))
 	r.Post("/api/v1/accounts/users", api.AddUser(usersRepository, logger))
 	r.Post("/api/v1/login", api.Login(usersRepository, logger, appConfig.Auth))
 	r.Get("/api/v1/user", api.GetLoggedInUser(usersRepository, logger, appConfig.Auth))
+	r.Get("/api/v1/profile", auth(
+		rbac.NewPermission("/api/v1/profile", "read_profile", "GET"),
+		api.GetProfile(usersRepository, billingRepository, billingLimiter, logger),
+	))
 
 	r.Post("/api/v1/users/links/create", auth(
 		rbac.NewPermission("/api/v1/users/links/create", "create_link", "POST"),

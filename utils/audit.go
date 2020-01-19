@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 type AuditRequest struct {
@@ -17,14 +19,14 @@ func (i *AuditQuery) doInsertQuery(entityName string, tx *sql.Tx, query string, 
 	var rowID int64
 	err := tx.QueryRow(query, args...).Scan(&rowID)
 	if err != nil {
-		return 0, err
+		return 0, errors.Wrap(err, "insert error")
 	}
 	_, err = tx.Exec(fmt.Sprintf(`
 		insert into audit (entity, entity_id, snapshot, timestamp, action) values ($1, $2, 
 			(select row_to_json(e, true) from %s as e where id = $2), now(), 'create'
 		)
 	`, entityName), entityName, rowID)
-	return rowID, err
+	return rowID, errors.Wrap(err, "audit error")
 }
 
 func (i *AuditQuery) doDeleteQuery(entityName string, tx *sql.Tx, query string, args ...interface{}) (int64, error) {

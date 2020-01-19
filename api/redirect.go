@@ -25,14 +25,19 @@ func Redirect(redirectLogger utils.DbLogger, historyDB *data.HistoryDB, urlCache
 
 		shortURL := strings.TrimPrefix(r.URL.Path, "/")
 
+		scheme := r.URL.Scheme
+		if scheme == "" {
+			scheme = "http://"
+		}
+
 		fmt.Println("url", shortURL)
 		if shortURL == "/" || shortURL == "" {
-			http.ServeFile(w, r, "./static/index.html")
+			http.Redirect(w, r, scheme+r.Host+"/static/index.html", http.StatusPermanentRedirect)
 			return
 		}
 
 		if shortURL == "admin" {
-			http.ServeFile(w, r, "./static/admin/index.html")
+			http.Redirect(w, r, scheme+r.Host+"/static/admin/index.html", http.StatusPermanentRedirect)
 			return
 		}
 

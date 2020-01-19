@@ -63,6 +63,14 @@ func (repo *MockLinksRepository) DeleteUserLink(accountID int64, shortURL string
 	return nil, 0, nil
 }
 
+func (repo *MockLinksRepository) AddUrlToGroup(groupID, linkID int64) error {
+	return nil
+}
+
+func (repo *MockLinksRepository) DeleteUrlFromGroup(groupID, linkID int64) error {
+	return nil
+}
+
 func TestGetLinks(t *testing.T) {
 
 	logger := log.New(ioutil.Discard, "", log.Lshortfile)

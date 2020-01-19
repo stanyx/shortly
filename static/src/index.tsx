@@ -63,7 +63,7 @@ const App = () => {
 
     window.onload = function() {
         let urlPath = window.location.pathname;
-        if (urlPath == '/') {
+        if (urlPath == '/' || urlPath == '/static/') {
             httpGet('/api/v1/user').then((response) => {
                 console.log(response.data);
             })

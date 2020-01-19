@@ -35,3 +35,8 @@ func (opt BillingOption) AsInt64() int64 {
 	v, _ := strconv.ParseInt(opt.Value, 0, 64)
 	return v
 }
+
+type BillingParameter struct {
+	BillingOption
+	CurrentValue string
+}

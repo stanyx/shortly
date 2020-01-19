@@ -8,6 +8,4 @@
  - Geolocation
  - Simple reports
  - Social posting
-
- Postgres
- - partitions
+ - Link security scoring

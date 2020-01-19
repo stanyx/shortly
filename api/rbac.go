@@ -10,42 +10,43 @@ import (
 	"shortly/app/rbac"
 
 	"github.com/go-chi/chi"
+	validator "gopkg.in/go-playground/validator.v9"
 )
 
 func RbacRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.HandlerFunc, permissions map[string]rbac.Permission, userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) {
 
-	r.Get("/api/v1/users/roles", auth(
-		rbac.NewPermission("/api/v1/users/roles", "read_roles", "GET"),
+	r.Get("/api/v1/roles", auth(
+		rbac.NewPermission("/api/v1/roles", "read_roles", "GET"),
 		GetUserRoles(userRepo, repo, logger),
 	))
 
-	r.Post("/api/v1/users/roles/create", auth(
-		rbac.NewPermission("/api/v1/users/roles/create", "create_role", "POST"),
-		CreateUserRole(userRepo, repo, logger),
+	r.Post("/api/v1/roles/create", auth(
+		rbac.NewPermission("/api/v1/roles/create", "create_role", "POST"),
+		CreateUserRole(repo, logger),
 	))
 
-	r.Delete("/api/v1/users/roles/delete", auth(
-		rbac.NewPermission("/api/v1/users/roles/delete", "delete_role", "DELETE"),
+	r.Delete("/api/v1/roles/delete", auth(
+		rbac.NewPermission("/api/v1/roles/delete", "delete_role", "DELETE"),
 		DeleteUserRole(userRepo, repo, logger),
 	))
 
-	r.Post("/api/v1/users/roles/set", auth(
-		rbac.NewPermission("/api/v1/users/roles/set", "set_user_role", "POST"),
+	r.Post("/api/v1/roles/set", auth(
+		rbac.NewPermission("/api/v1/roles/set", "set_user_role", "POST"),
 		SetUserRole(userRepo, repo, logger),
 	))
 
-	r.Post("/api/v1/users/roles/grant", auth(
-		rbac.NewPermission("/api/v1/users/roles/grant", "grant_permission", "POST"),
+	r.Post("/api/v1/roles/grant", auth(
+		rbac.NewPermission("/api/v1/roles/grant", "grant_permission", "POST"),
 		GrantAccessForRole(userRepo, repo, logger),
 	))
 
-	r.Post("/api/v1/users/roles/revoke", auth(
-		rbac.NewPermission("/api/v1/users/roles/revoke", "revoke_permission", "POST"),
+	r.Post("/api/v1/roles/revoke", auth(
+		rbac.NewPermission("/api/v1/roles/revoke", "revoke_permission", "POST"),
 		RevokeAccessForRole(userRepo, repo, logger),
 	))
 
-	r.Get("/api/v1/users/permissions", auth(
-		rbac.NewPermission("/api/v1/users/permissions", "read_permissions", "GET"),
+	r.Get("/api/v1/permissions", auth(
+		rbac.NewPermission("/api/v1/permissions", "read_permissions", "GET"),
 		GetAllPermissions(permissions, userRepo, repo, logger),
 	))
 
@@ -78,7 +79,7 @@ func GetUserRoles(userRepo *accounts.UsersRepository, repo *rbac.RbacRepository,
 }
 
 type CreateRoleForm struct {
-	Name        string `json:"name"`
+	Name        string `json:"name" binding:"required"`
 	Description string `json:"description"`
 }
 
@@ -88,7 +89,7 @@ type RoleResponse struct {
 	Description string `json:"description"`
 }
 
-func CreateUserRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
+func CreateUserRole(repo rbac.IRbacRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -99,6 +100,12 @@ func CreateUserRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepositor
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
 			apiError(w, "decode form error", http.StatusBadRequest)
+			return
+		}
+
+		v := validator.New()
+		if err := v.Struct(form); err != nil {
+			apiError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 

@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
+	validator "gopkg.in/go-playground/validator.v9"
 
 	"shortly/utils"
 )
@@ -14,11 +16,18 @@ type UsersRepository struct {
 	DB *sql.DB
 }
 
-func (r *UsersRepository) CreateAccount(u User) (int64, error) {
+func (r *UsersRepository) CreateAccount(u User) (int64, int64, error) {
+
+	accountErrPrefix := "create account error: "
+
+	v := validator.New()
+	if err := v.Struct(u); err != nil {
+		return 0, 0, errors.Wrap(err, accountErrPrefix)
+	}
 
 	tx, err := r.DB.Begin()
 	if err != nil {
-		return 0, err
+		return 0, 0, errors.Wrap(err, accountErrPrefix)
 	}
 
 	accountID, err := r.Create("accounts", tx, `
@@ -27,13 +36,18 @@ func (r *UsersRepository) CreateAccount(u User) (int64, error) {
 		returning id`, u.Company)
 
 	if err != nil {
-		return 0, err
+		return 0, 0, errors.Wrap(err, accountErrPrefix+"(account)")
 	}
 
-	password, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
-	if err != nil {
-		_ = tx.Rollback()
-		return 0, err
+	var password string
+
+	if u.Password != "" {
+		genPassword, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
+		if err != nil {
+			_ = tx.Rollback()
+			return 0, 0, errors.Wrap(err, accountErrPrefix+"(password)")
+		}
+		password = string(genPassword)
 	}
 
 	userID, err := r.Create("users", tx, `
@@ -52,14 +66,14 @@ func (r *UsersRepository) CreateAccount(u User) (int64, error) {
 
 	if err != nil {
 		_ = tx.Rollback()
-		return 0, err
+		return 0, 0, errors.Wrap(err, accountErrPrefix+"(user)")
 	}
 
 	if err := tx.Commit(); err != nil {
-		return 0, err
+		return 0, 0, errors.Wrap(err, accountErrPrefix)
 	}
 
-	return userID, nil
+	return userID, accountID, nil
 }
 
 func (r *UsersRepository) CreateUser(accountID int64, u User) (int64, error) {
@@ -82,6 +96,25 @@ func (r *UsersRepository) CreateUser(accountID int64, u User) (int64, error) {
 		accountID,
 		u.RoleID,
 	)
+}
+
+func (r *UsersRepository) GetAccount(accountID int64) (*Account, error) {
+
+	var account Account
+	err := r.DB.QueryRow(
+		"select name, created_at, verified from accounts where id = $1",
+		accountID,
+	).Scan(
+		&account.Name,
+		&account.CreatedAt,
+		&account.Verified,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &account, nil
 }
 
 func (r *UsersRepository) GetUserByEmail(email string) (*User, error) {

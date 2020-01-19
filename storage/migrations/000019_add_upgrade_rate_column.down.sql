@@ -1,0 +1,1 @@
+ALTER TABLE billing_plans DROP COLUMN upgrade_rate;

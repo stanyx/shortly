@@ -9,8 +9,10 @@ import (
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"golang.org/x/crypto/bcrypt"
+	validator "gopkg.in/go-playground/validator.v9"
 
 	"shortly/app/accounts"
+	"shortly/app/billing"
 	"shortly/config"
 )
 
@@ -26,16 +28,17 @@ type JWTClaims struct {
 }
 
 type AccountRegistrationForm struct {
-	Password string `json:"password"`
+	Password string `json:"password" binding:"required"`
+	Email    string `json:"email" binding:"required"`
+	Company  string `json:"company" binding:"required"`
 	Phone    string `json:"phone"`
-	Email    string `json:"email"`
-	Company  string `json:"company"`
 }
 
 type UserResponse struct {
-	ID      int64  `json:"id,omitempty"`
-	Email   string `json:"email"`
-	Company string `json:"company"`
+	ID        int64  `json:"id,omitempty"`
+	AccountID int64  `json:"account_id"`
+	Email     string `json:"email"`
+	Company   string `json:"company"`
 }
 
 type LoginResponse struct {
@@ -43,7 +46,7 @@ type LoginResponse struct {
 	Token string       `json:"token"`
 }
 
-func RegisterAccount(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFunc {
+func RegisterAccount(repo *accounts.UsersRepository, billingRepo *billing.BillingRepository, billingLimiter *billing.BillingLimiter, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -60,21 +63,13 @@ func RegisterAccount(repo *accounts.UsersRepository, logger *log.Logger) http.Ha
 			return
 		}
 
-		if form.Email == "" {
-			apiError(w, "email is required field", http.StatusBadRequest)
-			return
-		}
-
-		if form.Phone == "" {
-			apiError(w, "phone is required field", http.StatusBadRequest)
+		v := validator.New()
+		if err := v.Struct(&form); err != nil {
+			apiError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		// TODO - password check
-		if form.Password == "" {
-			apiError(w, "password is required field", http.StatusBadRequest)
-			return
-		}
 
 		user := accounts.User{
 			Username: form.Email,
@@ -84,17 +79,31 @@ func RegisterAccount(repo *accounts.UsersRepository, logger *log.Logger) http.Ha
 			Company:  form.Company,
 		}
 
-		userID, err := repo.CreateAccount(user)
+		userID, accountID, err := repo.CreateAccount(user)
 		if err != nil {
 			logger.Println(err)
 			apiError(w, "create account error", http.StatusInternalServerError)
 			return
 		}
 
+		billingAccount, err := billingRepo.AttachToDefaultBilling(accountID, 1)
+		if err != nil {
+			logger.Println(err)
+			apiError(w, "attach to billing error", http.StatusInternalServerError)
+			return
+		}
+
+		if err := billingLimiter.UpdateAccount(accountID, *billingAccount); err != nil {
+			logger.Println(err)
+			apiError(w, "update billing account error", http.StatusInternalServerError)
+			return
+		}
+
 		response(w, &UserResponse{
-			ID:      userID,
-			Email:   user.Email,
-			Company: user.Company,
+			ID:        userID,
+			AccountID: accountID,
+			Email:     user.Email,
+			Company:   user.Company,
 		}, http.StatusOK)
 	})
 }
@@ -390,4 +399,91 @@ func DeleteUserFromGroup(repo *accounts.UsersRepository, logger *log.Logger) htt
 		ok(w)
 	})
 
+}
+
+type BillingPlanOptionResponse struct {
+	ID    int64  `json:"id"`
+	Name  string `json:"name"`
+	Price string `json:"fee"`
+}
+
+type BillingOptionCounterResponse struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+	Limit string `json:"limit"`
+}
+
+type ProfileResponse struct {
+	Username             string                         `json:"username"`
+	Company              string                         `json:"company"`
+	BillingPlan          string                         `json:"billingPlan"`
+	BillingPlanFee       string                         `json:"billingPlanFee"`
+	BillingPlanExpiredAt string                         `json:"billingPlanExpiredAt"`
+	PlansAvailable       []BillingPlanOptionResponse    `json:"plansAvailable"`
+	BillingUsage         []BillingOptionCounterResponse `json:"billingUsage"`
+}
+
+func GetProfile(repo *accounts.UsersRepository, billingRepo *billing.BillingRepository, billingLimiter *billing.BillingLimiter, logger *log.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		claims := r.Context().Value("user").(*JWTClaims)
+
+		account, err := repo.GetAccount(claims.AccountID)
+		if err != nil {
+			logError(logger, err)
+			apiError(w, "get account error", http.StatusInternalServerError)
+			return
+		}
+
+		billingPlan, err := billingRepo.GetAccountBillingPlan(claims.AccountID)
+		if err != nil {
+			logError(logger, err)
+			apiError(w, "get billing plan error", http.StatusInternalServerError)
+			return
+		}
+
+		billingPlanToUpgrade, err := billingRepo.GetBillingPlansToUpgrade(billingPlan.ID)
+		if err != nil {
+			logError(logger, err)
+			apiError(w, "get billing plans error", http.StatusInternalServerError)
+			return
+		}
+
+		var plansOptionsResponse []BillingPlanOptionResponse
+		for _, bp := range billingPlanToUpgrade {
+			plansOptionsResponse = append(plansOptionsResponse, BillingPlanOptionResponse{
+				ID:    bp.ID,
+				Name:  bp.Name,
+				Price: bp.Price,
+			})
+		}
+
+		billingStat, err := billingLimiter.GetBillingStatistics(claims.AccountID, billingPlan.Start, billingPlan.End)
+		if err != nil {
+			logError(logger, err)
+			apiError(w, "get billing statistics error", http.StatusInternalServerError)
+			return
+		}
+
+		var billingPlanUsageResponse []BillingOptionCounterResponse
+		for _, bs := range billingStat {
+			billingPlanUsageResponse = append(billingPlanUsageResponse, BillingOptionCounterResponse{
+				Name:  bs.Name,
+				Value: bs.CurrentValue,
+				Limit: bs.Value,
+			})
+		}
+
+		resp := ProfileResponse{
+			Username:             claims.Name,
+			Company:              account.Name,
+			BillingPlan:          billingPlan.Name,
+			BillingPlanFee:       billingPlan.Price,
+			BillingPlanExpiredAt: billingPlan.End.Format(time.RFC3339),
+			PlansAvailable:       plansOptionsResponse,
+			BillingUsage:         billingPlanUsageResponse,
+		}
+
+		response(w, resp, http.StatusOK)
+	})
 }
