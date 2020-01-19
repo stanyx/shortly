@@ -22,6 +22,8 @@ type ILinksRepository interface {
 	DeleteUserLink(accountID int64, shortURL string) (*sql.Tx, int64, error)
 	GetUserLinks(accountID, userID int64, filters ...LinkFilter) ([]Link, error)
 	GetUserLinksCount(accountID int64, startTime, endTime time.Time) (int, error)
+	AddUrlToGroup(groupID int64, linkID int64) error
+	DeleteUrlFromGroup(groupID int64, linkID int64) error
 }
 
 type LinksRepository struct {

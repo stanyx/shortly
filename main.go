@@ -357,25 +357,7 @@ func main() {
 	))
 
 	// links api
-	r.Get("/api/v1/users/links", auth(
-		rbac.NewPermission("/api/v1/users/links", "read_links", "GET"),
-		api.GetUserURLList(linksRepository, logger),
-	))
-
-	r.Get("/api/v1/users/links/clicks", auth(
-		rbac.NewPermission("/api/v1/users/links/clicks", "get_links_clicks", "GET"),
-		api.GetClicksData(historyDB, logger),
-	))
-
-	r.Post("/api/v1/users/links/add_group", auth(
-		rbac.NewPermission("/api/v1/users/links/add_group", "add_link_to_group", "POST"),
-		api.AddUrlToGroup(linksRepository, logger),
-	))
-
-	r.Delete("/api/v1/users/links/delete_group", auth(
-		rbac.NewPermission("/api/v1/users/links/delete_group", "delete_link_from_group", "DELETE"),
-		api.DeleteUrlFromGroup(linksRepository, logger),
-	))
+	api.LinksRoutes(r, auth, linksRepository, logger, historyDB)
 
 	// account api
 	usersRepository := &accounts.UsersRepository{DB: database}

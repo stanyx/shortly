@@ -8,6 +8,10 @@ import (
 	"github.com/casbin/casbin/v2"
 )
 
+type IRbacRepository interface {
+	CreateRole(accountID int64, role Role) (int64, error)
+}
+
 type RbacRepository struct {
 	DB       *sql.DB
 	Logger   *log.Logger

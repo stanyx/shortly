@@ -1,17 +1,13 @@
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {BrowserRouter as Router, Switch, Route} from 'react-router-dom';
+import {httpGet} from './utils';
 
 import NavLink from './components/navmenu';
 import LinksTable from './components/links-table';
 import CreateLinkComponent from './components/create-link';
-import {httpGet} from './utils';
-
-const LinksTableComponent = () => {
-    return (
-        <LinksTable />
-    )
-}
+import RolesTable from './components/roles-table';
+import CreateRoleComponent from './components/create-role';
 
 const App = () => {
 
@@ -76,13 +72,16 @@ const App = () => {
                 <section className="content">
                     <Switch>
                         <Route path="/links" exact>
-                            <LinksTableComponent/>
+                            <LinksTable />
                         </Route>
                         <Route path="/links/create">
                             <CreateLinkComponent/>
                         </Route>
-                        <Route path="/roles">
-                            <span>Roles</span>
+                        <Route path="/roles" exact>
+                            <RolesTable/>
+                        </Route>
+                        <Route path="/roles/create">
+                            <CreateRoleComponent/>
                         </Route>
                         <Route path="/users">
                             <span>Users</span>

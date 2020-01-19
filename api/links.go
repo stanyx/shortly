@@ -12,13 +12,39 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/go-chi/chi"
+
 	"shortly/cache"
 	"shortly/utils"
 
 	"shortly/app/billing"
 	"shortly/app/data"
 	"shortly/app/links"
+	"shortly/app/rbac"
 )
+
+func LinksRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.HandlerFunc, linksRepository links.ILinksRepository, logger *log.Logger, historyDB *data.HistoryDB) {
+	r.Get("/api/v1/users/links", auth(
+		rbac.NewPermission("/api/v1/users/links", "read_links", "GET"),
+		GetUserURLList(linksRepository, logger),
+	))
+
+	r.Get("/api/v1/users/links/clicks", auth(
+		rbac.NewPermission("/api/v1/users/links/clicks", "get_links_clicks", "GET"),
+		GetClicksData(historyDB, logger),
+	))
+
+	r.Post("/api/v1/users/links/add_group", auth(
+		rbac.NewPermission("/api/v1/users/links/add_group", "add_link_to_group", "POST"),
+		AddUrlToGroup(linksRepository, logger),
+	))
+
+	r.Delete("/api/v1/users/links/delete_group", auth(
+		rbac.NewPermission("/api/v1/users/links/delete_group", "delete_link_from_group", "DELETE"),
+		DeleteUrlFromGroup(linksRepository, logger),
+	))
+
+}
 
 func GetAccountID(r *http.Request) int64 {
 	claims := r.Context().Value("user").(*JWTClaims)
@@ -401,7 +427,7 @@ type AddUrlToGroupForm struct {
 	UrlID   int64 `json:"urlId"`
 }
 
-func AddUrlToGroup(repo *links.LinksRepository, logger *log.Logger) http.HandlerFunc {
+func AddUrlToGroup(repo links.ILinksRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -433,7 +459,7 @@ type DeleteUrlFromGroupForm struct {
 	UrlID   int64 `json:"urlId"`
 }
 
-func DeleteUrlFromGroup(repo *links.LinksRepository, logger *log.Logger) http.HandlerFunc {
+func DeleteUrlFromGroup(repo links.ILinksRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
