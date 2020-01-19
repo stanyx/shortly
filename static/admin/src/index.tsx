@@ -8,6 +8,7 @@ import LinksTable from './components/links-table';
 import CreateLinkComponent from './components/create-link';
 import RolesTable from './components/roles-table';
 import CreateRoleComponent from './components/create-role';
+import ProfileComponent from './components/profile';
 
 const App = () => {
 
@@ -91,6 +92,9 @@ const App = () => {
                         </Route>
                         <Route path="/webhooks">
                             <span>Webhooks</span>
+                        </Route>
+                        <Route path="/profile" exact>
+                            <ProfileComponent />
                         </Route>
                         <Route path="/" exact>
                             <span>Others</span>

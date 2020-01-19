@@ -185,7 +185,7 @@ func (r *BillingRepository) GetAllBillingPlans() ([]BillingPlan, error) {
 
 func (r *BillingRepository) GetActiveBillingPlans(accountID int64) ([]AccountBillingPlan, error) {
 	query := `
-		SELECT ubp.account_id, ubp.started_at, ubp.ended_at, bp.id, bp.name, bp.description 
+		SELECT bp.id, ubp.account_id, ubp.started_at, ubp.ended_at, bp.id, bp.name, bp.description 
 		FROM billing_accounts ubp
 		INNER JOIN billing_plans bp ON bp.id = ubp.plan_id
 		WHERE ubp.active = true
@@ -207,6 +207,7 @@ func (r *BillingRepository) GetActiveBillingPlans(accountID int64) ([]AccountBil
 	for rows.Next() {
 		var bp AccountBillingPlan
 		if err := rows.Scan(
+			&bp.ID,
 			&bp.AccountID,
 			&bp.Start,
 			&bp.End,
@@ -268,6 +269,7 @@ func (r *BillingRepository) GetPlansOptions(accountID int64) (map[int64][]Billin
 	return optionByAccount, nil
 }
 
+// TODO rename to GetAccountBillingPlans
 func (r *BillingRepository) GetAllUserBillingPlans(accountID int64) ([]AccountBillingPlan, error) {
 
 	optionByAccount, err := r.GetPlansOptions(accountID)
@@ -304,6 +306,60 @@ func (r *BillingRepository) GetDefaultPlan() (*BillingPlan, error) {
 	defaultPlan.Options = options
 
 	return &defaultPlan, nil
+}
+
+func (r *BillingRepository) GetBillingPlansToUpgrade(planID int64) ([]BillingPlan, error) {
+
+	rows, err := r.DB.Query(`
+		select bi.id, bi.name, prices[1], prices[2] from (
+			select bp.id, bp.name, array_agg(bpr.price) prices
+			from billing_plans bp
+			left join billing_price bpr on bpr.plan_id = bp.id  
+			where 
+			upgrade_rate > (select upgrade_rate from billing_plans where id = $1)
+			group by bp.id, bp.name, bp.upgrade_rate
+			order by bp.upgrade_rate
+		) bi
+	`, planID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var list []BillingPlan
+
+	for rows.Next() {
+		var bp BillingPlan
+		err := rows.Scan(&bp.ID, &bp.Name, &bp.Price, &bp.AnnualPrice)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, bp)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	return list, nil
+
+}
+
+func (r *BillingRepository) GetAccountBillingPlan(accountID int64) (*AccountBillingPlan, error) {
+	plans, err := r.GetAllUserBillingPlans(accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(plans) == 0 {
+		return nil, errors.New("no billing plan found")
+	}
+
+	plan := plans[0]
+
+	return &plan, nil
 }
 
 func (r *BillingRepository) IsAttachToPlan(accountID int64) (bool, error) {

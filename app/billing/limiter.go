@@ -20,6 +20,21 @@ const billingDatabaseName = "billing"
 var (
 	LimitExceededError         = errors.New("limit exceeded error")
 	BillingAccountExpiredError = errors.New("billing account expired")
+
+	// counters
+
+	Options = []string{
+		"url_limit",
+		"timedata_limit",
+		"users_limit",
+		"tags",
+		"tags_limit",
+		"groups",
+		"groups_limit",
+		"campaigns",
+		"campaigns_limit",
+		"rate_limit",
+	}
 )
 
 type BillingAccount struct {
@@ -95,6 +110,44 @@ func (l *BillingLimiter) resetOption(tx *bolt.Tx, optionName string, accountID i
 	}
 
 	return option, nil
+}
+
+func (l *BillingLimiter) GetBillingStatistics(accountID int64, startTime, endTime time.Time) ([]BillingParameter, error) {
+
+	var stat []BillingParameter
+
+	err := l.DB.View(func(tx *bolt.Tx) error {
+		for _, optionName := range Options {
+			v, err := l.getOption(tx, optionName, accountID)
+			if err == nil {
+
+				currentValue := "-"
+
+				switch optionName {
+				case "url_limit":
+					cnt, err := l.UrlRepo.GetUserLinksCount(accountID, startTime, endTime)
+					if err != nil {
+						return err
+					}
+					currentValue = fmt.Sprintf("%v", cnt)
+				}
+
+				stat = append(stat, BillingParameter{
+					BillingOption: *v,
+					CurrentValue:  currentValue,
+				})
+			}
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return stat, nil
 }
 
 func (l *BillingLimiter) Reset(optionName string, accountID int64) error {

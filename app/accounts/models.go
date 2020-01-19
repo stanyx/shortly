@@ -1,5 +1,16 @@
 package accounts
 
+import (
+	"time"
+)
+
+type Account struct {
+	ID        int64
+	Name      string
+	CreatedAt time.Time
+	Verified  bool
+}
+
 type User struct {
 	ID        int64
 	Username  string `binding:"required"`

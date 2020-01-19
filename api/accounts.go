@@ -400,3 +400,90 @@ func DeleteUserFromGroup(repo *accounts.UsersRepository, logger *log.Logger) htt
 	})
 
 }
+
+type BillingPlanOptionResponse struct {
+	ID    int64  `json:"id"`
+	Name  string `json:"name"`
+	Price string `json:"fee"`
+}
+
+type BillingOptionCounterResponse struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+	Limit string `json:"limit"`
+}
+
+type ProfileResponse struct {
+	Username             string                         `json:"username"`
+	Company              string                         `json:"company"`
+	BillingPlan          string                         `json:"billingPlan"`
+	BillingPlanFee       string                         `json:"billingPlanFee"`
+	BillingPlanExpiredAt string                         `json:"billingPlanExpiredAt"`
+	PlansAvailable       []BillingPlanOptionResponse    `json:"plansAvailable"`
+	BillingUsage         []BillingOptionCounterResponse `json:"billingUsage"`
+}
+
+func GetProfile(repo *accounts.UsersRepository, billingRepo *billing.BillingRepository, billingLimiter *billing.BillingLimiter, logger *log.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		claims := r.Context().Value("user").(*JWTClaims)
+
+		account, err := repo.GetAccount(claims.AccountID)
+		if err != nil {
+			logError(logger, err)
+			apiError(w, "get account error", http.StatusInternalServerError)
+			return
+		}
+
+		billingPlan, err := billingRepo.GetAccountBillingPlan(claims.AccountID)
+		if err != nil {
+			logError(logger, err)
+			apiError(w, "get billing plan error", http.StatusInternalServerError)
+			return
+		}
+
+		billingPlanToUpgrade, err := billingRepo.GetBillingPlansToUpgrade(billingPlan.ID)
+		if err != nil {
+			logError(logger, err)
+			apiError(w, "get billing plans error", http.StatusInternalServerError)
+			return
+		}
+
+		var plansOptionsResponse []BillingPlanOptionResponse
+		for _, bp := range billingPlanToUpgrade {
+			plansOptionsResponse = append(plansOptionsResponse, BillingPlanOptionResponse{
+				ID:    bp.ID,
+				Name:  bp.Name,
+				Price: bp.Price,
+			})
+		}
+
+		billingStat, err := billingLimiter.GetBillingStatistics(claims.AccountID, billingPlan.Start, billingPlan.End)
+		if err != nil {
+			logError(logger, err)
+			apiError(w, "get billing statistics error", http.StatusInternalServerError)
+			return
+		}
+
+		var billingPlanUsageResponse []BillingOptionCounterResponse
+		for _, bs := range billingStat {
+			billingPlanUsageResponse = append(billingPlanUsageResponse, BillingOptionCounterResponse{
+				Name:  bs.Name,
+				Value: bs.CurrentValue,
+				Limit: bs.Value,
+			})
+		}
+
+		resp := ProfileResponse{
+			Username:             claims.Name,
+			Company:              account.Name,
+			BillingPlan:          billingPlan.Name,
+			BillingPlanFee:       billingPlan.Price,
+			BillingPlanExpiredAt: billingPlan.End.Format(time.RFC3339),
+			PlansAvailable:       plansOptionsResponse,
+			BillingUsage:         billingPlanUsageResponse,
+		}
+
+		response(w, resp, http.StatusOK)
+	})
+}

@@ -98,6 +98,25 @@ func (r *UsersRepository) CreateUser(accountID int64, u User) (int64, error) {
 	)
 }
 
+func (r *UsersRepository) GetAccount(accountID int64) (*Account, error) {
+
+	var account Account
+	err := r.DB.QueryRow(
+		"select name, created_at, verified from accounts where id = $1",
+		accountID,
+	).Scan(
+		&account.Name,
+		&account.CreatedAt,
+		&account.Verified,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &account, nil
+}
+
 func (r *UsersRepository) GetUserByEmail(email string) (*User, error) {
 
 	var user User
