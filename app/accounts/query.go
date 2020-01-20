@@ -117,6 +117,36 @@ func (r *UsersRepository) GetAccount(accountID int64) (*Account, error) {
 	return &account, nil
 }
 
+func (r *UsersRepository) GetAccountUsers(accountID int64) ([]User, error) {
+
+	rows, err := r.DB.Query(
+		"select id, username, email, phone from users where account_id = $1",
+		accountID,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var list []User
+	for rows.Next() {
+		var u User
+		err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.Phone)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, u)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	return list, nil
+}
+
 func (r *UsersRepository) GetUserByEmail(email string) (*User, error) {
 
 	var user User

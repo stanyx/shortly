@@ -8,6 +8,8 @@ import LinksTable from './components/links-table';
 import CreateLinkComponent from './components/create-link';
 import RolesTable from './components/roles-table';
 import CreateRoleComponent from './components/create-role';
+import UserTable from './components/users-table';
+import CreateUserComponent from './components/create-user';
 import ProfileComponent from './components/profile';
 
 const App = () => {
@@ -20,12 +22,6 @@ const App = () => {
                 <ul className="navbar-nav">
                   <li className="nav-item">
                     <a className="nav-link" data-widget="pushmenu" href="#"><i className="fas fa-bars"></i></a>
-                  </li>
-                  <li className="nav-item d-none d-sm-inline-block">
-                    <a href="/admin" className="nav-link">Dashboard</a>
-                  </li>
-                  <li className="nav-item d-none d-sm-inline-block">
-                    <a href="/admin" className="nav-link">Campaigns</a>
                   </li>
                 </ul>
             
@@ -84,8 +80,11 @@ const App = () => {
                         <Route path="/roles/create">
                             <CreateRoleComponent/>
                         </Route>
-                        <Route path="/users">
-                            <span>Users</span>
+                        <Route path="/users" exact>
+                            <UserTable />
+                        </Route>
+                        <Route path="/users/create" exact>
+                            <CreateUserComponent />
                         </Route>
                         <Route path="/groups">
                             <span>Groups</span>

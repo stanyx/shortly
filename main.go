@@ -363,7 +363,14 @@ func main() {
 	usersRepository := &accounts.UsersRepository{DB: database}
 
 	r.Post("/api/v1/registration", api.RegisterAccount(usersRepository, billingRepository, billingLimiter, logger))
-	r.Post("/api/v1/accounts/users", api.AddUser(usersRepository, logger))
+	r.Get("/api/v1/users", auth(
+		rbac.NewPermission("/api/v1/users", "read_users", "GET"),
+		api.GetUsers(usersRepository, logger),
+	))
+	r.Post("/api/v1/users/create", auth(
+		rbac.NewPermission("/api/v1/users/create", "create_user", "POST"),
+		api.AddUser(usersRepository, logger),
+	))
 	r.Post("/api/v1/login", api.Login(usersRepository, logger, appConfig.Auth))
 	r.Get("/api/v1/user", api.GetLoggedInUser(usersRepository, logger, appConfig.Auth))
 	r.Get("/api/v1/profile", auth(

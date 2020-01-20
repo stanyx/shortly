@@ -37,7 +37,9 @@ type AccountRegistrationForm struct {
 type UserResponse struct {
 	ID        int64  `json:"id,omitempty"`
 	AccountID int64  `json:"account_id"`
+	Username  string `json:"username,omitempty"`
 	Email     string `json:"email"`
+	Phone     string `json:"phone,omitempty"`
 	Company   string `json:"company"`
 }
 
@@ -113,17 +115,13 @@ type UserRegistrationForm struct {
 	Password  string `json:"password"`
 	Phone     string `json:"phone"`
 	Email     string `json:"email"`
-	AccountID int64  `json:"accountId"`
 	RoleID    int64  `json:"roleId"`
 }
 
 func AddUser(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		if r.Method != "POST" {
-			apiError(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
+		claims := r.Context().Value("user").(*JWTClaims)
 
 		var form UserRegistrationForm
 
@@ -142,7 +140,7 @@ func AddUser(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFun
 			RoleID:   form.RoleID,
 		}
 
-		userID, err := repo.CreateUser(form.AccountID, user)
+		userID, err := repo.CreateUser(claims.AccountID, user)
 		if err != nil {
 			logger.Println(err)
 			apiError(w, "save user error", http.StatusInternalServerError)
