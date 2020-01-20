@@ -119,25 +119,26 @@ func (l *BillingLimiter) GetBillingStatistics(accountID int64, startTime, endTim
 	err := l.DB.View(func(tx *bolt.Tx) error {
 		for _, optionName := range Options {
 			v, err := l.getOption(tx, optionName, accountID)
-			if err == nil {
-
-				currentValue := "-"
-
-				switch optionName {
-				case "url_limit":
-					cnt, err := l.UrlRepo.GetUserLinksCount(accountID, startTime, endTime)
-					if err != nil {
-						return err
-					}
-					currentValue = fmt.Sprintf("%v", cnt)
-				}
-
-				stat = append(stat, BillingParameter{
-					BillingOption: *v,
-					CurrentValue:  currentValue,
-				})
+			if err != nil {
+				return err
 			}
-			return err
+
+			currentValue := "-"
+
+			switch optionName {
+			case "url_limit":
+				cnt, err := l.UrlRepo.GetUserLinksCount(accountID, startTime, endTime)
+				if err != nil {
+					return err
+				}
+				currentValue = fmt.Sprintf("%v", cnt)
+			}
+
+			stat = append(stat, BillingParameter{
+				BillingOption: *v,
+				CurrentValue:  currentValue,
+			})
+
 		}
 
 		return nil
