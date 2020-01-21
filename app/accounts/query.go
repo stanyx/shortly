@@ -225,6 +225,37 @@ func (r *UsersRepository) GetUserByAccountID(accountID int64) (*User, error) {
 	return r.getUserFiltered("account_id", accountID)
 }
 
+// TODO - move to another application
+
+func (repo *UsersRepository) GetAccountGroups(accountID int64) ([]Group, error) {
+	rows, err := repo.DB.Query(
+		"select id, name, description from groups where account_id = $1",
+		accountID,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var list []Group
+	for rows.Next() {
+		var u Group
+		err := rows.Scan(&u.ID, &u.Name, &u.Description)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, u)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	return list, nil
+}
+
 func (repo *UsersRepository) AddGroup(g Group) (int64, error) {
 	return repo.CreateTx("groups", repo.DB, `
 		insert into "groups" (name, description, account_id) 

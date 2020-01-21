@@ -16,4 +16,12 @@ let httpPost = (url: string, body: any): Promise<AxiosResponse> => {
     });
 }
 
-export {httpGet, httpPost};
+let httpDelete = (url: string): Promise<AxiosResponse> => {
+    return axios.delete(url, {
+        headers: {
+            'x-access-token': localStorage.getItem('token')
+        }
+    });
+}
+
+export {httpGet, httpPost, httpDelete};
