@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/go-chi/chi"
 	"golang.org/x/crypto/bcrypt"
 	validator "gopkg.in/go-playground/validator.v9"
 
@@ -111,11 +113,11 @@ func RegisterAccount(repo *accounts.UsersRepository, billingRepo *billing.Billin
 }
 
 type UserRegistrationForm struct {
-	Username  string `json:"username"`
-	Password  string `json:"password"`
-	Phone     string `json:"phone"`
-	Email     string `json:"email"`
-	RoleID    int64  `json:"roleId"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Phone    string `json:"phone"`
+	Email    string `json:"email"`
+	RoleID   int64  `json:"roleId"`
 }
 
 func AddUser(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFunc {
@@ -249,6 +251,31 @@ func GetLoggedInUser(repo *accounts.UsersRepository, logger *log.Logger, authCon
 	})
 }
 
+func GetGroups(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		claims := r.Context().Value("user").(*JWTClaims)
+
+		rows, err := repo.GetAccountGroups(claims.AccountID)
+		if err != nil {
+			logError(logger, err)
+			apiError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		var list []GroupResponse
+		for _, r := range rows {
+			list = append(list, GroupResponse{
+				ID:          r.ID,
+				Name:        r.Name,
+				Description: r.Description,
+			})
+		}
+
+		response(w, list, http.StatusOK)
+	})
+}
+
 type CreateGroupForm struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
@@ -296,26 +323,26 @@ func AddGroup(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFu
 
 }
 
-type DeleteGroupForm struct {
-	GroupID int64 `json:"groupId"`
-}
-
 func DeleteGroup(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		claims := r.Context().Value("user").(*JWTClaims)
-		accountID := claims.AccountID
-
-		var form DeleteGroupForm
-
-		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
-			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+		groupIDArg := chi.URLParam(r, "groupID")
+		if groupIDArg == "" {
+			apiError(w, "groupID is required argument", http.StatusBadRequest)
 			return
 		}
 
-		err := repo.DeleteGroup(form.GroupID, accountID)
+		groupID, err := strconv.ParseInt(groupIDArg, 0, 64)
+		if err != nil {
+			apiError(w, "groupID is not a number", http.StatusBadRequest)
+			return
+		}
+
+		claims := r.Context().Value("user").(*JWTClaims)
+		accountID := claims.AccountID
+
+		err = repo.DeleteGroup(groupID, accountID)
 		if err != nil {
 			logError(logger, err)
 			apiError(w, "delete group error", http.StatusInternalServerError)

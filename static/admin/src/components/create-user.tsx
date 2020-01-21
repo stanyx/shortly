@@ -17,7 +17,8 @@ class CreateUserComponent extends React.Component<any, CreateUserState> {
     }
     componentDidMount() {
         httpGet('/api/v1/roles').then((response) => {
-            this.setState({roles: response.data.result})
+            const defaultRole = response.data.result[0];
+            this.setState({roles: response.data.result, roleID: defaultRole && defaultRole.id})
         })
     }
     submit(e: any) {

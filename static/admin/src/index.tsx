@@ -11,6 +11,8 @@ import CreateRoleComponent from './components/create-role';
 import UserTable from './components/users-table';
 import CreateUserComponent from './components/create-user';
 import ProfileComponent from './components/profile';
+import GroupTable from './components/groups-table';
+import CreateGroupComponent from './components/create-group';
 
 const App = () => {
 
@@ -86,8 +88,11 @@ const App = () => {
                         <Route path="/users/create" exact>
                             <CreateUserComponent />
                         </Route>
-                        <Route path="/groups">
-                            <span>Groups</span>
+                        <Route path="/groups" exact>
+                            <GroupTable />
+                        </Route>
+                        <Route path="/groups/create" exact>
+                            <CreateGroupComponent />
                         </Route>
                         <Route path="/webhooks">
                             <span>Webhooks</span>

@@ -393,13 +393,18 @@ func main() {
 		api.DeleteUserLink(linksRepository, urlCache, billingLimiter, logger),
 	))
 
-	r.Post("/api/v1/users/groups/create", auth(
-		rbac.NewPermission("/api/v1/users/groups/create", "create_group", "POST"),
+	r.Get("/api/v1/groups", auth(
+		rbac.NewPermission("/api/v1/groups", "read_groups", "GET"),
+		api.GetGroups(usersRepository, logger),
+	))
+
+	r.Post("/api/v1/groups/create", auth(
+		rbac.NewPermission("/api/v1/groups/create", "create_group", "POST"),
 		api.AddGroup(usersRepository, logger),
 	))
 
-	r.Delete("/api/v1/users/groups/delete", auth(
-		rbac.NewPermission("/api/v1/users/groups/delete", "delete_group", "DELETE"),
+	r.Delete("/api/v1/groups/{groupID}", auth(
+		rbac.NewPermission("/api/v1/groups/{groupID}", "delete_group", "DELETE"),
 		api.DeleteGroup(usersRepository, logger),
 	))
 
