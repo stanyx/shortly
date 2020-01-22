@@ -1,30 +1,31 @@
 
 import * as React from 'react';
-import {Link} from 'react-router-dom';
-import {httpGet} from '../utils';
+import {httpGet, httpPost} from '../utils';
 
-class RoleTableState {
+class PermissionTableState {
+    roleID: string;
     rows: Array<any>;
 }
 
-class RolesTable extends React.Component<any, RoleTableState> {
+class PermissionTable extends React.Component<any, PermissionTableState> {
     constructor(props: any) {
         super(props);
-        this.state = {rows: []};
+        this.state = {rows: [], roleID: this.props.roleID || ""};
     }
     componentDidMount() {
-        httpGet('/api/v1/roles').then((response: any) => {
+        httpGet(`/api/v1/permissions/${this.state.roleID}`).then((response: any) => {
             this.setState({rows: (response.data.result ? response.data.result: [])});
         })
+    }
+    grantAccess(r: any) {
+        httpPost(`/api/v1/roles/grant`, {roleID: Number(this.state.roleID), resource: r.url, method: r.method});
+    }
+    revokeAccess(r: any) {
+        httpPost(`/api/v1/roles/revoke`, {roleID: Number(this.state.roleID), resource: r.url, method: r.method});
     }
     render() {
     return (
         <section className="content">
-            <div className="row">
-                <div className="col-12">
-                    <Link to="/roles/create" className="btn btn-primary">Create</Link>
-                </div>
-            </div>
             <div className="row">
                 <div className="col-12">
                     <div className="card">
@@ -42,9 +43,8 @@ class RolesTable extends React.Component<any, RoleTableState> {
                                         <table id="example2" className="table table-bordered table-hover dataTable" role="grid" aria-describedby="example2_info">
                                             <thead>
                                                 <tr role="row">
-                                                    <th className="sorting_asc">Name</th>
-                                                    <th className="sorting">Description</th>
-                                                    <th className="sorting"></th>
+                                                    <th className="sorting_asc">Resource</th>
+                                                    <th className="sorting">Method</th>
                                                     <th className="sorting"></th>
                                                 </tr>
                                             </thead>
@@ -53,18 +53,19 @@ class RolesTable extends React.Component<any, RoleTableState> {
                                                 return (
                                                     <tr role="row" className="odd">
                                                         <td className="sorting_1">
-                                                            {r.name}
+                                                            {r.url}
                                                         </td>
-                                                        <td>{r.description}</td>
+                                                        <td>{r.method}</td>
                                                         <td>
-                                                            <Link to={`/permissions/${r.id}`} className="btn btn-success">
-                                                                Permissions
-                                                            </Link>
-                                                        </td>
-                                                        <td>
-                                                            <button className="btn btn-danger">
-                                                                Delete
+                                                        {r.accessGranted ? (
+                                                            <button onClick={(e) => this.revokeAccess(r)} className="btn btn-success">
+                                                                Revoke
                                                             </button>
+                                                        ): (
+                                                            <button onClick={(e) => this.grantAccess(r)} className="btn btn-danger">
+                                                                Grant
+                                                            </button>
+                                                        )}
                                                         </td>
                                                     </tr>
                                                 )
@@ -72,9 +73,8 @@ class RolesTable extends React.Component<any, RoleTableState> {
                                             </tbody>
                                             <tfoot>
                                                 <tr>
-                                                    <th>Name</th>
-                                                    <th>Description</th>
-                                                    <th></th>
+                                                    <th>Resource</th>
+                                                    <th>Method</th>
                                                     <th></th>
                                                 </tr>
                                             </tfoot>
@@ -128,4 +128,4 @@ class RolesTable extends React.Component<any, RoleTableState> {
     }
 }
 
-export default RolesTable;
+export default PermissionTable;

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
-import {BrowserRouter as Router, Switch, Route} from 'react-router-dom';
+import {BrowserRouter as Router, Switch, Route, useParams} from 'react-router-dom';
 import {httpGet} from './utils';
 
 import NavLink from './components/navmenu';
@@ -8,11 +8,19 @@ import LinksTable from './components/links-table';
 import CreateLinkComponent from './components/create-link';
 import RolesTable from './components/roles-table';
 import CreateRoleComponent from './components/create-role';
+import PermissionTable from './components/permissions-table';
 import UserTable from './components/users-table';
 import CreateUserComponent from './components/create-user';
 import ProfileComponent from './components/profile';
 import GroupTable from './components/groups-table';
 import CreateGroupComponent from './components/create-group';
+
+const PermissionTableComponent = () => {
+    let {roleID} = useParams();
+    return (
+        <PermissionTable roleID={roleID}/>
+    );
+};
 
 const App = () => {
 
@@ -81,6 +89,9 @@ const App = () => {
                         </Route>
                         <Route path="/roles/create">
                             <CreateRoleComponent/>
+                        </Route>
+                        <Route path="/permissions/:roleID" exact>
+                            <PermissionTableComponent/>
                         </Route>
                         <Route path="/users" exact>
                             <UserTable />
