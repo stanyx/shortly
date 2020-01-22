@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"strconv"
 
-	"shortly/app/accounts"
-	"shortly/app/rbac"
-
 	"github.com/go-chi/chi"
 	validator "gopkg.in/go-playground/validator.v9"
+
+	"shortly/app/accounts"
+	"shortly/app/rbac"
 )
 
 func RbacRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.HandlerFunc, permissions map[string]rbac.Permission, userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) {
@@ -45,8 +45,8 @@ func RbacRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.Hand
 		RevokeAccessForRole(userRepo, repo, logger),
 	))
 
-	r.Get("/api/v1/permissions", auth(
-		rbac.NewPermission("/api/v1/permissions", "read_permissions", "GET"),
+	r.Get("/api/v1/permissions/{roleID}", auth(
+		rbac.NewPermission("/api/v1/permissions/{roleID}", "read_permissions", "GET"),
 		GetAllPermissions(permissions, userRepo, repo, logger),
 	))
 
@@ -230,7 +230,7 @@ func DeleteUserRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepositor
 }
 
 type GrantRoleForm struct {
-	RoleID   int64  `json:"roleId"`
+	RoleID   int64  `json:"roleID"`
 	Resource string `json:"resource"`
 	Method   string `json:"method"`
 }
@@ -263,7 +263,7 @@ func GrantAccessForRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepos
 }
 
 type RevokeRoleForm struct {
-	RoleID   int64  `json:"roleId"`
+	RoleID   int64  `json:"roleID"`
 	Resource string `json:"resource"`
 	Method   string `json:"method"`
 }
@@ -305,18 +305,14 @@ type PermissionResponse struct {
 func GetAllPermissions(permissions map[string]rbac.Permission, userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		roleIds := r.URL.Query()["roleId"]
-		if len(roleIds) != 1 {
-			apiError(w, "invalid number of query values for parameter <roleId>, must be 1", http.StatusBadRequest)
-			return
-		}
+		roleIDArg := chi.URLParam(r, "roleID")
 
-		if roleIds[0] == "" {
+		if roleIDArg == "" {
 			apiError(w, "roleId query parameter is required", http.StatusBadRequest)
 			return
 		}
 
-		roleID, _ := strconv.ParseInt(roleIds[0], 0, 64)
+		roleID, _ := strconv.ParseInt(roleIDArg, 0, 64)
 
 		casbinPerms, err := repo.GetPermissionsForRole(roleID)
 		if err != nil {
