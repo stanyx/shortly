@@ -30,9 +30,9 @@ func RbacRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.Hand
 		DeleteUserRole(userRepo, repo, logger),
 	))
 
-	r.Post("/api/v1/roles/set", auth(
-		rbac.NewPermission("/api/v1/roles/set", "set_user_role", "POST"),
-		SetUserRole(userRepo, repo, logger),
+	r.Put("/api/v1/roles/change", auth(
+		rbac.NewPermission("/api/v1/roles/change", "change_user_role", "POST"),
+		ChangeUserRole(userRepo, repo, logger),
 	))
 
 	r.Post("/api/v1/roles/grant", auth(
@@ -129,15 +129,17 @@ func CreateUserRole(repo rbac.IRbacRepository, logger *log.Logger) http.HandlerF
 	})
 }
 
-type SetRoleForm struct {
-	UserID int64 `json:"userId"`
-	RoleID int64 `json:"roleId"`
+type ChangeRoleForm struct {
+	UserID int64 `json:"userID"`
+	RoleID int64 `json:"roleID"`
 }
 
-func SetUserRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
+func ChangeUserRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var form SetRoleForm
+		var form ChangeRoleForm
+
+		// TODO - check account
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
@@ -146,12 +148,12 @@ func SetUserRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, 
 		}
 
 		if form.RoleID == 0 {
-			apiError(w, "roleId is required", http.StatusBadRequest)
+			apiError(w, "roleID is required", http.StatusBadRequest)
 			return
 		}
 
 		if form.UserID == 0 {
-			apiError(w, "userId is required", http.StatusBadRequest)
+			apiError(w, "userID is required", http.StatusBadRequest)
 			return
 		}
 
@@ -169,9 +171,17 @@ func SetUserRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, 
 			return
 		}
 
-		if err := repo.AddRoleForUser(user.ID, role.ID); err != nil {
+		if user.RoleID > 0 {
+			if err := repo.DeleteRoleForUser(user.ID, user.RoleID); err != nil {
+				logError(logger, err)
+				apiError(w, "delete role for user error", http.StatusInternalServerError)
+				return
+			}
+		}
+
+		if err := repo.ChangeRoleForUser(user.ID, role.ID); err != nil {
 			logError(logger, err)
-			apiError(w, "add role for user error", http.StatusInternalServerError)
+			apiError(w, "change role for user error", http.StatusInternalServerError)
 			return
 		}
 

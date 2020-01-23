@@ -16,6 +16,14 @@ let httpPost = (url: string, body: any): Promise<AxiosResponse> => {
     });
 }
 
+let httpPut = (url: string, body: any): Promise<AxiosResponse> => {
+    return axios.put(url, body, {
+        headers: {
+            'x-access-token': localStorage.getItem('token')
+        }
+    });
+}
+
 let httpDelete = (url: string): Promise<AxiosResponse> => {
     return axios.delete(url, {
         headers: {
@@ -24,4 +32,4 @@ let httpDelete = (url: string): Promise<AxiosResponse> => {
     });
 }
 
-export {httpGet, httpPost, httpDelete};
+export {httpGet, httpPost, httpPut, httpDelete};

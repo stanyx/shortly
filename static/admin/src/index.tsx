@@ -14,6 +14,7 @@ import CreateUserComponent from './components/create-user';
 import ProfileComponent from './components/profile';
 import GroupTable from './components/groups-table';
 import CreateGroupComponent from './components/create-group';
+import ChangeRoleComponent from './components/change-role';
 
 const PermissionTableComponent = () => {
     let {roleID} = useParams();
@@ -21,6 +22,13 @@ const PermissionTableComponent = () => {
         <PermissionTable roleID={roleID}/>
     );
 };
+
+const ChangeRoleComponentWrapper = () => {
+    let {userID} = useParams();
+    return (
+        <ChangeRoleComponent userID={userID}/>
+    )
+}
 
 const App = () => {
 
@@ -89,6 +97,9 @@ const App = () => {
                         </Route>
                         <Route path="/roles/create">
                             <CreateRoleComponent/>
+                        </Route>
+                        <Route path="/users/:userID/change_role">
+                            <ChangeRoleComponentWrapper/>
                         </Route>
                         <Route path="/permissions/:roleID" exact>
                             <PermissionTableComponent/>
