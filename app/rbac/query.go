@@ -72,20 +72,61 @@ func (repo *RbacRepository) DeleteRole(r Role) error {
 	return err
 }
 
-func (repo *RbacRepository) AddRoleForUser(userID int64, roleID int64) error {
-	_, err := repo.Enforcer.AddRoleForUser(fmt.Sprintf("user:%v", userID), fmt.Sprintf("role:%v", roleID))
+func (repo *RbacRepository) ChangeRoleForUser(userID int64, roleID int64) error {
+	tx, err := repo.DB.Begin()
 	if err != nil {
 		return err
 	}
-	return repo.Enforcer.SavePolicy()
+
+	if _, err := tx.Exec("update users set role_id = $1 where id = $2", roleID, userID); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+
+	_, err = repo.Enforcer.AddRoleForUser(fmt.Sprintf("user:%v", userID), fmt.Sprintf("role:%v", roleID))
+	if err != nil {
+		return err
+	}
+
+	if err := repo.Enforcer.SavePolicy(); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (repo *RbacRepository) DeleteRoleForUser(userID int64, roleID int64) error {
-	_, err := repo.Enforcer.DeleteRoleForUser(fmt.Sprintf("user:%v", userID), fmt.Sprintf("role:%v", roleID))
+
+	tx, err := repo.DB.Begin()
 	if err != nil {
 		return err
 	}
-	return repo.Enforcer.SavePolicy()
+
+	if _, err := tx.Exec("update users set role_id = $1 where id = $2", 0, userID); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+
+	_, err = repo.Enforcer.DeleteRoleForUser(fmt.Sprintf("user:%v", userID), fmt.Sprintf("role:%v", roleID))
+	if err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+
+	if err := repo.Enforcer.SavePolicy(); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (repo *RbacRepository) GrantAccessForRole(roleID int64, permission Permission) error {

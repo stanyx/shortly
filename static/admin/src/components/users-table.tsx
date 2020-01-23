@@ -1,7 +1,7 @@
 
 import * as React from 'react';
 import {Link} from 'react-router-dom';
-import {httpGet} from '../utils';
+import {httpGet, httpPost} from '../utils';
 
 class UserTableState {
     rows: Array<any>;
@@ -57,6 +57,11 @@ class UserTable extends React.Component<any, UserTableState> {
                                                         </td>
                                                         <td>{r.email}</td>
                                                         <td>{r.phone}</td>
+                                                        <td>
+                                                            <Link to={`/users/${r.id}/change_role`} className="btn btn-success">
+                                                                Change role
+                                                            </Link>
+                                                        </td>
                                                         <td>
                                                             <button className="btn btn-danger">
                                                                 Delete
