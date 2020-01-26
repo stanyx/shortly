@@ -1,5 +1,6 @@
 # TODO
 
+ - Password protected links
  - Api tests
  - OpenAPI Swagger documentation
  - Authorization with Outh2

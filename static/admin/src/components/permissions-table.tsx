@@ -25,7 +25,7 @@ class PermissionTable extends React.Component<any, PermissionTableState> {
     }
     render() {
     return (
-        <section className="content">
+        <React.Fragment>
             <div className="row">
                 <div className="col-12">
                     <div className="card">
@@ -123,7 +123,7 @@ class PermissionTable extends React.Component<any, PermissionTableState> {
                     </div>
                 </div>
             </div>
-        </section>
+        </React.Fragment>
         )
     }
 }

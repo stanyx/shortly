@@ -2,8 +2,10 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	"shortly/app/rbac"
 	"shortly/app/webhooks"
@@ -28,20 +30,22 @@ func WebhooksRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.
 		UpdateWebhook(repo, logger),
 	))
 
-	r.Delete("/api/v1/webhooks/delete", auth(
-		rbac.NewPermission("/api/v1/webhooks/delete", "delete_webhook", "DELETE"),
+	r.Delete("/api/v1/webhooks/{id}", auth(
+		rbac.NewPermission("/api/v1/webhooks/{id}", "delete_webhook", "DELETE"),
 		DeleteWebhook(repo, logger),
 	))
 
-	r.Post("/api/v1/webhooks/enable", auth(
-		rbac.NewPermission("/api/v1/webhooks/enable", "enable_webhook", "POST"),
+	r.Post("/api/v1/webhooks/{id}/enable", auth(
+		rbac.NewPermission("/api/v1/webhooks/{id}/enable", "enable_webhook", "POST"),
 		EnableWebhook(repo, logger),
 	))
 
-	r.Post("/api/v1/webhooks/disable", auth(
-		rbac.NewPermission("/api/v1/webhooks/disable", "disable_webhook", "POST"),
+	r.Post("/api/v1/webhooks/{id}/disable", auth(
+		rbac.NewPermission("/api/v1/webhooks/{id}/disable", "disable_webhook", "POST"),
 		DisableWebhook(repo, logger),
 	))
+
+	r.Post("/webhook/{event}", TestWebhook(repo, logger))
 }
 
 type WebhookResponse struct {
@@ -184,23 +188,24 @@ func UpdateWebhook(repo webhooks.Repository, logger *log.Logger) http.Handler {
 	})
 }
 
-type EnableWebhookForm struct {
-	ID int64 `json:"id"`
-}
-
 func EnableWebhook(repo webhooks.Repository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		claims := r.Context().Value("user").(*JWTClaims)
 
-		var form EnableWebhookForm
-		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
-			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+		idArg := chi.URLParam(r, "id")
+		if idArg == "" {
+			apiError(w, "id parameter is required", http.StatusBadRequest)
 			return
 		}
 
-		err := repo.EnableWebhook(claims.AccountID, form.ID)
+		rowID, err := strconv.ParseInt(idArg, 0, 64)
+		if err != nil {
+			apiError(w, "id is not a number", http.StatusBadRequest)
+			return
+		}
+
+		err = repo.EnableWebhook(claims.AccountID, rowID)
 		if err != nil {
 			logError(logger, err)
 			apiError(w, "enable webhook error", http.StatusBadRequest)
@@ -211,23 +216,24 @@ func EnableWebhook(repo webhooks.Repository, logger *log.Logger) http.Handler {
 	})
 }
 
-type DisableWebhookForm struct {
-	ID int64 `json:"id"`
-}
-
 func DisableWebhook(repo webhooks.Repository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		claims := r.Context().Value("user").(*JWTClaims)
 
-		var form DisableWebhookForm
-		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
-			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+		idArg := chi.URLParam(r, "id")
+		if idArg == "" {
+			apiError(w, "id parameter is required", http.StatusBadRequest)
 			return
 		}
 
-		err := repo.DisableWebhook(claims.AccountID, form.ID)
+		rowID, err := strconv.ParseInt(idArg, 0, 64)
+		if err != nil {
+			apiError(w, "id is not a number", http.StatusBadRequest)
+			return
+		}
+
+		err = repo.DisableWebhook(claims.AccountID, rowID)
 		if err != nil {
 			logError(logger, err)
 			apiError(w, "disable webhook error", http.StatusBadRequest)
@@ -238,28 +244,42 @@ func DisableWebhook(repo webhooks.Repository, logger *log.Logger) http.Handler {
 	})
 }
 
-type DeleteWebhookForm struct {
-	ID int64 `json:"id"`
-}
-
 func DeleteWebhook(repo webhooks.Repository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		claims := r.Context().Value("user").(*JWTClaims)
 
-		var form DeleteWebhookForm
-		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
-			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+		idArg := chi.URLParam(r, "id")
+		if idArg == "" {
+			apiError(w, "id parameter is required", http.StatusBadRequest)
 			return
 		}
 
-		err := repo.DeleteWebhook(claims.AccountID, form.ID)
+		rowID, err := strconv.ParseInt(idArg, 0, 64)
+		if err != nil {
+			apiError(w, "id is not a number", http.StatusBadRequest)
+			return
+		}
+
+		err = repo.DeleteWebhook(claims.AccountID, rowID)
 		if err != nil {
 			logError(logger, err)
 			apiError(w, "delete webhook error", http.StatusBadRequest)
 			return
 		}
+
+		ok(w)
+	})
+}
+
+func TestWebhook(repo webhooks.Repository, logger *log.Logger) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		event := chi.URLParam(r, "event")
+
+		fmt.Println("GET WEBHOOK REQUEST: ", event)
+
+		w.WriteHeader(http.StatusOK)
 
 		ok(w)
 	})

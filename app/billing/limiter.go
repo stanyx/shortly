@@ -102,7 +102,7 @@ func (l *BillingLimiter) resetOption(tx *bolt.Tx, optionName string, accountID i
 	}
 
 	if option == nil {
-		return nil, errors.New("option not found")
+		return nil, fmt.Errorf("option (%s) not found", optionName)
 	}
 
 	if err := l.resetOptionForInterval(tx, *option, accountID, plan.Start, plan.End); err != nil {
@@ -119,7 +119,9 @@ func (l *BillingLimiter) GetBillingStatistics(accountID int64, startTime, endTim
 	err := l.DB.View(func(tx *bolt.Tx) error {
 		for _, optionName := range Options {
 			v, err := l.getOption(tx, optionName, accountID)
-			if err != nil {
+			if err == OptionNotFound {
+				continue
+			} else if err != nil {
 				return err
 			}
 
@@ -280,6 +282,7 @@ func (l *BillingLimiter) getOption(tx *bolt.Tx, optionName string, accountID int
 	v := b.Get([]byte(fmt.Sprintf("%v", accountID)))
 	// cache miss only possible with plan reset
 	if len(v) == 0 {
+		l.Logger.Println("no billing found")
 		option, err := l.resetOption(tx, optionName, accountID)
 		if err != nil {
 			return nil, err

@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -11,6 +10,8 @@ import (
 	"shortly/app/data"
 	"shortly/cache"
 	"shortly/utils"
+
+	"shortly/app/links"
 )
 
 type LinkRedirect struct {
@@ -19,7 +20,7 @@ type LinkRedirect struct {
 	Headers  http.Header
 }
 
-func Redirect(redirectLogger utils.DbLogger, historyDB *data.HistoryDB, urlCache cache.UrlCache, logger *log.Logger) http.HandlerFunc {
+func Redirect(repo links.ILinksRepository, redirectLogger utils.DbLogger, historyDB *data.HistoryDB, urlCache cache.UrlCache, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -30,7 +31,6 @@ func Redirect(redirectLogger utils.DbLogger, historyDB *data.HistoryDB, urlCache
 			scheme = "http://"
 		}
 
-		fmt.Println("url", shortURL)
 		if shortURL == "/" || shortURL == "" {
 			http.Redirect(w, r, scheme+r.Host+"/static/index.html", http.StatusPermanentRedirect)
 			return
@@ -43,13 +43,18 @@ func Redirect(redirectLogger utils.DbLogger, historyDB *data.HistoryDB, urlCache
 
 		cacheURLValue, ok := urlCache.Load(shortURL)
 
+		var longURL string
+
 		if !ok {
-			w.WriteHeader(http.StatusNotFound)
-			_, _ = w.Write([]byte("not found"))
-			return
+			longURL, _ = repo.UnshortenURL(shortURL)
+			if longURL == "" {
+				w.WriteHeader(http.StatusNotFound)
+				_, _ = w.Write([]byte("not found"))
+				return
+			}
 		}
 
-		longURL, ok := cacheURLValue.(string)
+		longURL, ok = cacheURLValue.(string)
 		if !ok {
 			apiError(w, "url is not a string", http.StatusBadRequest)
 			return

@@ -22,7 +22,7 @@ class GroupTable extends React.Component<any, GroupTableState> {
     }
     render() {
     return (
-        <section className="content">
+        <React.Fragment>
             <div className="row">
                 <div className="col-12">
                     <Link to="/groups/create" className="btn btn-primary">Add group</Link>
@@ -119,7 +119,7 @@ class GroupTable extends React.Component<any, GroupTableState> {
                     </div>
                 </div>
             </div>
-        </section>
+        </React.Fragment>
         )
     }
 }

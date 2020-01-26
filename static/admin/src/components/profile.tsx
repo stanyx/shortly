@@ -39,6 +39,7 @@ class ProfileComponent extends React.Component<any, ProfileComponentState> {
             this.setState({
                 username: d.username,
                 company: d.company,
+                roleName: d.roleName,
                 billingPlan: d.billingPlan,
                 billingPlanFee: d.billingPlanFee,
                 billingPlanExpiredAt: d.billingPlanExpiredAt,
@@ -55,7 +56,7 @@ class ProfileComponent extends React.Component<any, ProfileComponentState> {
 
     render() {
         return (
-            <div className="container-fluid">
+            <React.Fragment>
                 <div className="row">
                     <div className="col-6">
                         <div className="card">
@@ -79,14 +80,12 @@ class ProfileComponent extends React.Component<any, ProfileComponentState> {
                     <div className="col-6">
                         <div className="card">
                             <div className="card-header">
-                                <h3 className="card-title">User information</h3>
+                                <h3 className="card-title">Billing information</h3>
                             </div>
                             <div className="card-body">
                                 <dl>
                                     <dt>Billing Plan</dt>
                                     <dd>{this.state.billingPlan}</dd>
-                                    <dt>Fee</dt>
-                                    <dd>{this.state.billingPlanFee}</dd>
                                     <dt>Expired at</dt>
                                     <dd>{this.state.billingPlanExpiredAt}</dd>
                                     <dt>Upgrade</dt> 
@@ -118,10 +117,16 @@ class ProfileComponent extends React.Component<any, ProfileComponentState> {
                                     {this.state.billingUsage.map((counter) => {
                                         return (
                                             <React.Fragment>
-                                                <dt>{counter.name}</dt>
+                                                <dt>
+                                                    {counter.name}
+                                                    <div>
+                                                        <label className="btn btn-primary">Current: <span className="badge badge-light">{counter.value}</span></label>
+                                                        <label className="btn btn-warning">Limit: <span className="badge badge-light">{counter.limit}</span></label>
+                                                    </div>
+                                                </dt>
                                                 <dd>
                                                     <div className="progress progress-xxs">
-                                                        <div className="progress-bar progress-bar-danger progress-bar-striped" role="progressbar" aria-valuenow={counter.value} aria-valuemin={0} aria-valuemax={counter.limit}>
+                                                        <div className="progress-bar progress-bar-danger progress-bar-striped" role="progressbar" aria-valuenow={(counter.value / counter.limit) * 100.0} aria-valuemin={0.0} aria-valuemax={100.0}>
                                                         </div>
                                                     </div>
                                                 </dd>
@@ -133,7 +138,7 @@ class ProfileComponent extends React.Component<any, ProfileComponentState> {
                         </div>
                     </div>
                 </div>
-            </div>
+            </React.Fragment>
         )
     }
 }
