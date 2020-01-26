@@ -15,6 +15,7 @@ import (
 
 	"shortly/app/accounts"
 	"shortly/app/billing"
+	"shortly/app/rbac"
 	"shortly/config"
 )
 
@@ -441,6 +442,7 @@ type BillingOptionCounterResponse struct {
 type ProfileResponse struct {
 	Username             string                         `json:"username"`
 	Company              string                         `json:"company"`
+	RoleName             string                         `json:"roleName"`
 	BillingPlan          string                         `json:"billingPlan"`
 	BillingPlanFee       string                         `json:"billingPlanFee"`
 	BillingPlanExpiredAt string                         `json:"billingPlanExpiredAt"`
@@ -448,7 +450,7 @@ type ProfileResponse struct {
 	BillingUsage         []BillingOptionCounterResponse `json:"billingUsage"`
 }
 
-func GetProfile(repo *accounts.UsersRepository, billingRepo *billing.BillingRepository, billingLimiter *billing.BillingLimiter, logger *log.Logger) http.Handler {
+func GetProfile(repo *accounts.UsersRepository, rbacRepo rbac.IRbacRepository, billingRepo *billing.BillingRepository, billingLimiter *billing.BillingLimiter, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		claims := r.Context().Value("user").(*JWTClaims)
@@ -458,6 +460,31 @@ func GetProfile(repo *accounts.UsersRepository, billingRepo *billing.BillingRepo
 			logError(logger, err)
 			apiError(w, "get account error", http.StatusInternalServerError)
 			return
+		}
+
+		user, err := repo.GetUserByID(claims.UserID)
+		if err != nil {
+			logError(logger, err)
+			apiError(w, "get user error", http.StatusInternalServerError)
+			return
+		}
+
+		var role rbac.Role
+
+		if claims.IsStaff {
+			if user.RoleID > 0 {
+				userRole, err := rbacRepo.GetRole(user.RoleID)
+				if err != nil {
+					logError(logger, err)
+					apiError(w, "get role error", http.StatusInternalServerError)
+					return
+				}
+				role = userRole
+			} else {
+				role.Name = "not assigned"
+			}
+		} else {
+			role.Name = "account administator"
 		}
 
 		billingPlan, err := billingRepo.GetAccountBillingPlan(claims.AccountID)
@@ -502,6 +529,7 @@ func GetProfile(repo *accounts.UsersRepository, billingRepo *billing.BillingRepo
 		resp := ProfileResponse{
 			Username:             claims.Name,
 			Company:              account.Name,
+			RoleName:             role.Name,
 			BillingPlan:          billingPlan.Name,
 			BillingPlanFee:       billingPlan.Price,
 			BillingPlanExpiredAt: billingPlan.End.Format(time.RFC3339),

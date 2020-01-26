@@ -13,13 +13,14 @@ import (
 )
 
 type ILinksRepository interface {
+	UnshortenURL(string) (string, error)
 	GetLinkByID(int64) (Link, error)
 	UpdateUserLink(int64, int64, *Link) (*sql.Tx, error)
 	GetAllLinks() ([]Link, error)
 	GenerateLink() string
 	CreateLink(*Link) error
 	CreateUserLink(accountID int64, link *Link) (*sql.Tx, int64, error)
-	DeleteUserLink(accountID int64, shortURL string) (*sql.Tx, int64, error)
+	DeleteUserLink(accountID int64, linkID int64) (*sql.Tx, int64, error)
 	GetUserLinks(accountID, userID int64, filters ...LinkFilter) ([]Link, error)
 	GetUserLinksCount(accountID int64, startTime, endTime time.Time) (int, error)
 	AddUrlToGroup(groupID int64, linkID int64) error
@@ -59,9 +60,24 @@ func (repo *LinksRepository) OnHide(f func(int64, interface{})) {
 	repo.addCallback("Hide", f)
 }
 
+func (repo *LinksRepository) UnshortenURL(shortURL string) (string, error) {
+
+	query := "select long_url from links where short_url = $1"
+
+	var longURL string
+	err := repo.DB.QueryRow(query, shortURL).Scan(&longURL)
+	if err != nil {
+		return "", err
+	}
+
+	return longURL, nil
+}
+
 func (repo *LinksRepository) GetAllLinks() ([]Link, error) {
 
-	rows, err := repo.DB.Query("select short_url, long_url from links where account_id is null")
+	query := "select short_url, long_url from links"
+	var queryArgs []interface{}
+	rows, err := repo.DB.Query(query, queryArgs...)
 	if err != nil {
 		return nil, err
 	}
@@ -104,6 +120,7 @@ type LinkFilter struct {
 	LongUrl  []string
 	Tags     []string
 	FullText string
+	LinkID   int64
 }
 
 func (repo *LinksRepository) GetUserLinks(accountID, userID int64, filters ...LinkFilter) ([]Link, error) {
@@ -117,7 +134,7 @@ func (repo *LinksRepository) GetUserLinks(accountID, userID int64, filters ...Li
 		select link_id, array_agg(tags.tag) tags_list from tags 
 		group by link_id
 	)
-	select u.short_url, u.long_url, u.description, u.tl, u.hide
+	select u.id, u.short_url, u.long_url, u.description, u.tl, u.hide
 	from (
 		select *, t.tags_list tl from links
 		left join url_group ug on ug.link_id = links.id
@@ -164,6 +181,10 @@ func (repo *LinksRepository) GetUserLinks(accountID, userID int64, filters ...Li
 			queryArgs = append(queryArgs, f.FullText+"%")
 			filterExpressions = append(filterExpressions, fmt.Sprintf("(%s)", strings.Join(exp, " OR ")))
 		}
+		if f.LinkID > 0 {
+			filterExpressions = append(filterExpressions, fmt.Sprintf("u.id = $%d", len(queryArgs)+1))
+			queryArgs = append(queryArgs, f.LinkID)
+		}
 	}
 
 	if len(filterExpressions) > 0 {
@@ -180,7 +201,7 @@ func (repo *LinksRepository) GetUserLinks(accountID, userID int64, filters ...Li
 
 	for rows.Next() {
 		var link Link
-		err := rows.Scan(&link.Short, &link.Long, &link.Description, pq.Array(&link.Tags), &link.Hidden)
+		err := rows.Scan(&link.ID, &link.Short, &link.Long, &link.Description, pq.Array(&link.Tags), &link.Hidden)
 		if err != nil {
 			return nil, err
 		}
@@ -247,19 +268,19 @@ func (repo *LinksRepository) UpdateUserLink(accountID, linkID int64, link *Link)
 	return tx, err
 }
 
-func (repo *LinksRepository) DeleteUserLink(accountID int64, link string) (*sql.Tx, int64, error) {
+func (repo *LinksRepository) DeleteUserLink(accountID int64, linkID int64) (*sql.Tx, int64, error) {
 	var rowID int64
 	tx, err := repo.DB.Begin()
 	if err != nil {
 		return nil, 0, err
 	}
 	err = tx.QueryRow(
-		"delete from links WHERE short_url = $1 AND account_id = $2 returning id", link, accountID,
+		"delete from links WHERE id = $1 AND account_id = $2 returning id", linkID, accountID,
 	).Scan(&rowID)
 	if err != nil {
 		return nil, 0, err
 	}
-	repo.callback("Delete", accountID, link)
+	repo.callback("Delete", accountID, linkID)
 	return tx, rowID, err
 }
 

@@ -32,6 +32,10 @@ func (repo *MockLinksRepository) GenerateLink() string {
 	return "ABCDE"
 }
 
+func (repo *MockLinksRepository) UnshortenURL(shortURL string) (string, error) {
+	return "", nil
+}
+
 func (repo *MockLinksRepository) CreateLink(*links.Link) error {
 	return nil
 }
@@ -59,7 +63,7 @@ func (repo *MockLinksRepository) CreateUserLink(accountID int64, _ *links.Link) 
 	return nil, 0, nil
 }
 
-func (repo *MockLinksRepository) DeleteUserLink(accountID int64, shortURL string) (*sql.Tx, int64, error) {
+func (repo *MockLinksRepository) DeleteUserLink(accountID int64, linkID int64) (*sql.Tx, int64, error) {
 	return nil, 0, nil
 }
 

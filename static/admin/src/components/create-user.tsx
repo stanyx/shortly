@@ -33,7 +33,7 @@ class CreateUserComponent extends React.Component<any, CreateUserState> {
     }
     render() {
         return (
-        <div className="container-fluid">
+        <React.Fragment>
             <div className="row">
                 <div className="col-md-6">
                     <div className="card card-warning">
@@ -106,7 +106,7 @@ class CreateUserComponent extends React.Component<any, CreateUserState> {
                     </div>
                 </div>
             </div>
-        </div>
+        </React.Fragment>
         )
     }
 }

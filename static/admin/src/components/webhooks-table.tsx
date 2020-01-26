@@ -1,43 +1,54 @@
 
 import * as React from 'react';
 import {Link} from 'react-router-dom';
-import {httpGet, httpDelete} from '../utils';
+import {httpGet, httpDelete, httpPost} from '../utils';
 
-class LinkTableState {
+class WebhookTableState {
     rows: Array<any>;
 }
 
-class LinksTable extends React.Component<any, LinkTableState> {
+class WebhookTableComponent extends React.Component<any, WebhookTableState> {
     constructor(props: any) {
         super(props);
         this.state = {rows: []};
     }
     loadData() {
-        httpGet('/api/v1/users/links').then((response: any) => {
+        httpGet('/api/v1/webhooks').then((response: any) => {
             this.setState({rows: (response.data.result ? response.data.result: [])});
         })
     }
     componentDidMount() {
         this.loadData();
     }
-    deleteRow(linkID: number) {
-        httpDelete(`/api/v1/users/links/${linkID}`).then(() => {
+    deleteRow(rowID: number) {
+        httpDelete(`/api/v1/webhooks/${rowID}`).then(() => {
             this.loadData();
-        });
+        })
+    }
+    toggleWebhook(row: any) {
+        if (!row.active) {
+            httpPost(`/api/v1/webhooks/${row.id}/enable`, {}).then(() => {
+                this.loadData();
+            })
+        } else {
+            httpPost(`/api/v1/webhooks/${row.id}/disable`, {}).then(() => {
+                this.loadData();
+            })
+        }
     }
     render() {
     return (
         <React.Fragment>
             <div className="row">
                 <div className="col-12">
-                    <Link to="/links/create" className="btn btn-primary">Create</Link>
+                    <Link to="/webhooks/create" className="btn btn-primary">Create</Link>
                 </div>
             </div>
             <div className="row">
                 <div className="col-12">
                     <div className="card">
                         <div className="card-header">
-                            <h3 className="card-title">Links</h3>
+                            <h3 className="card-title">Webhooks</h3>
                         </div>
                         <div className="card-body">
                             <div id="example2_wrapper" className="dataTables_wrapper dt-bootstrap4">
@@ -50,9 +61,10 @@ class LinksTable extends React.Component<any, LinkTableState> {
                                         <table id="example2" className="table table-bordered table-hover dataTable" role="grid" aria-describedby="example2_info">
                                             <thead>
                                                 <tr role="row">
-                                                    <th className="sorting_asc">Short link</th>
-                                                    <th className="sorting">Long link</th>
-                                                    <th className="sorting">Is Active</th>
+                                                    <th className="sorting_asc">Name</th>
+                                                    <th className="sorting">URL</th>
+                                                    <th className="sorting">Events</th>
+                                                    <th className="sorting">Is active?</th>
                                                     <th></th>
                                                     <th></th>
                                                 </tr>
@@ -62,14 +74,15 @@ class LinksTable extends React.Component<any, LinkTableState> {
                                                 return (
                                                     <tr role="row" className="odd">
                                                         <td className="sorting_1">
-                                                            <a href={"http://" + location.host + "/" + r.short}>{r.short}</a>
+                                                            {r.name}
                                                         </td>
-                                                        <td>{r.long}</td>
-                                                        <td>{r.is_active ? 'active': 'not active'}</td>
+                                                        <td>{r.url}</td>
+                                                        <td>{r.events}</td>
+                                                        <td>{r.active ? 'active': 'not active'}</td>
                                                         <td>
-                                                            <Link to={`/links/${r.id}/tags`} className="btn btn-success">
-                                                                Tags
-                                                            </Link>
+                                                            <button onClick={(e) => this.toggleWebhook(r)} className="btn btn-primary">
+                                                                {r.active ? 'Deactivate': 'Activate'}
+                                                            </button>
                                                         </td>
                                                         <td>
                                                             <button onClick={(e) => this.deleteRow(r.id)} className="btn btn-danger">
@@ -82,9 +95,10 @@ class LinksTable extends React.Component<any, LinkTableState> {
                                             </tbody>
                                             <tfoot>
                                                 <tr>
-                                                    <th>Short link</th>
-                                                    <th>Long link</th>
-                                                    <th>Is Active?</th>
+                                                    <th>Name</th>
+                                                    <th>URL</th>
+                                                    <th>Events</th>
+                                                    <th>Is active?</th>
                                                     <th></th>
                                                     <th></th>
                                                 </tr>
@@ -139,4 +153,4 @@ class LinksTable extends React.Component<any, LinkTableState> {
     }
 }
 
-export default LinksTable;
+export default WebhookTableComponent;

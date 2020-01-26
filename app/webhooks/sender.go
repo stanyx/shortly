@@ -40,8 +40,10 @@ func (s *Sender) Send(url string, payload interface{}) {
 
 	defer resp.Body.Close()
 
+	s.Logger.Println("SEND webhook - initiated", r.URL, payload)
+
 	if !(resp.StatusCode >= 200 && resp.StatusCode < 300) {
-		s.Logger.Println("retrying")
+		s.Logger.Println("SEND webhook - failed, status_code: ", resp.StatusCode)
 		return
 	}
 }

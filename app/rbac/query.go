@@ -10,6 +10,7 @@ import (
 
 type IRbacRepository interface {
 	CreateRole(accountID int64, role Role) (int64, error)
+	GetRole(roleID int64) (Role, error)
 }
 
 type RbacRepository struct {

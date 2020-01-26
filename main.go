@@ -33,6 +33,8 @@ import (
 	"shortly/app/accounts"
 	"shortly/app/billing"
 	"shortly/app/campaigns"
+	"shortly/app/dashboards"
+	"shortly/app/clicks"
 	"shortly/app/data"
 	"shortly/app/links"
 	"shortly/app/rbac"
@@ -181,6 +183,8 @@ func main() {
 
 	historyDB := &data.HistoryDB{DB: linksStorage, Limiter: billingLimiter}
 	campaignsRepository := &campaigns.Repository{DB: database, HistoryDB: historyDB, Logger: logger}
+	dashboardsRepository := &dashboards.Repository{DB: database, Logger: logger}
+	clicksRepository := &clicks.Repository{DB: database, Logger: logger}
 
 	err = serviceStorage.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte("webhooks"))
@@ -351,8 +355,8 @@ func main() {
 		api.AddTagToLink(tagsRepository, logger),
 	))
 
-	r.Delete("/api/v1/tags/delete", auth(
-		rbac.NewPermission("/api/v1/tags/delete", "delete_tag", "POST"),
+	r.Delete("/api/v1/tags/{linkID}/{tagName}", auth(
+		rbac.NewPermission("/api/v1/tags/{linkID}/{tagName}", "delete_tag", "POST"),
 		api.DeleteTagFromLink(tagsRepository, logger),
 	))
 
@@ -375,7 +379,7 @@ func main() {
 	r.Get("/api/v1/user", api.GetLoggedInUser(usersRepository, logger, appConfig.Auth))
 	r.Get("/api/v1/profile", auth(
 		rbac.NewPermission("/api/v1/profile", "read_profile", "GET"),
-		api.GetProfile(usersRepository, billingRepository, billingLimiter, logger),
+		api.GetProfile(usersRepository, rbacRepository, billingRepository, billingLimiter, logger),
 	))
 
 	r.Post("/api/v1/users/links/create", auth(
@@ -421,6 +425,8 @@ func main() {
 	api.RbacRoutes(r, auth, permissionRegistry, usersRepository, rbacRepository, logger)
 	api.CampaignRoutes(r, auth, campaignsRepository, logger)
 	api.WebhooksRoutes(r, auth, webhooksRepository, logger)
+	api.DashboardsRoutes(r, auth, dashboardsRepository, logger)
+	api.ClicksRoutes(r, auth, clicksRepository, historyDB, logger)
 
 	totalRedirectsPromMiddleware := utils.PrometheusMiddleware("totalRedirects", "TODO description")
 
@@ -433,7 +439,7 @@ func main() {
 		logger.Fatal("incorrect config params for redirect logger")
 	}
 	r.Get("/metrics", promhttp.Handler().(http.HandlerFunc))
-	r.Get("/*", totalRedirectsPromMiddleware(api.Redirect(dbLogger, historyDB, urlCache, logger)))
+	r.Get("/*", totalRedirectsPromMiddleware(api.Redirect(linksRepository, dbLogger, historyDB, urlCache, logger)))
 
 	var srv *http.Server
 	// server running
