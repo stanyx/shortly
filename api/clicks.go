@@ -3,6 +3,7 @@ package api
 import (
 	"log"
 	"net/http"
+	"shortly/app/billing"
 	"shortly/app/data"
 	"shortly/app/rbac"
 	"time"
@@ -12,7 +13,7 @@ import (
 	"shortly/app/clicks"
 )
 
-func ClicksRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.HandlerFunc, repository *clicks.Repository, historyDB *data.HistoryDB, logger *log.Logger) {
+func ClicksRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.HandlerFunc, repository *clicks.Repository, historyDB *data.HistoryDB, billingLimiter *billing.BillingLimiter, logger *log.Logger) {
 
 	r.Get("/api/v1/users/links/clicks/total", auth(
 		rbac.NewPermission("/api/v1/users/links/clicks/total", "read_clicks_total", "GET"),
@@ -26,7 +27,7 @@ func ClicksRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.Ha
 
 	r.Get("/api/v1/users/links/{link}/stat", auth(
 		rbac.NewPermission("/api/v1/users/links/{link}/stat", "read_link_stat", "GET"),
-		GetLinkStat(repository, historyDB, logger),
+		GetLinkStat(repository, historyDB, billingLimiter, logger),
 	))
 
 }
@@ -95,18 +96,20 @@ type LinkStatResponse struct {
 	Locations DataResponse `json:"locations"`
 }
 
-func GetLinkStat(repo *clicks.Repository, historyDB *data.HistoryDB, logger *log.Logger) http.HandlerFunc {
+func GetLinkStat(repo *clicks.Repository, historyDB *data.HistoryDB, billingLimiter *billing.BillingLimiter, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		claims := r.Context().Value("user").(*JWTClaims)
+
+		defaultDayLimit := int64(31)
 
 		link := chi.URLParam(r, "link")
 
 		c := time.Now()
 		startTime := time.Date(c.Year(), c.Month(), 1, 0, 0, 0, 0, time.UTC)
-		endTime := startTime.Add(time.Hour * 24 * 31)
+		endTime := startTime.Add(time.Hour * 24 * time.Duration(defaultDayLimit))
 
-		rows, err := historyDB.GetClicksData(claims.AccountID, link, startTime, endTime)
+		rows, err := historyDB.GetClicksData(claims.AccountID, link, startTime, endTime, data.Limit(defaultDayLimit))
 		if err != nil {
 			logError(logger, err)
 			apiError(w, "(get link data) - internal error", http.StatusInternalServerError)
@@ -134,7 +137,7 @@ func GetLinkStat(repo *clicks.Repository, historyDB *data.HistoryDB, logger *log
 			clickData[ts.Unix()] += r.Count
 		}
 
-		for i := 0; i < 31; i++ {
+		for i := 0; i < int(defaultDayLimit); i++ {
 			ts := startTime.Add(time.Hour * 24 * time.Duration(i))
 			resp.Clicks.Datasets[0].Data = append(resp.Clicks.Datasets[0].Data, clickData[ts.Unix()])
 			resp.Clicks.Labels = append(resp.Clicks.Labels, ts.Format("01-02"))

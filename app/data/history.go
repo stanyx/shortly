@@ -10,8 +10,8 @@ import (
 
 	bolt "go.etcd.io/bbolt"
 
-	"shortly/utils"
 	"shortly/app/billing"
+	"shortly/utils"
 )
 
 func incrementTimeSeriesCounter(bucket *bolt.Bucket) error {
@@ -108,14 +108,33 @@ type CounterData struct {
 	Count int64
 }
 
-func (db *HistoryDB) GetClicksData(accountID int64, link string, start, end time.Time) ([]CounterData, error) {
+type HistoryQueryOption struct {
+	Limit int64
+}
+
+func Limit(limit int64) HistoryQueryOption {
+	return HistoryQueryOption{
+		Limit: limit,
+	}
+}
+
+func (db *HistoryDB) GetClicksData(accountID int64, link string, start, end time.Time, options ...HistoryQueryOption) ([]CounterData, error) {
 
 	dataStoreLimit, err := db.Limiter.GetOptionValue("timedata_limit", accountID)
 	if err != nil {
 		return nil, err
 	}
 
-	dayToStore, _ := strconv.ParseInt(dataStoreLimit.Value, 0, 64)
+	var dayToStore int64
+	for _, opt := range options {
+		if opt.Limit > 0 {
+			dayToStore = opt.Limit
+		}
+	}
+
+	if dayToStore == 0 {
+		dayToStore, _ = strconv.ParseInt(dataStoreLimit.Value, 0, 64)
+	}
 
 	dayRequested := int64((end.Unix() - start.Unix()) / (3600 * 24))
 

@@ -426,7 +426,7 @@ func main() {
 	api.CampaignRoutes(r, auth, campaignsRepository, logger)
 	api.WebhooksRoutes(r, auth, webhooksRepository, logger)
 	api.DashboardsRoutes(r, auth, dashboardsRepository, logger)
-	api.ClicksRoutes(r, auth, clicksRepository, historyDB, logger)
+	api.ClicksRoutes(r, auth, clicksRepository, historyDB, billingLimiter, logger)
 
 	totalRedirectsPromMiddleware := utils.PrometheusMiddleware("totalRedirects", "TODO description")
 
