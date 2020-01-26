@@ -26,6 +26,10 @@ func (repo *MockRbacRepository) CreateRole(accountID int64, role rbac.Role) (int
 	return 1, nil
 }
 
+func (repo *MockRbacRepository) GetRole(roleID int64) (rbac.Role, error) {
+	return rbac.Role{}, nil
+}
+
 func createFakeToken() (string, error) {
 
 	accountID := int64(1)
