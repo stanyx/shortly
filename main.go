@@ -254,6 +254,20 @@ func main() {
 		}
 	}
 
+	// storage metadata preparation
+
+	err = historyDB.Update(func(tx *bolt.Tx) error {
+		_, err := tx.CreateBucketIfNotExists([]byte("details"))
+		if err != nil {
+			return fmt.Errorf("create bucket error, cause: %+v", err)
+		}
+		return nil
+	})
+
+	if err != nil {
+		logger.Fatal(err)
+	}
+
 	err = LoadCacheFromDatabase(linksRepository, urlCache)
 	if err != nil {
 		logger.Fatal(err)
@@ -333,20 +347,6 @@ func main() {
 	r.Get("/api/v1/links", api.GetURLList(linksRepository, logger))
 	r.Post("/api/v1/links", totalLinkCreatedPromMiddleware(
 		api.CreateLink(linksRepository, urlCache, logger)))
-
-	// storage metadata preparation
-
-	err = historyDB.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte("details"))
-		if err != nil {
-			return fmt.Errorf("create bucket error, cause: %+v", err)
-		}
-		return nil
-	})
-
-	if err != nil {
-		logger.Fatal(err)
-	}
 
 	// private api (with authorized access)
 	enforcer, err := rbac.NewEnforcer(database, appConfig.Casbin)
