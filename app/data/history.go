@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -40,6 +40,7 @@ type LinkDetail struct {
 type HistoryDB struct {
 	*bolt.DB
 	Limiter *billing.BillingLimiter
+	Logger  *log.Logger
 }
 
 func (d *HistoryDB) Insert(link string, r *http.Request) error {
@@ -52,6 +53,7 @@ func (d *HistoryDB) Insert(link string, r *http.Request) error {
 
 		linkB := b.Get([]byte(link))
 		if linkB == nil {
+			d.Logger.Printf("link(%s) details not found\n", link)
 			return nil
 		}
 
@@ -129,7 +131,7 @@ func (db *HistoryDB) GetClicksData(accountID int64, link string, start, end time
 	var dayToStore int64
 	for _, opt := range options {
 		if opt.Limit > 0 {
-			fmt.Println("override limit", opt.Limit)
+			db.Logger.Printf("fetch link(%s) data with override limit: %v\n", link, opt.Limit)
 			dayToStore = opt.Limit
 		}
 	}
@@ -151,12 +153,14 @@ func (db *HistoryDB) GetClicksData(accountID int64, link string, start, end time
 		linkBucket := tx.Bucket([]byte("clicks:" + link))
 
 		if linkBucket == nil {
+			db.Logger.Printf("history - link(%s) bucket not found\n", link)
 			return nil
 		}
 
 		b := linkBucket.Cursor()
 
 		if b == nil {
+			db.Logger.Printf("history - link(%s) cursor empty\n", link)
 			return nil
 		}
 
@@ -181,7 +185,7 @@ func (db *HistoryDB) GetClicksData(accountID int64, link string, start, end time
 			})
 		}
 
-		fmt.Println("request interval", startKey, endKey, "found: ", len(counters))
+		db.Logger.Printf("history - fetched interval(%s, %s), found: %v", startKey, endKey, len(counters))
 
 		return nil
 	})

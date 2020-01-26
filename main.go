@@ -33,8 +33,8 @@ import (
 	"shortly/app/accounts"
 	"shortly/app/billing"
 	"shortly/app/campaigns"
-	"shortly/app/dashboards"
 	"shortly/app/clicks"
+	"shortly/app/dashboards"
 	"shortly/app/data"
 	"shortly/app/links"
 	"shortly/app/rbac"
@@ -181,7 +181,7 @@ func main() {
 
 	urlBillingLimit := api.BillingLimitMiddleware("url_limit", billingLimiter, logger)
 
-	historyDB := &data.HistoryDB{DB: linksStorage, Limiter: billingLimiter}
+	historyDB := &data.HistoryDB{DB: linksStorage, Limiter: billingLimiter, Logger: logger}
 	campaignsRepository := &campaigns.Repository{DB: database, HistoryDB: historyDB, Logger: logger}
 	dashboardsRepository := &dashboards.Repository{DB: database, Logger: logger}
 	clicksRepository := &clicks.Repository{DB: database, Logger: logger}
