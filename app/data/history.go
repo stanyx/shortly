@@ -167,11 +167,7 @@ func (db *HistoryDB) GetClicksData(accountID int64, link string, start, end time
 
 		if linkBucket == nil {
 			db.Logger.Printf("history - link(%s) bucket not found\n", link)
-
-			return db.Update(func(tx *bolt.Tx) error {
-				_, err := tx.CreateBucketIfNotExists([]byte("clicks:" + link))
-				return err
-			})
+			return nil
 		}
 
 		b := linkBucket.Cursor()
