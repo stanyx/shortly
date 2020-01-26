@@ -75,7 +75,7 @@ func (repo *LinksRepository) UnshortenURL(shortURL string) (string, error) {
 
 func (repo *LinksRepository) GetAllLinks() ([]Link, error) {
 
-	query := "select short_url, long_url from links"
+	query := "select short_url, long_url, account_id from links"
 	var queryArgs []interface{}
 	rows, err := repo.DB.Query(query, queryArgs...)
 	if err != nil {
@@ -86,13 +86,15 @@ func (repo *LinksRepository) GetAllLinks() ([]Link, error) {
 
 	for rows.Next() {
 		var shortURL, longURL string
-		err := rows.Scan(&shortURL, &longURL)
+		var accountID int64
+		err := rows.Scan(&shortURL, &longURL, &accountID)
 		if err != nil {
 			return nil, err
 		}
 		list = append(list, Link{
-			Short: shortURL,
-			Long:  longURL,
+			AccountID: accountID,
+			Short:     shortURL,
+			Long:      longURL,
 		})
 	}
 

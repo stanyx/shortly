@@ -43,6 +43,19 @@ type HistoryDB struct {
 	Logger  *log.Logger
 }
 
+var LinkDetailsNotFound = errors.New("link details not found")
+
+func (d *HistoryDB) InsertClick(link string, t time.Time, counter int) error {
+	return d.Update(func(tx *bolt.Tx) error {
+		clicksBucket, err := tx.CreateBucketIfNotExists([]byte("clicks:" + link))
+		if err != nil {
+			return err
+		}
+		key := t.Format(time.RFC3339)
+		return clicksBucket.Put([]byte(key), []byte(strconv.Itoa(counter)))
+	})
+}
+
 func (d *HistoryDB) Insert(link string, r *http.Request) error {
 
 	ipAddr := utils.GetIPAdress(r)
@@ -154,7 +167,11 @@ func (db *HistoryDB) GetClicksData(accountID int64, link string, start, end time
 
 		if linkBucket == nil {
 			db.Logger.Printf("history - link(%s) bucket not found\n", link)
-			return nil
+
+			return db.Update(func(tx *bolt.Tx) error {
+				_, err := tx.CreateBucketIfNotExists([]byte("clicks:" + link))
+				return err
+			})
 		}
 
 		b := linkBucket.Cursor()

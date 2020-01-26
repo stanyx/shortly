@@ -61,6 +61,32 @@ func LoadCacheFromDatabase(repo *links.LinksRepository, urlCache cache.UrlCache)
 	return nil
 }
 
+func LoadHistoryFromDatabase(repo *links.LinksRepository, clicksRepo *clicks.Repository, historyDB *data.HistoryDB) error {
+
+	rows, err := repo.GetAllLinks()
+	if err != nil {
+		return err
+	}
+
+	for _, r := range rows {
+		if err := historyDB.InsertDetail(r.Short, r.AccountID); err != nil {
+			return err
+		}
+		data, err := clicksRepo.GetClicksDataByDay(r.Short)
+		if err != nil {
+			return err
+		}
+		for _, d := range data {
+			fmt.Println("insert clicks", r, d)
+			if err := historyDB.InsertClick(r.Short, d.Time, int(d.Count)); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func RunMigrations(database *sql.DB) error {
 
 	driver, err := postgres.WithInstance(database, &postgres.Config{})
@@ -229,6 +255,11 @@ func main() {
 	}
 
 	err = LoadCacheFromDatabase(linksRepository, urlCache)
+	if err != nil {
+		logger.Fatal(err)
+	}
+
+	err = LoadHistoryFromDatabase(linksRepository, clicksRepository, historyDB)
 	if err != nil {
 		logger.Fatal(err)
 	}

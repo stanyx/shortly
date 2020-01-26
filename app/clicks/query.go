@@ -1,12 +1,12 @@
 package clicks
 
 import (
-	"log"
 	"database/sql"
+	"log"
 )
 
 type Repository struct {
-	DB *sql.DB
+	DB     *sql.DB
 	Logger *log.Logger
 }
 
@@ -39,6 +39,36 @@ func (r *Repository) GetClicksData(accountID int64) ([]ClickData, error) {
 		  d < (date_trunc('day', now()) + '1 day'::interval)
 	group by d
 	`, accountID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var list []ClickData
+	for rows.Next() {
+		var u ClickData
+		err := rows.Scan(&u.Time, &u.Count)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, u)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	return list, nil
+}
+
+func (r *Repository) GetClicksDataByDay(shortURL string) ([]ClickData, error) {
+
+	rows, err := r.DB.Query(`
+	select date_trunc('day', timestamp) t, count(*) from redirect_log where short_url = $1
+	group by t
+	`, shortURL)
 
 	if err != nil {
 		return nil, err
