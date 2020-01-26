@@ -19,7 +19,7 @@ class RolesTable extends React.Component<any, RoleTableState> {
     }
     render() {
     return (
-        <section className="content">
+        <React.Fragment>
             <div className="row">
                 <div className="col-12">
                     <Link to="/roles/create" className="btn btn-primary">Create</Link>
@@ -123,7 +123,7 @@ class RolesTable extends React.Component<any, RoleTableState> {
                     </div>
                 </div>
             </div>
-        </section>
+        </React.Fragment>
         )
     }
 }

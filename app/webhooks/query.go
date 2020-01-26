@@ -179,7 +179,7 @@ func (r *WebhooksRepository) EnableWebhook(accountID int64, id int64) error {
 	err := r.DB.QueryRow(`
 		update "webhooks" set active = true where id = $1 and account_id = $2
 		returning events, url
-	`, id, accountID).Scan(pq.Array(&events))
+	`, id, accountID).Scan(pq.Array(&events), &webhookURL)
 
 	if err != nil {
 		return err

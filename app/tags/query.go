@@ -81,10 +81,10 @@ func (r *TagsRepository) AddTagToLink(linkID int64, tag string) (int64, error) {
 	return rowID, err
 }
 
-func (r *TagsRepository) DeleteTagFromLink(tagID int64) (int64, error) {
+func (r *TagsRepository) DeleteTagFromLink(linkID int64, tagName string) (int64, error) {
 	var rowID int64
 	err := r.DB.QueryRow(
-		"delete from tags where id = $2 returning id", tagID,
+		"delete from tags where link_id = $1 and tag = $2 returning id", linkID, tagName,
 	).Scan(&rowID)
 	return rowID, err
 }

@@ -22,7 +22,7 @@ class ChangeRoleComponent extends React.Component<any, ChangeRoleState> {
     }
     render() {
         return (
-        <div className="container-fluid">
+        <React.Fragment>
             <div className="row">
                 <div className="col-md-6">
                     <div className="card card-warning">
@@ -51,7 +51,7 @@ class ChangeRoleComponent extends React.Component<any, ChangeRoleState> {
                     </div>
                 </div>
             </div>
-        </div>
+        </React.Fragment>
         )
     }
 }

@@ -19,7 +19,7 @@ class UserTable extends React.Component<any, UserTableState> {
     }
     render() {
     return (
-        <section className="content">
+        <React.Fragment>
             <div className="row">
                 <div className="col-12">
                     <Link to="/users/create" className="btn btn-primary">Add user</Link>
@@ -45,7 +45,8 @@ class UserTable extends React.Component<any, UserTableState> {
                                                     <th className="sorting_asc">Name</th>
                                                     <th className="sorting">Email</th>
                                                     <th className="sorting">Phone</th>
-                                                    <th className="sorting"></th>
+                                                    <th></th>
+                                                    <th></th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -76,6 +77,7 @@ class UserTable extends React.Component<any, UserTableState> {
                                                     <th>Name</th>
                                                     <th>Email</th>
                                                     <th>Phone</th>
+                                                    <th></th>
                                                     <th></th>
                                                 </tr>
                                             </tfoot>
@@ -124,7 +126,7 @@ class UserTable extends React.Component<any, UserTableState> {
                     </div>
                 </div>
             </div>
-        </section>
+        </React.Fragment>
         )
     }
 }

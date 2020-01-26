@@ -44,6 +44,11 @@ func LinksRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.Han
 		DeleteUrlFromGroup(linksRepository, logger),
 	))
 
+	r.Get("/api/v1/users/links/total", auth(
+		rbac.NewPermission("/api/v1/users/links/total", "read_total_links", "GET"),
+		GetTotalLinks(linksRepository, logger),
+	))
+
 }
 
 func GetAccountID(r *http.Request) int64 {
@@ -104,6 +109,7 @@ func GetUserURLList(repo links.ILinksRepository, logger *log.Logger) http.Handle
 		shortUrlFilter := query["shortUrl"]
 		longUrlFilter := query["longUrl"]
 		fullTextFilter := query["fullText"]
+		linkIDFilter := query["linkID"]
 
 		var filters []links.LinkFilter
 		if len(tagsFilter) > 0 {
@@ -122,6 +128,11 @@ func GetUserURLList(repo links.ILinksRepository, logger *log.Logger) http.Handle
 			filters = append(filters, links.LinkFilter{FullText: fullTextFilter[0]})
 		}
 
+		if len(linkIDFilter) > 0 {
+			linkID, _ := strconv.ParseInt(linkIDFilter[0], 0, 64)
+			filters = append(filters, links.LinkFilter{LinkID: linkID})
+		}
+
 		rows, err := repo.GetUserLinks(claims.AccountID, claims.UserID, filters...)
 		if err != nil {
 			logError(logger, err)
@@ -132,6 +143,7 @@ func GetUserURLList(repo links.ILinksRepository, logger *log.Logger) http.Handle
 		var list []LinkResponse
 		for _, r := range rows {
 			list = append(list, LinkResponse{
+				ID:          r.ID,
 				Short:       r.Short,
 				Long:        r.Long,
 				Description: r.Description,
@@ -367,10 +379,6 @@ func CreateUserLink(repo *links.LinksRepository, historyDB *data.HistoryDB, urlC
 
 }
 
-type DeleteLinkForm struct {
-	Url string `json:"url"`
-}
-
 func DeleteUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, billingLimiter *billing.BillingLimiter, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -378,23 +386,32 @@ func DeleteUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, billin
 		claims := r.Context().Value("user").(*JWTClaims)
 		accountID := claims.AccountID
 
-		var form DeleteLinkForm
-		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
-			apiError(w, "decode form error", http.StatusBadRequest)
-			return
-		}
+		linkIDArg := chi.URLParam(r, "linkID")
 
-		if form.Url == "" {
+		if linkIDArg == "" {
 			apiError(w, "url parameter is required", http.StatusBadRequest)
 			return
 		}
 
-		// TODO - transactions and locking
+		linkID, err := strconv.ParseInt(linkIDArg, 0, 64)
+		if err != nil {
+			apiError(w, "linkID is not a number", http.StatusBadRequest)
+			return
+		}
+
+		links, err := repo.GetUserLinks(accountID, claims.UserID, links.LinkFilter{LinkID: linkID})
+		if err != nil {
+			logError(logger, err)
+			apiError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		link := links[0]
 
 		lock := billingLimiter.Lock(accountID)
 		defer lock.Unlock()
 
-		tx, _, err := repo.DeleteUserLink(accountID, form.Url)
+		tx, _, err := repo.DeleteUserLink(accountID, linkID)
 		if err != nil {
 			_ = tx.Rollback()
 			logError(logger, err)
@@ -409,7 +426,7 @@ func DeleteUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, billin
 			return
 		}
 
-		urlCache.Delete(form.Url)
+		urlCache.Delete(link.Short)
 
 		if err := tx.Commit(); err != nil {
 			_ = billingLimiter.Reset("url_limit", accountID)
@@ -681,4 +698,23 @@ func HideUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, logger *
 
 	})
 
+}
+
+func GetTotalLinks(repo links.ILinksRepository, logger *log.Logger) http.HandlerFunc {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		claims := r.Context().Value("user").(*JWTClaims)
+		accountID := claims.AccountID
+
+		count, err := repo.GetUserLinksCount(accountID, time.Time{}, time.Now())
+		if err != nil {
+			logError(logger, err)
+			apiError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		response(w, count, http.StatusOK)
+
+	})
 }

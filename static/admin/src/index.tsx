@@ -5,6 +5,7 @@ import {httpGet} from './utils';
 
 import NavLink from './components/navmenu';
 import LinksTable from './components/links-table';
+import LinkTagsComponent from './components/links-tags';
 import CreateLinkComponent from './components/create-link';
 import RolesTable from './components/roles-table';
 import CreateRoleComponent from './components/create-role';
@@ -15,6 +16,12 @@ import ProfileComponent from './components/profile';
 import GroupTable from './components/groups-table';
 import CreateGroupComponent from './components/create-group';
 import ChangeRoleComponent from './components/change-role';
+import WebhookTableComponent from './components/webhooks-table';
+import CreateWebhookComponent from './components/create-webhook';
+import DashboardManagerComponent from './components/dashboards';
+import CreateDashboardComponent from './components/create-dashboard';
+import CreateDashboardWidgetComponent from './components/create-dashboard-widget';
+import MainDashboardComponent from './components/main-dashboard';
 
 const PermissionTableComponent = () => {
     let {roleID} = useParams();
@@ -27,6 +34,20 @@ const ChangeRoleComponentWrapper = () => {
     let {userID} = useParams();
     return (
         <ChangeRoleComponent userID={userID}/>
+    )
+}
+
+const LinkTagsComponentWrapper = () => {
+    let {linkID} = useParams();
+    return (
+        <LinkTagsComponent linkID={linkID}/>
+    )
+}
+
+const CreateDashboardWidgetComponentWrapper = () => {
+    let {dashboardID, posX, posY, maxSpan} = useParams();
+    return (
+        <CreateDashboardWidgetComponent dashboardID={dashboardID} posX={posX} posY={posY} maxSpan={maxSpan}/>
     )
 }
 
@@ -57,7 +78,7 @@ const App = () => {
 
             <aside className="main-sidebar sidebar-dark-primary elevation-4">
                 <a href="index3.html" className="brand-link">
-                    <img src="../../static/assets/img/logo.png" alt="" className="brand-image" />
+                    <i className="brand-image ion ion-analytics"></i>
                     <span className="brand-text font-weight-light">Shortly</span>
                 </a>
 
@@ -86,11 +107,20 @@ const App = () => {
 
                 <section className="content">
                     <Switch>
+                        <Route path="/" exact>
+                            <MainDashboardComponent />
+                        </Route>
+                        <Route path="/admin" exact>
+                            <MainDashboardComponent />
+                        </Route>
                         <Route path="/links" exact>
                             <LinksTable />
                         </Route>
-                        <Route path="/links/create">
+                        <Route path="/links/create" exact>
                             <CreateLinkComponent/>
+                        </Route>
+                        <Route path="/links/:linkID/tags">
+                            <LinkTagsComponentWrapper/>
                         </Route>
                         <Route path="/roles" exact>
                             <RolesTable/>
@@ -116,11 +146,23 @@ const App = () => {
                         <Route path="/groups/create" exact>
                             <CreateGroupComponent />
                         </Route>
-                        <Route path="/webhooks">
-                            <span>Webhooks</span>
+                        <Route path="/webhooks" exact>
+                            <WebhookTableComponent />
+                        </Route>
+                        <Route path="/webhooks/create">
+                            <CreateWebhookComponent />
                         </Route>
                         <Route path="/profile" exact>
                             <ProfileComponent />
+                        </Route>
+                        <Route path="/dashboards" exact>
+                            <DashboardManagerComponent />
+                        </Route>
+                        <Route path="/dashboards/create" exact>
+                            <CreateDashboardComponent />
+                        </Route>
+                        <Route path="/dashboards/widgets/:dashboardID/add/:posX/:posY/:maxSpan">
+                            <CreateDashboardWidgetComponentWrapper />
                         </Route>
                         <Route path="/" exact>
                             <span>Others</span>
@@ -131,7 +173,7 @@ const App = () => {
             </div>
 
             <footer className="main-footer">
-                <strong>Copyright &copy; 2014-2019 <a href="/">Shortly</a>.</strong>
+                <strong>Copyright &copy; 2014-2020 <a href="/">Shortly</a>.</strong>
                 All rights reserved.
                 <div className="float-right d-none d-sm-inline-block">
                 <b>Version</b> 1.0.0
