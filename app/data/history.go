@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -128,6 +129,7 @@ func (db *HistoryDB) GetClicksData(accountID int64, link string, start, end time
 	var dayToStore int64
 	for _, opt := range options {
 		if opt.Limit > 0 {
+			fmt.Println("override limit", opt.Limit)
 			dayToStore = opt.Limit
 		}
 	}
@@ -178,6 +180,8 @@ func (db *HistoryDB) GetClicksData(accountID int64, link string, start, end time
 				Count: counterValue,
 			})
 		}
+
+		fmt.Println("request interval", startKey, endKey, "found: ", len(counters))
 
 		return nil
 	})
