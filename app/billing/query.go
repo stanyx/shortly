@@ -2,8 +2,13 @@ package billing
 
 import (
 	"database/sql"
-	"errors"
+	"fmt"
 	"time"
+
+	"github.com/pkg/errors"
+	"github.com/stripe/stripe-go"
+	"github.com/stripe/stripe-go/customer"
+	"github.com/stripe/stripe-go/sub"
 )
 
 type BillingRepository struct {
@@ -36,24 +41,35 @@ func (r *BillingRepository) GetBillingPlanCost(planID int64, isAnnual bool) (str
 	return cost, nil
 }
 
-func (r *BillingRepository) ApplyBillingPlan(accountID, planID int64, start, end time.Time) error {
+func (r *BillingRepository) ApplyBillingPlan(accountID int64, activation BillingPlanActivation) error {
 
-	if _, err := r.DB.Exec("UPDATE billing_accounts SET active = false WHERE account_id = $1", accountID); err != nil {
+	tx, err := r.DB.Begin()
+	if err != nil {
 		return err
 	}
 
-	if start.Unix() == 0 {
-		start = time.Now()
+	if _, err := tx.Exec("UPDATE billing_accounts SET active = false WHERE account_id = $1", accountID); err != nil {
+		_ = tx.Rollback()
+		return err
 	}
 
-	if end.Unix() == 0 {
-		end = time.Now().Add(time.Hour * 24 * 30)
+	if activation.Start.Unix() == 0 {
+		activation.Start = time.Now()
 	}
 
-	if _, err := r.DB.Exec(`
-		insert into "billing_accounts" (account_id, plan_id, started_at, ended_at, active) 
-		values ($1, $2, $3, $4, true)
-	`, accountID, planID, start, end); err != nil {
+	if activation.End.Unix() == 0 {
+		activation.End = time.Now().Add(time.Hour * 24 * 30)
+	}
+
+	if _, err := tx.Exec(`
+		insert into "billing_accounts" (account_id, plan_id, started_at, ended_at, charge, is_annual, active) 
+		values ($1, $2, $3, $4, $5, $6, true)
+	`, accountID, activation.PlanID, activation.Start, activation.End, activation.Charge, activation.IsAnnual); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
 		return err
 	}
 
@@ -185,7 +201,8 @@ func (r *BillingRepository) GetAllBillingPlans() ([]BillingPlan, error) {
 
 func (r *BillingRepository) GetActiveBillingPlans(accountID int64) ([]AccountBillingPlan, error) {
 	query := `
-		SELECT bp.id, ubp.account_id, ubp.started_at, ubp.ended_at, bp.id, bp.name, bp.description 
+		SELECT bp.id, ubp.account_id, ubp.started_at, ubp.ended_at, ubp.charge, ubp.is_annual,
+		bp.id, bp.name, bp.description 
 		FROM billing_accounts ubp
 		INNER JOIN billing_plans bp ON bp.id = ubp.plan_id
 		WHERE ubp.active = true
@@ -211,6 +228,8 @@ func (r *BillingRepository) GetActiveBillingPlans(accountID int64) ([]AccountBil
 			&bp.AccountID,
 			&bp.Start,
 			&bp.End,
+			&bp.Charge,
+			&bp.IsAnnual,
 			&bp.ID,
 			&bp.Name,
 			&bp.Description,
@@ -392,13 +411,19 @@ func (r *BillingRepository) AttachToDefaultBilling(accountID, planID int64) (*Bi
 	start := time.Date(tNow.Year(), tNow.Month(), tNow.Day(), 0, 0, 0, 0, time.UTC)
 	end := start.Add(time.Duration(24*365*100) * time.Hour)
 
-	if err := r.ApplyBillingPlan(accountID, planID, start, end); err != nil {
-		return nil, err
+	planActivation := BillingPlanActivation{
+		PlanID: planID,
+		Start:  start,
+		End:    end,
+	}
+
+	if err := r.ApplyBillingPlan(accountID, planActivation); err != nil {
+		return nil, errors.Wrap(err, "billing plan apply error:")
 	}
 
 	options, err := r.GetBillingPlanOptions(accountID, planID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "get billing plan options error:")
 	}
 
 	billingAccount := &BillingAccount{
@@ -408,4 +433,103 @@ func (r *BillingRepository) AttachToDefaultBilling(accountID, planID int64) (*Bi
 	}
 
 	return billingAccount, err
+}
+
+func (r *BillingRepository) GetStripeSubscriptionID(planID int64) (string, error) {
+	var stripeID string
+	err := r.DB.QueryRow("select stripe_id from billing_plans where id = $1", planID).Scan(&stripeID)
+	return stripeID, err
+}
+
+func (r *BillingRepository) GetAccountIDByStripeCharge(stripeID string) (int64, error) {
+	var accountID int64
+	err := r.DB.QueryRow("select account_id from stripe_charges where stripe_id = $1", stripeID).Scan(&accountID)
+	return accountID, err
+}
+
+func (r *BillingRepository) CancelSubscription(accountID int64) error {
+
+	var subscriptionID string
+
+	tx, err := r.DB.Begin()
+	if err != nil {
+		return err
+	}
+
+	err = tx.QueryRow("update stripe_subscriptions set active = false where account_id = $1 returning stripe_id", accountID).Scan(&subscriptionID)
+	if err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+
+	_, err = sub.Cancel(subscriptionID, nil)
+	if err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CancelSubscriptionExternal set subscription status to active = false from external event (webhook)
+func (r *BillingRepository) CancelSubscriptionExternal(stripeID string, timestamp int64) (int64, error) {
+	var accountID int64
+	err := r.DB.QueryRow(
+		`update stripe_subscriptions set active = false, canceled_at = $1 
+		 where stripe_id = $2 returning account_id
+		`, timestamp, stripeID).Scan(&accountID)
+	return accountID, err
+}
+
+func (r *BillingRepository) CreateStripeCustomer(accountID int64, email string) error {
+
+	params := &stripe.CustomerParams{
+		Description: stripe.String(fmt.Sprintf("Account<%d>", accountID)),
+		Email:       stripe.String(email),
+	}
+
+	customer, err := customer.New(params)
+	if err != nil {
+		return err
+	}
+
+	_, err = r.DB.Exec("insert into stripe_customers (account_id, stripe_id, created) values ($1, $2, $3)",
+		accountID, customer.ID, customer.Created)
+
+	return err
+}
+
+func (r *BillingRepository) GetStripeCustomer(accountID int64) (string, error) {
+	var stripeID string
+	err := r.DB.QueryRow(
+		`select stripe_id from stripe_customers where account_id = $1`, accountID).Scan(&stripeID)
+	return stripeID, err
+}
+
+func (r *BillingRepository) CreateStripeSubscription(accountID, planID int64, s *stripe.Subscription) error {
+	_, err := r.DB.Exec("insert into stripe_subscriptions (account_id, plan_id, stripe_id, created) values ($1, $2, $3, $4)",
+		accountID, planID, s.ID, s.Created)
+	return err
+}
+
+func (r *BillingRepository) CreateStripeCharge(accountID, planID int64, ch *stripe.Charge) error {
+	_, err := r.DB.Exec("insert into stripe_charges (account_id, plan_id, stripe_id, created) values ($1, $2, $3, $4)",
+		accountID, planID, ch.ID, ch.Created)
+	return err
+}
+
+func (r *BillingRepository) CreateStripeEvent(id string, ev string, timestamp int64, eventErr error) error {
+
+	var errMessage string
+	if eventErr != nil {
+		errMessage = eventErr.Error()
+	}
+
+	_, err := r.DB.Exec("insert into stripe_events (stripe_id, timestamp, payload, error) values ($1, $2, $3, $4)",
+		id, timestamp, ev, errMessage)
+	return err
 }
