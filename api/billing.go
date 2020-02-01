@@ -1,14 +1,20 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
 	"github.com/stripe/stripe-go"
 	"github.com/stripe/stripe-go/charge"
+	"github.com/stripe/stripe-go/sub"
+	"github.com/stripe/stripe-go/webhook"
 
 	"shortly/app/billing"
 	"shortly/config"
@@ -68,21 +74,52 @@ func ListBillingPlans(repo *billing.BillingRepository, logger *log.Logger) http.
 }
 
 type ApplyBillingPlanForm struct {
-	PlanID      int64  `json:"plan_id"`
+	PlanID      int64  `json:"planID"`
 	StripeToken string `json:"paymentToken"`
+	FullName    string `json:"fullName"`
+	Country     string `json:"country"`
+	ZipCode     string `json:"zipCode"`
 	IsAnnual    bool   `json:"isAnnual"`
 }
 
 func ApplyBillingPlan(repo *billing.BillingRepository, billingLimiter *billing.BillingLimiter, paymentConfig config.PaymentConfig, logger *log.Logger) http.HandlerFunc {
 
-	createPaymentCharge := func(planCost string, r *http.Request) error {
-		stripe.Key = paymentConfig.Key
+	stripe.Key = paymentConfig.Key
 
-		token := r.FormValue("stripeToken")
+	createPaymentCharge := func(accountID, planID int64, planCost string, token string, isSubscription bool) error {
+
+		customerID, err := repo.GetStripeCustomer(accountID)
+		if err != nil {
+			return err
+		}
+
+		if isSubscription {
+
+			stripeSubscriptionID, err := repo.GetStripeSubscriptionID(planID)
+			if err != nil {
+				return err
+			}
+
+			params := &stripe.SubscriptionParams{
+				Customer: stripe.String(customerID),
+				Items: []*stripe.SubscriptionItemsParams{
+					{
+						Plan: stripe.String(stripeSubscriptionID),
+					},
+				},
+			}
+			s, err := sub.New(params)
+			if err != nil {
+				return err
+			}
+
+			return repo.CreateStripeSubscription(accountID, planID, s)
+		}
 
 		price, _ := strconv.ParseInt(planCost, 0, 64)
 
 		params := &stripe.ChargeParams{
+			Customer:    stripe.String(customerID),
 			Amount:      stripe.Int64(price),
 			Currency:    stripe.String(string(stripe.CurrencyUSD)),
 			Description: stripe.String("billing plan charge"),
@@ -90,24 +127,23 @@ func ApplyBillingPlan(repo *billing.BillingRepository, billingLimiter *billing.B
 
 		_ = params.SetSource(token)
 
-		_, err := charge.New(params)
-		return err
+		chrg, err := charge.New(params)
+		if err != nil {
+			return err
+		}
+		return repo.CreateStripeCharge(accountID, planID, chrg)
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		form := &ApplyBillingPlanForm{}
+		claims := r.Context().Value("user").(*JWTClaims)
 
-		planID, err := strconv.ParseInt(r.FormValue("planId"), 0, 64)
-		if err != nil {
+		var form ApplyBillingPlanForm
+		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
-			apiError(w, "plan id not specified", http.StatusBadRequest)
+			apiError(w, "decode form error", http.StatusBadRequest)
 			return
 		}
-
-		form.PlanID = planID
-
-		claims := r.Context().Value("user").(*JWTClaims)
 
 		planCost, err := repo.GetBillingPlanCost(form.PlanID, form.IsAnnual)
 		if err != nil {
@@ -115,22 +151,32 @@ func ApplyBillingPlan(repo *billing.BillingRepository, billingLimiter *billing.B
 			apiError(w, "get billing plan error", http.StatusInternalServerError)
 			return
 		}
-
-		tNow := time.Now()
-		start := time.Date(tNow.Year(), tNow.Month(), tNow.Day(), 0, 0, 0, 0, time.UTC)
+		l, _ := time.LoadLocation("UTC")
+		tNow := time.Now().In(l)
+		start := time.Date(tNow.Year(), tNow.Month(), tNow.Day(), 0, 0, 0, 0, time.UTC).In(l)
 		end := start.Add(time.Hour * 24 * 30)
 
 		if form.IsAnnual {
 			end = start.Add(time.Hour * 24 * 365)
 		}
 
-		if err := createPaymentCharge(planCost, r); err != nil {
+		if err := createPaymentCharge(claims.AccountID, form.PlanID, planCost, form.StripeToken, !form.IsAnnual); err != nil {
 			logError(logger, err)
 			apiError(w, "payment error", http.StatusInternalServerError)
 			return
 		}
 
-		if err := repo.ApplyBillingPlan(claims.AccountID, form.PlanID, start, end); err != nil {
+		charge, _ := strconv.ParseInt(planCost, 0, 64)
+
+		billingActivation := billing.BillingPlanActivation{
+			PlanID:   form.PlanID,
+			Start:    start,
+			End:      end,
+			Charge:   int(charge),
+			IsAnnual: form.IsAnnual,
+		}
+
+		if err := repo.ApplyBillingPlan(claims.AccountID, billingActivation); err != nil {
 			logError(logger, err)
 			apiError(w, "apply plan error", http.StatusInternalServerError)
 			return
@@ -157,6 +203,179 @@ func ApplyBillingPlan(repo *billing.BillingRepository, billingLimiter *billing.B
 
 		ok(w)
 
+	})
+}
+
+type CancelSubscriptionForm struct {
+	PlanID int64
+}
+
+func CancelSubscription(repo *billing.BillingRepository, billingLimiter *billing.BillingLimiter, logger *log.Logger) http.HandlerFunc {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		var form CancelSubscriptionForm
+
+		claims := r.Context().Value("user").(*JWTClaims)
+
+		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
+			logError(logger, err)
+			apiError(w, "decode form error", http.StatusBadRequest)
+			return
+		}
+
+		account, err := repo.GetAccountBillingPlan(claims.AccountID)
+		if err != nil {
+			logError(logger, err)
+			apiError(w, "get account billing plan error", http.StatusInternalServerError)
+			return
+		}
+
+		if account.IsAnnual {
+			apiError(w, "annual plan cancelation is prohibited", http.StatusBadRequest)
+			return
+		}
+
+		if err := repo.CancelSubscription(claims.AccountID); err != nil {
+			apiError(w, "annual plan cancelation is prohibited", http.StatusBadRequest)
+			return
+		}
+
+		if err := billingLimiter.DowngradeToDefaultPlan(claims.AccountID); err != nil {
+			logError(logger, err)
+			apiError(w, "set plan error", http.StatusInternalServerError)
+			return
+		}
+
+		ok(w)
+
+	})
+}
+
+func StripeWebhook(repo *billing.BillingRepository, billingLimiter *billing.BillingLimiter, logger *log.Logger, webhookKey string) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		const MaxBodyBytes = int64(65536)
+		r.Body = http.MaxBytesReader(w, r.Body, MaxBodyBytes)
+		payload, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error reading request body: %v\\n", err)
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+
+		endpointSecret := webhookKey
+
+		event, err := webhook.ConstructEvent(payload, r.Header.Get("Stripe-Signature"), endpointSecret)
+
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error verifying webhook signature: %v\n", err)
+			w.WriteHeader(http.StatusBadRequest) // Return a 400 error on a bad signature
+			return
+		}
+
+		if err := json.Unmarshal(payload, &event); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to parse webhook body json: %v\\n", err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		var loggedEvent *stripe.Event
+		var eventHandleError error
+
+		switch event.Type {
+		case "charge.expired":
+			var chr stripe.Charge
+			err := json.Unmarshal(event.Data.Raw, &chr)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error parsing webhook JSON: %v\\n", err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			accountID, err := repo.GetAccountIDByStripeCharge(chr.ID)
+			if err == nil {
+				if err := billingLimiter.DowngradeToDefaultPlan(accountID); err != nil {
+					logger.Println("charge.expired event error handling", err)
+					eventHandleError = err
+					// TODO - send error to queue for retries
+				}
+			} else {
+				logger.Println("charge not found", err)
+				eventHandleError = err
+			}
+			loggedEvent = &event
+		case "charge.failed":
+			var chr stripe.Charge
+			err := json.Unmarshal(event.Data.Raw, &chr)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error parsing webhook JSON: %v\\n", err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			accountID, err := repo.GetAccountIDByStripeCharge(chr.ID)
+			if err == nil {
+				if err := billingLimiter.DowngradeToDefaultPlan(accountID); err != nil {
+					logger.Println("charge.expired event error handling", err)
+					// TODO - send error to queue for retries
+					eventHandleError = err
+				}
+			} else {
+				logger.Println("charge not found", err)
+			}
+			loggedEvent = &event
+		case "subscription.aborted":
+			var s stripe.SubscriptionSchedule
+			err := json.Unmarshal(event.Data.Raw, &s)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error parsing webhook JSON: %v\\n", err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			accountID, err := repo.CancelSubscriptionExternal(s.Subscription.ID, s.CanceledAt)
+			if err != nil {
+				logger.Println("subscription_schedule.canceled event error handling", err)
+				// TODO - send error to queue for retries
+				eventHandleError = err
+			} else {
+				if err := billingLimiter.DowngradeToDefaultPlan(accountID); err != nil {
+					logger.Println("subscription_schedule.canceled event error handling", err)
+					// TODO - send error to queue for retries
+					eventHandleError = err
+				}
+			}
+			loggedEvent = &event
+		case "subscription_schedule.canceled":
+			var s stripe.SubscriptionSchedule
+			err := json.Unmarshal(event.Data.Raw, &s)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error parsing webhook JSON: %v\\n", err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			accountID, err := repo.CancelSubscriptionExternal(s.Subscription.ID, s.CanceledAt)
+			if err != nil {
+				logger.Println("subscription_schedule.canceled event error handling", err)
+				// TODO - send error to queue for retries
+				eventHandleError = err
+			} else {
+				if err := billingLimiter.DowngradeToDefaultPlan(accountID); err != nil {
+					logger.Println("subscription_schedule.canceled event error handling", err)
+					// TODO - send error to queue for retries
+					eventHandleError = err
+				}
+			}
+			loggedEvent = &event
+		default:
+			fmt.Fprintf(os.Stderr, "Unexpected event type: %s\\n", event.Type)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		if loggedEvent != nil {
+			_ = repo.CreateStripeEvent(loggedEvent.ID, string(event.Data.Raw), loggedEvent.Created, eventHandleError)
+		}
+
+		w.WriteHeader(http.StatusOK)
 	})
 }
 

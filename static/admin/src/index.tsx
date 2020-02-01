@@ -1,6 +1,7 @@
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {BrowserRouter as Router, Switch, Route, useParams} from 'react-router-dom';
+import {Elements, StripeProvider} from 'react-stripe-elements';
 import {httpGet} from './utils';
 
 import NavLink from './components/navmenu';
@@ -22,6 +23,7 @@ import DashboardManagerComponent from './components/dashboards';
 import CreateDashboardComponent from './components/create-dashboard';
 import CreateDashboardWidgetComponent from './components/create-dashboard-widget';
 import MainDashboardComponent from './components/main-dashboard';
+import PaymentFormComponent from './components/payment-form';
 
 const PermissionTableComponent = () => {
     let {roleID} = useParams();
@@ -51,6 +53,17 @@ const CreateDashboardWidgetComponentWrapper = () => {
     )
 }
 
+const PaymentFormComponentWrapper = () => {
+    let {planID} = useParams();
+    return (
+        <StripeProvider apiKey='pk_test_KZTRmzOB7llevD5VHsSVWyev00wfWHxSYy'>
+            <Elements>
+                <PaymentFormComponent planID={planID}/>
+            </Elements>
+        </StripeProvider>
+    )
+}
+
 const App = () => {
 
     return (
@@ -77,7 +90,7 @@ const App = () => {
             </nav>
 
             <aside className="main-sidebar sidebar-dark-primary elevation-4">
-                <a href="index3.html" className="brand-link">
+                <a href="/admin" className="brand-link">
                     <i className="brand-image ion ion-analytics"></i>
                     <span className="brand-text font-weight-light">Shortly</span>
                 </a>
@@ -163,6 +176,9 @@ const App = () => {
                         </Route>
                         <Route path="/dashboards/widgets/:dashboardID/add/:posX/:posY/:maxSpan">
                             <CreateDashboardWidgetComponentWrapper />
+                        </Route>
+                        <Route path="/billing/:planID/upgrade">
+                            <PaymentFormComponentWrapper></PaymentFormComponentWrapper>
                         </Route>
                         <Route path="/" exact>
                             <span>Others</span>

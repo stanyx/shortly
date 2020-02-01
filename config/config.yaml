@@ -15,7 +15,8 @@ Auth:
   Secret: "secret"
 Billing:
   Payment:
-    Key: ''
+    Key: 'sk_test_mQj3xODJwHwIer0DuaRPTLpD00felDhCRp'
+    WebhookKey: whsec_htM4fNMt9NS8rVWRcrlXzE0PnGXEzsBp
 LinkDB:
   Dir: .
 ServiceDB:

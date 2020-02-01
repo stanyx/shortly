@@ -18,8 +18,18 @@ type BillingPlan struct {
 
 type AccountBillingPlan struct {
 	BillingPlan
-	Start time.Time
-	End   time.Time
+	Start    time.Time
+	End      time.Time
+	Charge   int
+	IsAnnual bool
+}
+
+type BillingPlanActivation struct {
+	PlanID   int64
+	Start    time.Time
+	End      time.Time
+	Charge   int
+	IsAnnual bool
 }
 
 type BillingOption struct {

@@ -3,13 +3,13 @@ package billing
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 
 	"shortly/app/links"
@@ -238,7 +238,7 @@ func (l *BillingLimiter) LoadData() error {
 
 	plans, err := l.Repo.GetAllUserBillingPlans(0)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "get account plans error:")
 	}
 
 	for _, p := range plans {
@@ -247,13 +247,13 @@ func (l *BillingLimiter) LoadData() error {
 		curTime := time.Now()
 		if !(p.Start.Before(curTime) && p.End.After(curTime)) {
 			if err := l.DowngradeToDefaultPlan(p.AccountID); err != nil {
-				return err
+				return errors.Wrap(err, "downgrade to default plan error:")
 			}
 			continue
 		}
 
 		if err := l.ActualizePlanCounters(p); err != nil {
-			return err
+			return errors.Wrap(err, "actualize plan error:")
 		}
 	}
 

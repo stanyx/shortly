@@ -4,7 +4,7 @@
 
 # SHORTLY
 
-Urlshortener written in [Golang](https://golang.org) and [ReactJS](https://reactjs.org). Inspired by Bit.ly, TinyURL.
+URL shortener written in [Golang](https://golang.org) and [ReactJS](https://reactjs.org). Inspired by Bit.ly, TinyURL.
 
 ## Project category
 
@@ -20,35 +20,35 @@ Urlshortener written in [Golang](https://golang.org) and [ReactJS](https://react
 
 WORK IN PROGRESS
 
-Project is at very early stage of development. That means that breaking changes may arise at any time.
+The project is at an very early stage of development. Breaking changes may occur at any time.
 
 ### ROADMAP (2020)
 
  - semantic versioning
  - api stabilization
  - tests for api
- - frontend part
- - migration to microservice stack
+ - frontend
+ - migration to the microservice stack
 
-## Why create another urlshortener application?
+## Why create another URL shortener application?
 
- Mainly for educational purposes. It's a pet/homebrew project, which you can try to create with yourself. 
+ Mainly for educational purposes. It's a pet/homebrew project, like the ones you can try to create on your own. 
  
- This project presents one of many possible approach for creating production grade scalable web application with 3 Tier paradigm.
+ This project represents one of the many possible approaches to creating production-grade scalable 3-tier architecture web applications.
 
- Junior/middle software developers may use it for self-education and skill gaining.
+ Junior/middle software developers may use it for self-education and gaining new skills.
 
 ## How to use it
  
- Best way is forking. You may research code with your favorite code editor. Try to run and experiment with it.
- If you want to help with a tip, create an issue. Pull requests are welcome too.
+ The best way is to fork it. You can take a closer look at the code in your favorite editor. Try to run it and play around with it.
+ If you have a suggestion how to make the project better, create an issue. Pull requests are welcome too.
 
 ## Project goals
 
  - Simplicity
  - Easy deployment
  - Scalable
- - Cloud ready
+ - Cloud-ready
 
 ## Tech stack
 
@@ -59,19 +59,19 @@ Project is at very early stage of development. That means that breaking changes 
 
 ## Features included
 
- - Public endpoint for shorterning links
+ - Public endpoint for shortening links
  - Single redirect endpoint
- - Signin, signup functionality
+ - Sign-in, sign-up functionality
  - HTTPS support
  - Deployable with Heroku or Docker
  - JWT (JSON Web Tokens) authentication
  - Private REST API for managing links
- - Support for 3 cache engines: In-memory, Memcached, BoltDB
+ - Support for cache engines: in-memory, Memcached, BoltDB
  - Multitenancy, users and roles management (RBAC)
  - Billing functionality with Stripe
  - Prometheus monitoring integration
- - Statisticts aggregation (coming soon)
- - Kubernetes ready (coming soon)
+ - Statistics aggregation (coming soon)
+ - Kubernetes-ready (coming soon)
 
 ## Prerequisites
 
@@ -83,7 +83,7 @@ openssl ecparam -genkey -name secp384r1 -out server.key
 openssl req -new -x509 -sha256 -key server.key -out server.crt -days 3650
 ```
 
-## Installing from Docker
+## Installing with Docker
 
 ```bash
 docker pull stanyx/shortly

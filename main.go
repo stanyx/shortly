@@ -77,7 +77,6 @@ func LoadHistoryFromDatabase(repo *links.LinksRepository, clicksRepo *clicks.Rep
 			return err
 		}
 		for _, d := range data {
-			fmt.Println("insert clicks", r, d)
 			if err := historyDB.InsertClick(r.Short, d.Time, int(d.Count)); err != nil {
 				return err
 			}
@@ -137,14 +136,7 @@ func main() {
 	dbConnString := os.Getenv("DATABASE_URL")
 
 	if dbConnString == "" {
-		dbConnString = fmt.Sprintf("host=%v port=%v user=%v password=%v dbname=%v sslmode=%v",
-			dbConfig.Host,
-			dbConfig.Port,
-			dbConfig.User,
-			dbConfig.Password,
-			dbConfig.Database,
-			dbConfig.SSLMode,
-		)
+		dbConnString = storage.GetConnString(dbConfig)
 	}
 
 	// connection to databases
@@ -373,6 +365,8 @@ func main() {
 			api.ApplyBillingPlan(billingRepository, billingLimiter, appConfig.Billing.Payment, logger),
 		),
 	))
+
+	r.Get("/api/v1/webhooks/stripe", api.StripeWebhook(billingRepository, billingLimiter, logger, appConfig.Billing.Payment.WebhookKey))
 
 	// TODO remove to routes.go
 
