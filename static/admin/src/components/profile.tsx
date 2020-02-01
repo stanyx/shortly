@@ -1,4 +1,5 @@
 import * as React from 'react';
+import {Link} from 'react-router-dom';
 import {httpGet} from '../utils';
 
 class ProfileComponentState {
@@ -11,6 +12,7 @@ class ProfileComponentState {
     billingUsage: Array<any>;
     plansAvailable: Array<any>;
     upgradedPlan: string;
+    selectedPlanToUpgrade: number;
 }
 
 
@@ -28,7 +30,8 @@ class ProfileComponent extends React.Component<any, ProfileComponentState> {
             billingPlanExpiredAt: "-",
             upgradedPlan: "",
             billingUsage: [],
-            plansAvailable: []
+            plansAvailable: [],
+            selectedPlanToUpgrade: 0,
         };
     }
 
@@ -44,14 +47,10 @@ class ProfileComponent extends React.Component<any, ProfileComponentState> {
                 billingPlanFee: d.billingPlanFee,
                 billingPlanExpiredAt: d.billingPlanExpiredAt,
                 billingUsage: d.billingUsage,
-                plansAvailable: d.plansAvailable,
+                plansAvailable: d.plansAvailable || [],
             });
 
         })
-    }
-
-    upgradePlan(e: any) {
-        e.preventDefault();
     }
 
     render() {
@@ -90,16 +89,17 @@ class ProfileComponent extends React.Component<any, ProfileComponentState> {
                                     <dd>{this.state.billingPlanExpiredAt}</dd>
                                     <dt>Upgrade</dt> 
                                     <dd>
-                                        <select ref={this.planSelect} name="billingUpgrade">
+                                        <select onChange={(e) => this.setState({selectedPlanToUpgrade: Number(e.target.value)})} ref={this.planSelect} name="billingUpgrade">
+                                            <option value="">-</option>
                                             {this.state.plansAvailable.map((p) => {
                                                 return (
                                                     <option value={p.id}>{p.name}</option>
                                                 )})
                                             }
                                         </select>
-                                        <button className="btn btn-warning" onClick={(e) => this.upgradePlan(e)}>
+                                        <Link to={`/billing/${this.state.selectedPlanToUpgrade}/upgrade`} className="btn btn-warning">
                                             Upgrade
-                                        </button>
+                                        </Link>
                                     </dd>    
                                 </dl>
                             </div>

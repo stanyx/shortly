@@ -31,7 +31,8 @@ type CasbinConfig struct {
 }
 
 type PaymentConfig struct {
-	Key string
+	Key        string
+	WebhookKey string
 }
 
 type BillingConfig struct {

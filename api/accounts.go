@@ -55,11 +55,6 @@ func RegisterAccount(repo *accounts.UsersRepository, billingRepo *billing.Billin
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		if r.Method != "POST" {
-			apiError(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
 		var form AccountRegistrationForm
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
@@ -101,6 +96,12 @@ func RegisterAccount(repo *accounts.UsersRepository, billingRepo *billing.Billin
 		if err := billingLimiter.UpdateAccount(accountID, *billingAccount); err != nil {
 			logger.Println(err)
 			apiError(w, "update billing account error", http.StatusInternalServerError)
+			return
+		}
+
+		if err := billingRepo.CreateStripeCustomer(accountID, form.Email); err != nil {
+			logger.Println(err)
+			apiError(w, "create stripe customer error", http.StatusInternalServerError)
 			return
 		}
 
