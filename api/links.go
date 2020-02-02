@@ -17,6 +17,8 @@ import (
 	"shortly/cache"
 	"shortly/utils"
 
+	"shortly/api/response"
+
 	"shortly/app/billing"
 	"shortly/app/data"
 	"shortly/app/links"
@@ -80,7 +82,7 @@ func GetURLList(repo links.ILinksRepository, logger *log.Logger) http.HandlerFun
 		rows, err := repo.GetAllLinks()
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "internal error", http.StatusInternalServerError)
+			response.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 
@@ -93,7 +95,7 @@ func GetURLList(repo links.ILinksRepository, logger *log.Logger) http.HandlerFun
 			})
 		}
 
-		response(w, list, http.StatusOK)
+		response.Object(w, list, http.StatusOK)
 	})
 
 }
@@ -136,7 +138,7 @@ func GetUserURLList(repo links.ILinksRepository, logger *log.Logger) http.Handle
 		rows, err := repo.GetUserLinks(claims.AccountID, claims.UserID, filters...)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "internal error", http.StatusInternalServerError)
+			response.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 
@@ -152,7 +154,7 @@ func GetUserURLList(repo links.ILinksRepository, logger *log.Logger) http.Handle
 			})
 		}
 
-		response(w, list, http.StatusOK)
+		response.Object(w, list, http.StatusOK)
 	})
 
 }
@@ -167,19 +169,19 @@ func CreateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *lo
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		if r.Method != "POST" {
-			apiError(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		var form CreateLinkForm
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
 		if form.Url == "" {
-			apiError(w, "url parameter is required", http.StatusBadRequest)
+			response.Error(w, "url parameter is required", http.StatusBadRequest)
 			return
 		}
 
@@ -187,7 +189,7 @@ func CreateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *lo
 
 		validLongURL, err := url.Parse(longURL)
 		if err != nil {
-			apiError(w, "url has incorrect format", http.StatusBadRequest)
+			response.Error(w, "url has incorrect format", http.StatusBadRequest)
 			return
 		}
 
@@ -200,7 +202,7 @@ func CreateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *lo
 		err = repo.CreateLink(link)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "internal error", http.StatusInternalServerError)
+			response.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 
@@ -211,7 +213,7 @@ func CreateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *lo
 			urlScheme = r.URL.Scheme
 		}
 
-		response(w, &LinkResponse{
+		response.Object(w, &LinkResponse{
 			Short:       urlScheme + "://" + r.Host + "/" + link.Short,
 			Long:        link.Long,
 			Description: link.Description,
@@ -237,12 +239,12 @@ func UpdateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *lo
 		var form UpdateLinkForm
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
 		if form.LinkID == 0 {
-			apiError(w, "linkId parameter is required", http.StatusBadRequest)
+			response.Error(w, "linkId parameter is required", http.StatusBadRequest)
 			return
 		}
 
@@ -250,14 +252,14 @@ func UpdateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *lo
 
 		validLongURL, err := url.Parse(longURL)
 		if err != nil {
-			apiError(w, "url has incorrect format", http.StatusBadRequest)
+			response.Error(w, "url has incorrect format", http.StatusBadRequest)
 			return
 		}
 
 		link, err := repo.GetLinkByID(form.LinkID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "get link error", http.StatusInternalServerError)
+			response.Error(w, "get link error", http.StatusInternalServerError)
 			return
 		}
 
@@ -268,7 +270,7 @@ func UpdateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *lo
 		if err != nil {
 			_ = tx.Rollback()
 			logError(logger, err)
-			apiError(w, "internal error", http.StatusInternalServerError)
+			response.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 
@@ -276,7 +278,7 @@ func UpdateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *lo
 
 		if err := tx.Commit(); err != nil {
 			logError(logger, err)
-			apiError(w, "internal error", http.StatusInternalServerError)
+			response.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 
@@ -285,7 +287,7 @@ func UpdateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *lo
 			urlScheme = r.URL.Scheme
 		}
 
-		response(w, &LinkResponse{
+		response.Object(w, &LinkResponse{
 			Short:       urlScheme + "://" + r.Host + "/" + link.Short,
 			Long:        link.Long,
 			Description: link.Description,
@@ -305,23 +307,23 @@ func CreateUserLink(repo *links.LinksRepository, historyDB *data.HistoryDB, urlC
 		var form CreateLinkForm
 
 		if r.Method != "POST" {
-			apiError(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
 		if form.Url == "" {
-			apiError(w, "url parameter is required", http.StatusBadRequest)
+			response.Error(w, "url parameter is required", http.StatusBadRequest)
 			return
 		}
 
 		validLongURL, err := url.Parse(form.Url)
 		if err != nil {
-			apiError(w, "long url has incorrect format", http.StatusBadRequest)
+			response.Error(w, "long url has incorrect format", http.StatusBadRequest)
 			return
 		}
 
@@ -337,28 +339,28 @@ func CreateUserLink(repo *links.LinksRepository, historyDB *data.HistoryDB, urlC
 		tx, linkID, err := repo.CreateUserLink(accountID, link)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "(create link) - internal error", http.StatusInternalServerError)
+			response.Error(w, "(create link) - internal error", http.StatusInternalServerError)
 			return
 		}
 
 		if err := billingLimiter.Reduce("url_limit", accountID); err != nil {
 			_ = tx.Rollback()
 			logError(logger, err)
-			apiError(w, "(create link) - internal error", http.StatusInternalServerError)
+			response.Error(w, "(create link) - internal error", http.StatusInternalServerError)
 			return
 		}
 
 		if err := historyDB.InsertDetail(link.Short, accountID); err != nil {
 			_ = tx.Rollback()
 			logError(logger, err)
-			apiError(w, "(create link) - internal error", http.StatusInternalServerError)
+			response.Error(w, "(create link) - internal error", http.StatusInternalServerError)
 			return
 		}
 
 		if err := tx.Commit(); err != nil {
 			_ = billingLimiter.Reset("url_limit", accountID)
 			logError(logger, err)
-			apiError(w, "internal error", http.StatusInternalServerError)
+			response.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 
@@ -369,7 +371,7 @@ func CreateUserLink(repo *links.LinksRepository, historyDB *data.HistoryDB, urlC
 			urlScheme = r.URL.Scheme
 		}
 
-		response(w, &LinkResponse{
+		response.Object(w, &LinkResponse{
 			ID:          linkID,
 			Short:       urlScheme + "://" + r.Host + "/" + link.Short,
 			Long:        link.Long,
@@ -389,20 +391,20 @@ func DeleteUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, billin
 		linkIDArg := chi.URLParam(r, "linkID")
 
 		if linkIDArg == "" {
-			apiError(w, "url parameter is required", http.StatusBadRequest)
+			response.Error(w, "url parameter is required", http.StatusBadRequest)
 			return
 		}
 
 		linkID, err := strconv.ParseInt(linkIDArg, 0, 64)
 		if err != nil {
-			apiError(w, "linkID is not a number", http.StatusBadRequest)
+			response.Error(w, "linkID is not a number", http.StatusBadRequest)
 			return
 		}
 
 		links, err := repo.GetUserLinks(accountID, claims.UserID, links.LinkFilter{LinkID: linkID})
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "internal error", http.StatusInternalServerError)
+			response.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 
@@ -415,14 +417,14 @@ func DeleteUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, billin
 		if err != nil {
 			_ = tx.Rollback()
 			logError(logger, err)
-			apiError(w, "internal error", http.StatusInternalServerError)
+			response.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 
 		if err := billingLimiter.Increase("url_limit", accountID); err != nil {
 			_ = tx.Rollback()
 			logError(logger, err)
-			apiError(w, "internal error", http.StatusInternalServerError)
+			response.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 
@@ -431,11 +433,11 @@ func DeleteUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, billin
 		if err := tx.Commit(); err != nil {
 			_ = billingLimiter.Reset("url_limit", accountID)
 			logError(logger, err)
-			apiError(w, "internal error", http.StatusInternalServerError)
+			response.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 
-		ok(w)
+		response.Ok(w)
 	})
 }
 
@@ -452,7 +454,7 @@ func AddUrlToGroup(repo links.ILinksRepository, logger *log.Logger) http.Handler
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
@@ -462,11 +464,11 @@ func AddUrlToGroup(repo links.ILinksRepository, logger *log.Logger) http.Handler
 
 		if err := repo.AddUrlToGroup(form.GroupID, form.UrlID); err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
-		ok(w)
+		response.Ok(w)
 	})
 
 }
@@ -484,7 +486,7 @@ func DeleteUrlFromGroup(repo links.ILinksRepository, logger *log.Logger) http.Ha
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
@@ -494,11 +496,11 @@ func DeleteUrlFromGroup(repo links.ILinksRepository, logger *log.Logger) http.Ha
 
 		if err := repo.DeleteUrlFromGroup(form.GroupID, form.UrlID); err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
-		ok(w)
+		response.Ok(w)
 	})
 
 }
@@ -516,43 +518,43 @@ func GetClicksData(historyDB *data.HistoryDB, logger *log.Logger) http.HandlerFu
 		accountID := claims.AccountID
 
 		if r.Method != "GET" {
-			apiError(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		urlArg := r.URL.Query()["url"]
 		if len(urlArg) != 1 {
-			apiError(w, "invalid number of query values for parameter <url>, must be 1", http.StatusBadRequest)
+			response.Error(w, "invalid number of query values for parameter <url>, must be 1", http.StatusBadRequest)
 			return
 		}
 
 		startArg := r.URL.Query()["start"]
 		if len(startArg) != 1 {
-			apiError(w, "invalid number of query values for parameter <start>, must be 1", http.StatusBadRequest)
+			response.Error(w, "invalid number of query values for parameter <start>, must be 1", http.StatusBadRequest)
 			return
 		}
 
 		endArg := r.URL.Query()["end"]
 		if len(endArg) != 1 {
-			apiError(w, "invalid number of query values for parameter <end>, must be 1", http.StatusBadRequest)
+			response.Error(w, "invalid number of query values for parameter <end>, must be 1", http.StatusBadRequest)
 			return
 		}
 
 		startTime, err := time.Parse(time.RFC3339, startArg[0])
 		if err != nil {
-			apiError(w, "start parameter must be a valid RFC3339 datetime string", http.StatusBadRequest)
+			response.Error(w, "start parameter must be a valid RFC3339 datetime string", http.StatusBadRequest)
 			return
 		}
 		endTime, err := time.Parse(time.RFC3339, endArg[0])
 		if err != nil {
-			apiError(w, "end parameter must be a valid RFC3339 datetime string", http.StatusBadRequest)
+			response.Error(w, "end parameter must be a valid RFC3339 datetime string", http.StatusBadRequest)
 			return
 		}
 
 		rows, err := historyDB.GetClicksData(accountID, urlArg[0], startTime, endTime)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "(get link data) - internal error", http.StatusInternalServerError)
+			response.Error(w, "(get link data) - internal error", http.StatusInternalServerError)
 			return
 		}
 
@@ -561,7 +563,7 @@ func GetClicksData(historyDB *data.HistoryDB, logger *log.Logger) http.HandlerFu
 			list = append(list, ClickDataResponse{Time: r.Time, Count: r.Count})
 		}
 
-		response(w, &list, http.StatusOK)
+		response.Object(w, &list, http.StatusOK)
 	})
 
 }
@@ -663,18 +665,18 @@ func HideUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, logger *
 		var form HideLinkForm
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
 		if form.LinkID == 0 {
-			apiError(w, "linkId parameter is required", http.StatusBadRequest)
+			response.Error(w, "linkId parameter is required", http.StatusBadRequest)
 			return
 		}
 
 		link, err := repo.GetLinkByID(form.LinkID)
 		if err != nil {
-			apiError(w, "get link error", http.StatusBadRequest)
+			response.Error(w, "get link error", http.StatusBadRequest)
 			return
 		}
 
@@ -682,7 +684,7 @@ func HideUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, logger *
 		if err != nil {
 			_ = tx.Rollback()
 			logError(logger, err)
-			apiError(w, "internal error", http.StatusInternalServerError)
+			response.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 
@@ -690,11 +692,11 @@ func HideUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, logger *
 
 		if err := tx.Commit(); err != nil {
 			logError(logger, err)
-			apiError(w, "internal error", http.StatusInternalServerError)
+			response.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 
-		ok(w)
+		response.Ok(w)
 
 	})
 
@@ -710,11 +712,11 @@ func GetTotalLinks(repo links.ILinksRepository, logger *log.Logger) http.Handler
 		count, err := repo.GetUserLinksCount(accountID, time.Time{}, time.Now())
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "internal error", http.StatusInternalServerError)
+			response.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 
-		response(w, count, http.StatusOK)
+		response.Object(w, count, http.StatusOK)
 
 	})
 }

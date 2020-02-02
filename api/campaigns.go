@@ -9,6 +9,8 @@ import (
 
 	"github.com/go-chi/chi"
 
+	"shortly/api/response"
+
 	"shortly/app/campaigns"
 	"shortly/app/rbac"
 )
@@ -71,7 +73,7 @@ func GetUserCampaigns(repo *campaigns.Repository, logger *log.Logger) http.Handl
 		cmps, err := repo.GetUserCampaigns(accountID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "get campaigns error", http.StatusBadRequest)
+			response.Error(w, "get campaigns error", http.StatusBadRequest)
 			return
 		}
 
@@ -97,7 +99,7 @@ func GetUserCampaigns(repo *campaigns.Repository, logger *log.Logger) http.Handl
 			})
 		}
 
-		response(w, resp, http.StatusOK)
+		response.Object(w, resp, http.StatusOK)
 	})
 }
 
@@ -122,7 +124,7 @@ func CreateCampaign(repo *campaigns.Repository, logger *log.Logger) http.Handler
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
@@ -135,11 +137,11 @@ func CreateCampaign(repo *campaigns.Repository, logger *log.Logger) http.Handler
 		rowID, err := repo.CreateCampaign(row)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "create campaign error", http.StatusBadRequest)
+			response.Error(w, "create campaign error", http.StatusBadRequest)
 			return
 		}
 
-		response(w, CampaignCreateResponse{
+		response.Object(w, CampaignCreateResponse{
 			ID:          rowID,
 			Name:        row.Name,
 			Description: row.Description,
@@ -159,23 +161,23 @@ func StartCampaign(repo *campaigns.Repository, logger *log.Logger) http.Handler 
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
 		if form.CampaignID == 0 {
-			apiError(w, "campaignId is required", http.StatusBadRequest)
+			response.Error(w, "campaignId is required", http.StatusBadRequest)
 			return
 		}
 
 		err := repo.StartCampaign(form.CampaignID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "create form error", http.StatusBadRequest)
+			response.Error(w, "create form error", http.StatusBadRequest)
 			return
 		}
 
-		ok(w)
+		response.Ok(w)
 	})
 }
 
@@ -190,23 +192,23 @@ func StopCampaign(repo *campaigns.Repository, logger *log.Logger) http.Handler {
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
 		if form.CampaignID == 0 {
-			apiError(w, "campaignId is required", http.StatusBadRequest)
+			response.Error(w, "campaignId is required", http.StatusBadRequest)
 			return
 		}
 
 		err := repo.StopCampaign(form.CampaignID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "create form error", http.StatusBadRequest)
+			response.Error(w, "create form error", http.StatusBadRequest)
 			return
 		}
 
-		ok(w)
+		response.Ok(w)
 	})
 }
 
@@ -222,23 +224,23 @@ func DeleteCampaign(repo *campaigns.Repository, logger *log.Logger) http.Handler
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
 		if form.CampaignID == 0 {
-			apiError(w, "campaignId is required", http.StatusBadRequest)
+			response.Error(w, "campaignId is required", http.StatusBadRequest)
 			return
 		}
 
 		err := repo.DeleteCampaign(form.CampaignID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "create form error", http.StatusBadRequest)
+			response.Error(w, "create form error", http.StatusBadRequest)
 			return
 		}
 
-		ok(w)
+		response.Ok(w)
 	})
 }
 
@@ -258,17 +260,17 @@ func AddLinkToCampaign(repo *campaigns.Repository, logger *log.Logger) http.Hand
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
 		if form.CampaignID == 0 {
-			apiError(w, "campaignId is required", http.StatusBadRequest)
+			response.Error(w, "campaignId is required", http.StatusBadRequest)
 			return
 		}
 
 		if form.LinkID == 0 {
-			apiError(w, "linkId is required", http.StatusBadRequest)
+			response.Error(w, "linkId is required", http.StatusBadRequest)
 			return
 		}
 
@@ -281,11 +283,11 @@ func AddLinkToCampaign(repo *campaigns.Repository, logger *log.Logger) http.Hand
 		_, err := repo.AddLinkToCampaign(form.CampaignID, form.LinkID, utm)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "create form error", http.StatusBadRequest)
+			response.Error(w, "create form error", http.StatusBadRequest)
 			return
 		}
 
-		ok(w)
+		response.Ok(w)
 	})
 }
 
@@ -301,28 +303,28 @@ func DeleteLinkFromCampaign(repo *campaigns.Repository, logger *log.Logger) http
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
 		if form.CampaignID == 0 {
-			apiError(w, "campaignId is required", http.StatusBadRequest)
+			response.Error(w, "campaignId is required", http.StatusBadRequest)
 			return
 		}
 
 		if form.LinkID == 0 {
-			apiError(w, "linkId is required", http.StatusBadRequest)
+			response.Error(w, "linkId is required", http.StatusBadRequest)
 			return
 		}
 
 		err := repo.DeleteLinkFromCampaign(form.CampaignID, form.LinkID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "create form error", http.StatusBadRequest)
+			response.Error(w, "create form error", http.StatusBadRequest)
 			return
 		}
 
-		ok(w)
+		response.Ok(w)
 	})
 }
 
@@ -337,49 +339,49 @@ func GetLinkDataForCampaign(repo *campaigns.Repository, logger *log.Logger) http
 		accountID := claims.AccountID
 
 		if r.Method != "GET" {
-			apiError(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
 		campaignIDArg := r.URL.Query()["campaignId"]
 		if len(campaignIDArg) != 1 {
-			apiError(w, "invalid number of query values for parameter <campaignID>, must be 1", http.StatusBadRequest)
+			response.Error(w, "invalid number of query values for parameter <campaignID>, must be 1", http.StatusBadRequest)
 			return
 		}
 
 		campaignID, err := strconv.ParseInt(campaignIDArg[0], 0, 64)
 		if err != nil {
-			apiError(w, "campaignID is not number", http.StatusBadRequest)
+			response.Error(w, "campaignID is not number", http.StatusBadRequest)
 			return
 		}
 
 		startArg := r.URL.Query()["start"]
 		if len(startArg) != 1 {
-			apiError(w, "invalid number of query values for parameter <start>, must be 1", http.StatusBadRequest)
+			response.Error(w, "invalid number of query values for parameter <start>, must be 1", http.StatusBadRequest)
 			return
 		}
 
 		endArg := r.URL.Query()["end"]
 		if len(endArg) != 1 {
-			apiError(w, "invalid number of query values for parameter <end>, must be 1", http.StatusBadRequest)
+			response.Error(w, "invalid number of query values for parameter <end>, must be 1", http.StatusBadRequest)
 			return
 		}
 
 		startTime, err := time.Parse(time.RFC3339, startArg[0])
 		if err != nil {
-			apiError(w, "start parameter must be a valid RFC3339 datetime string", http.StatusBadRequest)
+			response.Error(w, "start parameter must be a valid RFC3339 datetime string", http.StatusBadRequest)
 			return
 		}
 		endTime, err := time.Parse(time.RFC3339, endArg[0])
 		if err != nil {
-			apiError(w, "end parameter must be a valid RFC3339 datetime string", http.StatusBadRequest)
+			response.Error(w, "end parameter must be a valid RFC3339 datetime string", http.StatusBadRequest)
 			return
 		}
 
 		rows, err := repo.GetCampaignClicksData(accountID, campaignID, startTime, endTime)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "(get link data) - internal error", http.StatusInternalServerError)
+			response.Error(w, "(get link data) - internal error", http.StatusInternalServerError)
 			return
 		}
 
@@ -400,6 +402,6 @@ func GetLinkDataForCampaign(repo *campaigns.Repository, logger *log.Logger) http
 			})
 		}
 
-		response(w, &list, http.StatusOK)
+		response.Object(w, &list, http.StatusOK)
 	})
 }

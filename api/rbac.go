@@ -9,6 +9,8 @@ import (
 	"github.com/go-chi/chi"
 	validator "gopkg.in/go-playground/validator.v9"
 
+	"shortly/api/response"
+
 	"shortly/app/accounts"
 	"shortly/app/rbac"
 )
@@ -60,7 +62,7 @@ func GetUserRoles(userRepo *accounts.UsersRepository, repo *rbac.RbacRepository,
 		roles, err := repo.GetUserRoles(accountID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "get user roles error", http.StatusInternalServerError)
+			response.Error(w, "get user roles error", http.StatusInternalServerError)
 			return
 		}
 
@@ -74,7 +76,7 @@ func GetUserRoles(userRepo *accounts.UsersRepository, repo *rbac.RbacRepository,
 			})
 		}
 
-		response(w, list, http.StatusOK)
+		response.Object(w, list, http.StatusOK)
 	})
 }
 
@@ -99,13 +101,13 @@ func CreateUserRole(repo rbac.IRbacRepository, logger *log.Logger) http.HandlerF
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
 		v := validator.New()
 		if err := v.Struct(form); err != nil {
-			apiError(w, err.Error(), http.StatusBadRequest)
+			response.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -117,11 +119,11 @@ func CreateUserRole(repo rbac.IRbacRepository, logger *log.Logger) http.HandlerF
 		roleID, err := repo.CreateRole(accountID, role)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "create role error", http.StatusInternalServerError)
+			response.Error(w, "create role error", http.StatusInternalServerError)
 			return
 		}
 
-		response(w, RoleResponse{
+		response.Object(w, RoleResponse{
 			ID:          roleID,
 			Name:        role.Name,
 			Description: role.Description,
@@ -143,49 +145,49 @@ func ChangeUserRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepositor
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
 		if form.RoleID == 0 {
-			apiError(w, "roleID is required", http.StatusBadRequest)
+			response.Error(w, "roleID is required", http.StatusBadRequest)
 			return
 		}
 
 		if form.UserID == 0 {
-			apiError(w, "userID is required", http.StatusBadRequest)
+			response.Error(w, "userID is required", http.StatusBadRequest)
 			return
 		}
 
 		role, err := repo.GetRole(form.RoleID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "get role error", http.StatusInternalServerError)
+			response.Error(w, "get role error", http.StatusInternalServerError)
 			return
 		}
 
 		user, err := userRepo.GetUserByID(form.UserID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "get user error", http.StatusInternalServerError)
+			response.Error(w, "get user error", http.StatusInternalServerError)
 			return
 		}
 
 		if user.RoleID > 0 {
 			if err := repo.DeleteRoleForUser(user.ID, user.RoleID); err != nil {
 				logError(logger, err)
-				apiError(w, "delete role for user error", http.StatusInternalServerError)
+				response.Error(w, "delete role for user error", http.StatusInternalServerError)
 				return
 			}
 		}
 
 		if err := repo.ChangeRoleForUser(user.ID, role.ID); err != nil {
 			logError(logger, err)
-			apiError(w, "change role for user error", http.StatusInternalServerError)
+			response.Error(w, "change role for user error", http.StatusInternalServerError)
 			return
 		}
 
-		ok(w)
+		response.Ok(w)
 	})
 }
 
@@ -201,41 +203,41 @@ func DeleteUserRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepositor
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
 		if form.RoleID == 0 {
-			apiError(w, "roleId is required", http.StatusBadRequest)
+			response.Error(w, "roleId is required", http.StatusBadRequest)
 			return
 		}
 
 		if form.UserID == 0 {
-			apiError(w, "userId is required", http.StatusBadRequest)
+			response.Error(w, "userId is required", http.StatusBadRequest)
 			return
 		}
 
 		role, err := repo.GetRole(form.RoleID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "get role error", http.StatusInternalServerError)
+			response.Error(w, "get role error", http.StatusInternalServerError)
 			return
 		}
 
 		user, err := userRepo.GetUserByID(form.UserID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "get user error", http.StatusInternalServerError)
+			response.Error(w, "get user error", http.StatusInternalServerError)
 			return
 		}
 
 		if err := repo.DeleteRoleForUser(user.ID, role.ID); err != nil {
 			logError(logger, err)
-			apiError(w, "delete role for user error", http.StatusInternalServerError)
+			response.Error(w, "delete role for user error", http.StatusInternalServerError)
 			return
 		}
 
-		ok(w)
+		response.Ok(w)
 	})
 }
 
@@ -251,24 +253,24 @@ func GrantAccessForRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepos
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
 		role, err := repo.GetRole(form.RoleID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "get role error", http.StatusInternalServerError)
+			response.Error(w, "get role error", http.StatusInternalServerError)
 			return
 		}
 
 		if err := repo.GrantAccessForRole(role.ID, rbac.Permission{Url: form.Resource, Method: form.Method}); err != nil {
 			logError(logger, err)
-			apiError(w, "grant access for role error", http.StatusInternalServerError)
+			response.Error(w, "grant access for role error", http.StatusInternalServerError)
 			return
 		}
 
-		ok(w)
+		response.Ok(w)
 	})
 }
 
@@ -284,24 +286,24 @@ func RevokeAccessForRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepo
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
 		role, err := repo.GetRole(form.RoleID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "get role error", http.StatusInternalServerError)
+			response.Error(w, "get role error", http.StatusInternalServerError)
 			return
 		}
 
 		if err := repo.RevokeAccessForRole(role.ID, rbac.Permission{Url: form.Resource, Method: form.Method}); err != nil {
 			logError(logger, err)
-			apiError(w, "revoke access for role error", http.StatusInternalServerError)
+			response.Error(w, "revoke access for role error", http.StatusInternalServerError)
 			return
 		}
 
-		ok(w)
+		response.Ok(w)
 	})
 }
 
@@ -318,7 +320,7 @@ func GetAllPermissions(permissions map[string]rbac.Permission, userRepo *account
 		roleIDArg := chi.URLParam(r, "roleID")
 
 		if roleIDArg == "" {
-			apiError(w, "roleId query parameter is required", http.StatusBadRequest)
+			response.Error(w, "roleId query parameter is required", http.StatusBadRequest)
 			return
 		}
 
@@ -326,7 +328,7 @@ func GetAllPermissions(permissions map[string]rbac.Permission, userRepo *account
 
 		casbinPerms, err := repo.GetPermissionsForRole(roleID)
 		if err != nil {
-			apiError(w, "get permission error", http.StatusInternalServerError)
+			response.Error(w, "get permission error", http.StatusInternalServerError)
 			return
 		}
 
@@ -349,6 +351,6 @@ func GetAllPermissions(permissions map[string]rbac.Permission, userRepo *account
 			})
 		}
 
-		response(w, list, http.StatusOK)
+		response.Object(w, list, http.StatusOK)
 	})
 }

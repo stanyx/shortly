@@ -1,0 +1,41 @@
+basePath: /api/v1
+definitions:
+  response.ApiResponse:
+    properties:
+      result:
+        type: object
+    type: object
+info:
+  contact: {}
+  description: Url shortener web application.
+  license: {}
+  title: Shortly API
+  version: "1.0"
+paths:
+  /api/v1/tags/create:
+    post:
+      consumes:
+      - application/json
+      description: create new tag for link
+      operationId: add-tag-to-link
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.ApiResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ApiResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ApiResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ApiResponse'
+      summary: Adds tag to link
+swagger: "2.0"

@@ -1,4 +1,4 @@
-package api
+package response
 
 import (
 	"encoding/json"
@@ -19,19 +19,19 @@ type ApiResponse struct {
 
 var jsonContentType = "application/json"
 
-func apiError(w http.ResponseWriter, message string, statusCode int) {
+func Error(w http.ResponseWriter, message string, statusCode int) {
 	w.Header().Set("Content-Type", jsonContentType)
 	w.WriteHeader(statusCode)
 	_ = json.NewEncoder(w).Encode(&ErrorResponse{Error: message})
 }
 
-func ok(w http.ResponseWriter) {
+func Ok(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", jsonContentType)
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(&OkResponse{Result: "ok"})
 }
 
-func response(w http.ResponseWriter, result interface{}, statusCode int) {
+func Object(w http.ResponseWriter, result interface{}, statusCode int) {
 	w.Header().Set("Content-Type", jsonContentType)
 	w.WriteHeader(statusCode)
 	_ = json.NewEncoder(w).Encode(&ApiResponse{Result: result})

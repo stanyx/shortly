@@ -1,0 +1,62 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Url shortener web application.",
+        "title": "Shortly API",
+        "contact": {},
+        "license": {},
+        "version": "1.0"
+    },
+    "basePath": "/api/v1",
+    "paths": {
+        "/api/v1/tags/create": {
+            "post": {
+                "description": "create new tag for link",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Adds tag to link",
+                "operationId": "add-tag-to-link",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.ApiResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ApiResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ApiResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ApiResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "response.ApiResponse": {
+            "type": "object",
+            "properties": {
+                "result": {
+                    "type": "object"
+                }
+            }
+        }
+    }
+}

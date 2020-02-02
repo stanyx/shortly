@@ -111,10 +111,7 @@ func (repo *LinksRepository) CreateLink(link *Link) error {
 	_, err := repo.DB.Exec(`
 		insert into "links" (short_url, long_url, description) VALUES ( $1, $2, $3 )
 	`, link.Short, link.Long, link.Description)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 type LinkFilter struct {
@@ -144,6 +141,7 @@ func (repo *LinksRepository) GetUserLinks(accountID, userID int64, filters ...Li
 		where (links.account_id = $1 and not exists (select 1 from url_group)) 
 		or (ug.link_id is not null and exists (select 1 from url_group))
 	) u
+	order by u.id desc
 	`
 
 	queryArgs := []interface{}{accountID, userID}

@@ -6,10 +6,12 @@ import (
 	"net/http"
 	"strconv"
 
-	"shortly/app/tags"
-
 	"github.com/go-chi/chi"
 	validator "gopkg.in/go-playground/validator.v9"
+
+	"shortly/api/response"
+
+	"shortly/app/tags"
 )
 
 type AddTagForm struct {
@@ -23,11 +25,10 @@ type AddTagForm struct {
 // @ID add-tag-to-link
 // @Accept  json
 // @Produce  json
-// @Param id path int true "Account ID"
-// @Success 200 {object} OkResponse
-// @Failure 400 {object} apiError
-// @Failure 404 {object} apiError
-// @Failure 500 {object} apiError
+// @Success 200 {object} response.ApiResponse
+// @Failure 400 {object} response.ApiResponse
+// @Failure 404 {object} response.ApiResponse
+// @Failure 500 {object} response.ApiResponse
 // @Router /api/v1/tags/create [post]
 func AddTagToLink(repo *tags.TagsRepository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -36,23 +37,23 @@ func AddTagToLink(repo *tags.TagsRepository, logger *log.Logger) http.Handler {
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
 		v := validator.New()
 		if err := v.Struct(form); err != nil {
-			apiError(w, err.Error(), http.StatusBadRequest)
+			response.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		if _, err := repo.AddTagToLink(form.LinkID, form.Tag); err != nil {
 			logError(logger, err)
-			apiError(w, "internal server error", http.StatusInternalServerError)
+			response.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 
-		ok(w)
+		response.Ok(w)
 	})
 }
 
@@ -61,28 +62,28 @@ func DeleteTagFromLink(repo *tags.TagsRepository, logger *log.Logger) http.Handl
 
 		tagNameArg := chi.URLParam(r, "tagName")
 		if tagNameArg == "" {
-			apiError(w, "tag name parameter is required", http.StatusBadRequest)
+			response.Error(w, "tag name parameter is required", http.StatusBadRequest)
 			return
 		}
 
 		linkIDArg := chi.URLParam(r, "linkID")
 		if linkIDArg == "" {
-			apiError(w, "url parameter is required", http.StatusBadRequest)
+			response.Error(w, "url parameter is required", http.StatusBadRequest)
 			return
 		}
 
 		linkID, err := strconv.ParseInt(linkIDArg, 0, 64)
 		if err != nil {
-			apiError(w, "linkID is not a number", http.StatusBadRequest)
+			response.Error(w, "linkID is not a number", http.StatusBadRequest)
 			return
 		}
 
 		if _, err := repo.DeleteTagFromLink(linkID, tagNameArg); err != nil {
 			logError(logger, err)
-			apiError(w, "internal server error", http.StatusBadRequest)
+			response.Error(w, "internal server error", http.StatusBadRequest)
 			return
 		}
 
-		ok(w)
+		response.Ok(w)
 	})
 }

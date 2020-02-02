@@ -11,6 +11,8 @@ import (
 	"shortly/cache"
 	"shortly/utils"
 
+	"shortly/api/response"
+
 	"shortly/app/links"
 )
 
@@ -56,7 +58,7 @@ func Redirect(repo links.ILinksRepository, redirectLogger utils.DbLogger, histor
 
 		longURL, ok = cacheURLValue.(string)
 		if !ok {
-			apiError(w, "url is not a string", http.StatusBadRequest)
+			response.Error(w, "url is not a string", http.StatusBadRequest)
 			return
 		}
 
@@ -66,13 +68,13 @@ func Redirect(repo links.ILinksRepository, redirectLogger utils.DbLogger, histor
 
 		validURL, err := url.Parse(longURL)
 		if err != nil {
-			apiError(w, "url has incorrect format", http.StatusBadRequest)
+			response.Error(w, "url has incorrect format", http.StatusBadRequest)
 			return
 		}
 
 		if err := historyDB.Insert(shortURL, r); err != nil {
 			logError(logger, err)
-			apiError(w, "internal server error", http.StatusInternalServerError)
+			response.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 
@@ -83,13 +85,13 @@ func Redirect(repo links.ILinksRepository, redirectLogger utils.DbLogger, histor
 		})
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "internal server error", http.StatusInternalServerError)
+			response.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 
 		if err := redirectLogger.Push(body); err != nil {
 			logError(logger, err)
-			apiError(w, "internal server error", http.StatusInternalServerError)
+			response.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 

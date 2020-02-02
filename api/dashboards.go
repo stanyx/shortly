@@ -11,6 +11,8 @@ import (
 
 	"github.com/go-chi/chi"
 	validator "gopkg.in/go-playground/validator.v9"
+
+	"shortly/api/response"
 )
 
 func DashboardsRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.HandlerFunc, repo *dashboards.Repository, logger *log.Logger) {
@@ -63,7 +65,7 @@ func GetDashboards(repo *dashboards.Repository, logger *log.Logger) http.Handler
 		rows, err := repo.GetDashboards(claims.AccountID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "internal error", http.StatusInternalServerError)
+			response.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 
@@ -78,7 +80,7 @@ func GetDashboards(repo *dashboards.Repository, logger *log.Logger) http.Handler
 			})
 		}
 
-		response(w, list, http.StatusOK)
+		response.Object(w, list, http.StatusOK)
 	})
 }
 
@@ -99,7 +101,7 @@ func GetDashboardWidgets(repo *dashboards.Repository, logger *log.Logger) http.H
 
 		dashboardIDArg := chi.URLParam(r, "id")
 		if dashboardIDArg == "" {
-			apiError(w, "id parameter is required", http.StatusBadRequest)
+			response.Error(w, "id parameter is required", http.StatusBadRequest)
 			return
 		}
 
@@ -108,7 +110,7 @@ func GetDashboardWidgets(repo *dashboards.Repository, logger *log.Logger) http.H
 		rows, err := repo.GetDashboardWidgets(claims.AccountID, dashboardID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "internal error", http.StatusInternalServerError)
+			response.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 
@@ -125,7 +127,7 @@ func GetDashboardWidgets(repo *dashboards.Repository, logger *log.Logger) http.H
 			})
 		}
 
-		response(w, list, http.StatusOK)
+		response.Object(w, list, http.StatusOK)
 	})
 }
 
@@ -145,13 +147,13 @@ func CreateDashboard(repo *dashboards.Repository, logger *log.Logger) http.Handl
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
 		v := validator.New()
 		if err := v.Struct(form); err != nil {
-			apiError(w, err.Error(), http.StatusBadRequest)
+			response.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -164,11 +166,11 @@ func CreateDashboard(repo *dashboards.Repository, logger *log.Logger) http.Handl
 
 		if _, err := repo.CreateDashboard(claims.AccountID, dashboard); err != nil {
 			logError(logger, err)
-			apiError(w, "internal server error", http.StatusInternalServerError)
+			response.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 
-		ok(w)
+		response.Ok(w)
 	})
 }
 
@@ -190,19 +192,19 @@ func AddDashboardWidget(repo *dashboards.Repository, logger *log.Logger) http.Ha
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
 		v := validator.New()
 		if err := v.Struct(form); err != nil {
-			apiError(w, err.Error(), http.StatusBadRequest)
+			response.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		dashboardIDArg := chi.URLParam(r, "id")
 		if dashboardIDArg == "" {
-			apiError(w, "id parameter is required", http.StatusBadRequest)
+			response.Error(w, "id parameter is required", http.StatusBadRequest)
 			return
 		}
 
@@ -219,11 +221,11 @@ func AddDashboardWidget(repo *dashboards.Repository, logger *log.Logger) http.Ha
 
 		if err := repo.AddWidget(claims.AccountID, dashboardID, widget); err != nil {
 			logError(logger, err)
-			apiError(w, "internal server error", http.StatusInternalServerError)
+			response.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 
-		ok(w)
+		response.Ok(w)
 	})
 }
 
@@ -234,7 +236,7 @@ func DeleteDashboard(repo *dashboards.Repository, logger *log.Logger) http.Handl
 
 		dashboardIDArg := chi.URLParam(r, "id")
 		if dashboardIDArg == "" {
-			apiError(w, "id parameter is required", http.StatusBadRequest)
+			response.Error(w, "id parameter is required", http.StatusBadRequest)
 			return
 		}
 
@@ -242,11 +244,11 @@ func DeleteDashboard(repo *dashboards.Repository, logger *log.Logger) http.Handl
 
 		if err := repo.DeleteDashboard(claims.AccountID, dashboardID); err != nil {
 			logError(logger, err)
-			apiError(w, "internal server error", http.StatusInternalServerError)
+			response.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 
-		ok(w)
+		response.Ok(w)
 	})
 }
 
@@ -257,7 +259,7 @@ func DeleteDashboardWidget(repo *dashboards.Repository, logger *log.Logger) http
 
 		dashboardIDArg := chi.URLParam(r, "id")
 		if dashboardIDArg == "" {
-			apiError(w, "id parameter is required", http.StatusBadRequest)
+			response.Error(w, "id parameter is required", http.StatusBadRequest)
 			return
 		}
 
@@ -265,7 +267,7 @@ func DeleteDashboardWidget(repo *dashboards.Repository, logger *log.Logger) http
 
 		dashboardWidgetIDArg := chi.URLParam(r, "widgetID")
 		if dashboardWidgetIDArg == "" {
-			apiError(w, "widgetID parameter is required", http.StatusBadRequest)
+			response.Error(w, "widgetID parameter is required", http.StatusBadRequest)
 			return
 		}
 
@@ -273,10 +275,10 @@ func DeleteDashboardWidget(repo *dashboards.Repository, logger *log.Logger) http
 
 		if err := repo.DeleteDashboardWidget(claims.AccountID, dashboardID, dashboardWidgetID); err != nil {
 			logError(logger, err)
-			apiError(w, "internal server error", http.StatusInternalServerError)
+			response.Error(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 
-		ok(w)
+		response.Ok(w)
 	})
 }
