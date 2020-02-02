@@ -15,8 +15,8 @@ Auth:
   Secret: "secret"
 Billing:
   Payment:
-    Key: 'sk_test_mQj3xODJwHwIer0DuaRPTLpD00felDhCRp'
-    WebhookKey: whsec_htM4fNMt9NS8rVWRcrlXzE0PnGXEzsBp
+    Key: ''
+    WebhookKey: ''
 LinkDB:
   Dir: .
 ServiceDB:
@@ -26,3 +26,7 @@ RedirectLogger:
   Mode: sync
   Redis:
     Port: 6379
+GeoIP:
+  DownloadURL: 'https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country-CSV&license_key=%s&suffix=zip'
+  DatabasePath: ./downloads/
+  LicenseKey: ''

@@ -59,6 +59,17 @@ type RedirectLoggerConfig struct {
 	Redis   RedisConfig
 }
 
+type GeoIPConfig struct {
+	DownloadURL  string
+	DatabasePath string
+	LicenseKey   string
+}
+
+type MaintanceConfig struct {
+	Username string
+	Password string
+}
+
 type ApplicationConfig struct {
 	Server   ServerConfig
 	Database DatabaseConfig
@@ -70,6 +81,8 @@ type ApplicationConfig struct {
 	LinkDB         LinksDBConfig
 	ServiceDB      ServiceDBConfig
 	RedirectLogger RedirectLoggerConfig
+	Maintance      MaintanceConfig
+	GeoIP          GeoIPConfig
 }
 
 type ServerConfig struct {

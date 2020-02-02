@@ -521,3 +521,19 @@ func (r *BillingRepository) CreateStripeEvent(id string, ev string, timestamp in
 		id, timestamp, ev, errMessage)
 	return err
 }
+
+func (r *BillingRepository) UpsertStripeProduct(pr *stripe.Product) error {
+	_, err := r.DB.Exec(`
+		insert into stripe_products (stripe_id, name, created) values ($1, $2, $3)
+		on conflict (stripe_id) do nothing
+	`, pr.ID, pr.Name, pr.Created)
+	return err
+}
+
+func (r *BillingRepository) UpsertStripePlan(pr *stripe.Plan) error {
+	_, err := r.DB.Exec(`
+		insert into stripe_plans (stripe_id, name, created) values ($1, $2, $3)
+		on conflict (stripe_id) do nothing
+	`, pr.ID, pr.Nickname, pr.Created)
+	return err
+}

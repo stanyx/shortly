@@ -1,4 +1,7 @@
 *.db
 *.crt
 *.key
+*.zip
+downloads/**/*
+!/downloads/.keep
 node_modules

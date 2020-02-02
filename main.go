@@ -449,6 +449,34 @@ func main() {
 	api.DashboardsRoutes(r, auth, dashboardsRepository, logger)
 	api.ClicksRoutes(r, auth, clicksRepository, historyDB, billingLimiter, logger)
 
+	basicAuth := func(next http.Handler) func(w http.ResponseWriter, r *http.Request) {
+		return func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+
+			username, password, authOK := r.BasicAuth()
+			if authOK == false {
+				http.Error(w, "Not authorized", 401)
+				return
+			}
+
+			if username != appConfig.Maintance.Username || password != appConfig.Maintance.Password {
+				http.Error(w, "Not authorized", 401)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		}
+	}
+
+	r.Post("/maintance/upload_geoip_db", basicAuth(api.UpdateGeoIPDatabase(
+		appConfig.GeoIP.DownloadURL, appConfig.GeoIP.DatabasePath, appConfig.GeoIP.LicenseKey, logger,
+	)))
+
+	r.Post("/maintance/load_geoip_database", basicAuth(
+		api.UploadGeoIPDatabase(appConfig.GeoIP.DatabasePath, logger)))
+	r.Post("/maintance/load_stripe_fixtures", basicAuth(
+		api.LoadStripeFixtures(billingRepository, logger)))
+
 	totalRedirectsPromMiddleware := utils.PrometheusMiddleware("totalRedirects", "TODO description")
 
 	var dbLogger utils.DbLogger
