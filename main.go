@@ -454,7 +454,7 @@ func main() {
 			w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
 
 			username, password, authOK := r.BasicAuth()
-			if authOK == false {
+			if !authOK {
 				http.Error(w, "Not authorized", 401)
 				return
 			}
