@@ -305,9 +305,12 @@ func main() {
 
 	r.Use(gziphandler.GzipHandler)
 
-	r.Get("/swagger/*", httpSwagger.Handler(
-		httpSwagger.URL(fmt.Sprintf("http://localhost:%d/swagger/doc.json", serverConfig.Port)), //The url pointing to API definition"
-	))
+	swaggerURL := os.Getenv("SHORTLY_SWAGGER_URL")
+	if swaggerURL == "" {
+		swaggerURL = fmt.Sprintf("http://localhost:%d/swagger/doc.json", serverConfig.Port)
+	}
+
+	r.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL(swaggerURL)))
 
 	fs := http.FileServer(http.Dir("static"))
 	fsHandler := http.StripPrefix("/static", fs)
