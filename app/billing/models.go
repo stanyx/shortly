@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// BillingPlan ...
 type BillingPlan struct {
 	ID          int64
 	Name        string
@@ -16,6 +17,7 @@ type BillingPlan struct {
 	AccountID   int64
 }
 
+// AccountBillingPlan ...
 type AccountBillingPlan struct {
 	BillingPlan
 	Start    time.Time
@@ -24,6 +26,7 @@ type AccountBillingPlan struct {
 	IsAnnual bool
 }
 
+// BillingPlanActivation ...
 type BillingPlanActivation struct {
 	PlanID   int64
 	Start    time.Time
@@ -32,6 +35,7 @@ type BillingPlanActivation struct {
 	IsAnnual bool
 }
 
+// BillingOption ...
 type BillingOption struct {
 	ID          int64
 	Name        string
@@ -45,6 +49,7 @@ func (opt BillingOption) AsInt64() int64 {
 	return v
 }
 
+// BillingParameter ...
 type BillingParameter struct {
 	BillingOption
 	CurrentValue string

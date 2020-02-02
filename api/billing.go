@@ -22,6 +22,7 @@ import (
 	"shortly/config"
 )
 
+// BillingOptionResponse ...
 type BillingOptionResponse struct {
 	ID          int64  `json:"id"`
 	Name        string `json:"name"`
@@ -29,6 +30,7 @@ type BillingOptionResponse struct {
 	Value       string `json:"value"`
 }
 
+// BillingPlanResponse ...
 type BillingPlanResponse struct {
 	ID          int64                   `json:"id"`
 	Name        string                  `json:"name"`
@@ -37,6 +39,7 @@ type BillingPlanResponse struct {
 	Options     []BillingOptionResponse `json:"options"`
 }
 
+// ListBillingPlans ...
 func ListBillingPlans(repo *billing.BillingRepository, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -75,6 +78,7 @@ func ListBillingPlans(repo *billing.BillingRepository, logger *log.Logger) http.
 	})
 }
 
+// ApplyBillingPlanForm ...
 type ApplyBillingPlanForm struct {
 	PlanID      int64  `json:"planID"`
 	StripeToken string `json:"paymentToken"`
@@ -84,6 +88,7 @@ type ApplyBillingPlanForm struct {
 	IsAnnual    bool   `json:"isAnnual"`
 }
 
+// UpgradeBillingPlan ...
 func UpgradeBillingPlan(repo *billing.BillingRepository, billingLimiter *billing.BillingLimiter, paymentConfig config.PaymentConfig, logger *log.Logger) http.HandlerFunc {
 
 	stripe.Key = paymentConfig.Key
@@ -223,10 +228,12 @@ func UpgradeBillingPlan(repo *billing.BillingRepository, billingLimiter *billing
 	})
 }
 
+// CancelSubscriptionForm ...
 type CancelSubscriptionForm struct {
 	PlanID int64
 }
 
+// CancelSubscription ...
 func CancelSubscription(repo *billing.BillingRepository, billingLimiter *billing.BillingLimiter, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -269,6 +276,7 @@ func CancelSubscription(repo *billing.BillingRepository, billingLimiter *billing
 	})
 }
 
+// StripeWebhook ...
 func StripeWebhook(repo *billing.BillingRepository, billingLimiter *billing.BillingLimiter, logger *log.Logger, webhookKey string) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -396,6 +404,7 @@ func StripeWebhook(repo *billing.BillingRepository, billingLimiter *billing.Bill
 	})
 }
 
+// BillingLimitMiddleware ...
 func BillingLimitMiddleware(optionName string, billingLimiter *billing.BillingLimiter, logger *log.Logger) func(http.Handler) http.HandlerFunc {
 	return func(next http.Handler) http.HandlerFunc {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -22,6 +22,7 @@ type LinkRedirect struct {
 	Headers  http.Header
 }
 
+// Redirect ...
 func Redirect(repo links.ILinksRepository, redirectLogger utils.DbLogger, historyDB *data.HistoryDB, urlCache cache.UrlCache, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

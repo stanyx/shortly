@@ -4,6 +4,7 @@ import (
 	"time"
 )
 
+// Account ...
 type Account struct {
 	ID        int64
 	Name      string
@@ -11,6 +12,7 @@ type Account struct {
 	Verified  bool
 }
 
+// User ...
 type User struct {
 	ID        int64
 	Username  string `binding:"required"`
@@ -23,6 +25,7 @@ type User struct {
 	RoleID    int64
 }
 
+// Group ...
 type Group struct {
 	ID          int64
 	AccountID   int64  `binding:"required"`

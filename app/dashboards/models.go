@@ -1,5 +1,6 @@
 package dashboards
 
+// Dashboard ...
 type Dashboard struct {
 	ID          int64
 	AccountID   int64
@@ -15,6 +16,7 @@ const (
 	CounterWidget = "counter"
 )
 
+// DashboardWidget ...
 type DashboardWidget struct {
 	ID      int64
 	Title   string

@@ -11,6 +11,7 @@ import (
 	"shortly/utils"
 )
 
+// UsersRepository ...
 type UsersRepository struct {
 	utils.AuditQuery
 	DB *sql.DB
@@ -139,7 +140,6 @@ func (r *UsersRepository) GetAccountUsers(accountID int64) ([]User, error) {
 func (r *UsersRepository) GetUserByEmail(email string) (*User, error) {
 
 	var user User
-
 	var accountID *int64
 	var roleID *int64
 	var isStaff *bool

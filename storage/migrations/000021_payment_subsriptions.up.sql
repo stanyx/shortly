@@ -28,6 +28,7 @@ CREATE TABLE public.stripe_subscriptions
     account_id bigint NOT NULL,
     active boolean NOT NULL DEFAULT true,
     canceled_at bigint,
+    plan_id bigint NOT NULL,
     CONSTRAINT stripe_payments_pk PRIMARY KEY (id)
 );
 

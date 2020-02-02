@@ -55,6 +55,7 @@ func isPrivateSubnet(ipAddress net.IP) bool {
 	return false
 }
 
+// GetIPAdress ...
 func GetIPAdress(r *http.Request) string {
 	var ipAddress string
 	for _, h := range []string{"X-Forwarded-For", "X-Real-Ip"} {

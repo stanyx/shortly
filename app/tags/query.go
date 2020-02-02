@@ -7,6 +7,7 @@ import (
 	"shortly/app/links"
 )
 
+// TagsRepository ...
 type TagsRepository struct {
 	DB     *sql.DB
 	Logger *log.Logger

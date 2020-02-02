@@ -9,6 +9,7 @@ import (
 	"shortly/app/accounts"
 )
 
+// GetUsers ...
 func GetUsers(repo *accounts.UsersRepository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 

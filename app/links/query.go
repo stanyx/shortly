@@ -12,6 +12,7 @@ import (
 	"shortly/utils"
 )
 
+// ILinksRepository ...
 type ILinksRepository interface {
 	UnshortenURL(string) (string, error)
 	GetLinkByID(int64) (Link, error)
@@ -27,6 +28,7 @@ type ILinksRepository interface {
 	DeleteUrlFromGroup(groupID int64, linkID int64) error
 }
 
+// LinksRepository ...
 type LinksRepository struct {
 	DB        *sql.DB
 	Logger    *log.Logger
@@ -114,6 +116,7 @@ func (repo *LinksRepository) CreateLink(link *Link) error {
 	return err
 }
 
+// LinkFilter ...
 type LinkFilter struct {
 	ShortUrl []string
 	LongUrl  []string

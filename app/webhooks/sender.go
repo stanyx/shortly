@@ -11,6 +11,7 @@ import (
 	bolt "go.etcd.io/bbolt"
 )
 
+// Sender ...
 type Sender struct {
 	Cache  *bolt.DB
 	Logger *log.Logger

@@ -10,21 +10,25 @@ import (
 	"time"
 )
 
+// HealthChecker ...
 type HealthChecker interface {
 	Check(ctx context.Context) error
 }
 
+// HealthCheckFunc ...
 type HealthCheckFunc func(context.Context) error
 
 func (h HealthCheckFunc) Check(ctx context.Context) error {
 	return h(ctx)
 }
 
+// HealthCheckResponse ...
 type HealthCheckResponse struct {
 	Status string
 	Errors []string
 }
 
+// HealthCheck ...
 func HealthCheck(checkers []HealthChecker, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

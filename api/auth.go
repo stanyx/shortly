@@ -14,6 +14,7 @@ import (
 	"shortly/config"
 )
 
+// ParseToken ...
 func ParseToken(w http.ResponseWriter, r *http.Request, authConfig config.JWTConfig) (*JWTClaims, error) {
 	var header = r.Header.Get("x-access-token")
 
@@ -35,6 +36,7 @@ func ParseToken(w http.ResponseWriter, r *http.Request, authConfig config.JWTCon
 	return claims, err
 }
 
+// AuthMiddleware ...
 func AuthMiddleware(enforcer *casbin.Enforcer, authConfig config.JWTConfig, permissions map[string]rbac.Permission) func(rbac.Permission, http.Handler) http.HandlerFunc {
 	return func(permission rbac.Permission, next http.Handler) http.HandlerFunc {
 

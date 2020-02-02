@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// CheckSubscription ...
 func CheckSubscription(acc AccountBillingPlan) error {
 	// TODO verify stripe subscriptions
 	return nil

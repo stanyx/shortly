@@ -15,6 +15,7 @@ import (
 	"shortly/app/rbac"
 )
 
+// CampaignRoutes ...
 func CampaignRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.HandlerFunc, repo *campaigns.Repository, logger *log.Logger) {
 	r.Get("/api/v1/campaigns", http.HandlerFunc(auth(
 		rbac.NewPermission("/api/v1/campaings", "read_campaigns", "GET"),
@@ -50,6 +51,7 @@ func CampaignRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.
 	)))
 }
 
+// CampaignResponse ...
 type CampaignResponse struct {
 	ID          int64                  `json:"id"`
 	Name        string                 `json:"name"`
@@ -57,6 +59,7 @@ type CampaignResponse struct {
 	Links       []CampaignLinkResponse `json:"links"`
 }
 
+// CampaignLinkResponse ...
 type CampaignLinkResponse struct {
 	ID          int64  `json:"id"`
 	ShortUrl    string `json:"shortUrl"`
@@ -64,6 +67,7 @@ type CampaignLinkResponse struct {
 	Description string `json:"description"`
 }
 
+// GetUserCampaigns ...
 func GetUserCampaigns(repo *campaigns.Repository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -103,17 +107,20 @@ func GetUserCampaigns(repo *campaigns.Repository, logger *log.Logger) http.Handl
 	})
 }
 
+// CreateCampaignForm ...
 type CreateCampaignForm struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 }
 
+// CampaignCreateResponse ...
 type CampaignCreateResponse struct {
 	ID          int64  `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 }
 
+// CreateCampaign ...
 func CreateCampaign(repo *campaigns.Repository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -149,10 +156,12 @@ func CreateCampaign(repo *campaigns.Repository, logger *log.Logger) http.Handler
 	})
 }
 
+// StartCampaignForm ...
 type StartCampaignForm struct {
 	CampaignID int64 `json:"campaignId"`
 }
 
+// StartCampaign ...
 func StartCampaign(repo *campaigns.Repository, logger *log.Logger) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -181,10 +190,12 @@ func StartCampaign(repo *campaigns.Repository, logger *log.Logger) http.Handler 
 	})
 }
 
+// StopCampaignForm ...
 type StopCampaignForm struct {
 	CampaignID int64 `json:"campaignId"`
 }
 
+// StopCampaign ...
 func StopCampaign(repo *campaigns.Repository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -212,10 +223,12 @@ func StopCampaign(repo *campaigns.Repository, logger *log.Logger) http.Handler {
 	})
 }
 
+// DeleteCampaignForm ...
 type DeleteCampaignForm struct {
 	CampaignID int64 `json:"campaignId"`
 }
 
+// DeleteCampaign ...
 func DeleteCampaign(repo *campaigns.Repository, logger *log.Logger) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -244,6 +257,7 @@ func DeleteCampaign(repo *campaigns.Repository, logger *log.Logger) http.Handler
 	})
 }
 
+// AddLinkToCampaignForm ...
 type AddLinkToCampaignForm struct {
 	CampaignID int64  `json:"campaignId"`
 	LinkID     int64  `json:"linkId"`
@@ -253,6 +267,7 @@ type AddLinkToCampaignForm struct {
 	UtmContent string `json:"utmContent"`
 }
 
+// AddLinkToCampaign ...
 func AddLinkToCampaign(repo *campaigns.Repository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -291,11 +306,13 @@ func AddLinkToCampaign(repo *campaigns.Repository, logger *log.Logger) http.Hand
 	})
 }
 
+// DeleteLinkFromCampaignForm ...
 type DeleteLinkFromCampaignForm struct {
 	CampaignID int64 `json:"campaignId"`
 	LinkID     int64 `json:"linkId"`
 }
 
+// DeleteLinkFromCampaign ...
 func DeleteLinkFromCampaign(repo *campaigns.Repository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -328,11 +345,13 @@ func DeleteLinkFromCampaign(repo *campaigns.Repository, logger *log.Logger) http
 	})
 }
 
+// CampaignClickDataResponse ...
 type CampaignClickDataResponse struct {
 	ShortURL string              `json:"shortUrl"`
 	Data     []ClickDataResponse `json:"data"`
 }
 
+// GetLinkDataForCampaign ...
 func GetLinkDataForCampaign(repo *campaigns.Repository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		claims := r.Context().Value("user").(*JWTClaims)

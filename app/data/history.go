@@ -33,10 +33,12 @@ func incrementTimeSeriesCounter(bucket *bolt.Bucket) error {
 	return bucket.Put([]byte(key), []byte(strconv.Itoa(int(intCounter))))
 }
 
+// LinkDetail ...
 type LinkDetail struct {
 	AccountID int64
 }
 
+// HistoryDB ...
 type HistoryDB struct {
 	*bolt.DB
 	Limiter *billing.BillingLimiter
@@ -119,11 +121,13 @@ func (db *HistoryDB) InsertDetail(shortURL string, accountID int64) error {
 	})
 }
 
+// CounterData ...
 type CounterData struct {
 	Time  time.Time
 	Count int64
 }
 
+// HistoryQueryOption ...
 type HistoryQueryOption struct {
 	Limit int64
 }

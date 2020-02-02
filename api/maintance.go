@@ -20,6 +20,7 @@ import (
 	"github.com/stripe/stripe-go"
 )
 
+// UpdateGeoIPDatabase ...
 func UpdateGeoIPDatabase(downloadURL, geoIPDatabasePath, key string, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -102,6 +103,7 @@ func UpdateGeoIPDatabase(downloadURL, geoIPDatabasePath, key string, logger *log
 
 }
 
+// UploadGeoIPDatabase ...
 func UploadGeoIPDatabase(uploadPath string, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -166,6 +168,7 @@ func UploadGeoIPDatabase(uploadPath string, logger *log.Logger) http.HandlerFunc
 	})
 }
 
+// LoadStripeFixtures ...
 func LoadStripeFixtures(repo *billing.BillingRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

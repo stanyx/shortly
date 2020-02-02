@@ -1,5 +1,6 @@
 package links
 
+// Link ...
 type Link struct {
 	ID          int64
 	AccountID   int64

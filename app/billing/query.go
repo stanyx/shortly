@@ -11,6 +11,7 @@ import (
 	"github.com/stripe/stripe-go/sub"
 )
 
+// BillingRepository ...
 type BillingRepository struct {
 	DB *sql.DB
 }

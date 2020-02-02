@@ -12,6 +12,7 @@ import (
 	"shortly/config"
 )
 
+// NewEnforcer ...
 func NewEnforcer(db *sql.DB, authConfig config.CasbinConfig) (*casbin.Enforcer, error) {
 
 	a, _ := pgadapter.NewAdapter(db, "casbin")

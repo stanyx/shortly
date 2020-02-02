@@ -14,6 +14,7 @@ import (
 	"shortly/app/tags"
 )
 
+// AddTagForm string
 type AddTagForm struct {
 	LinkID int64  `json:"linkID" binding:"required"`
 	Tag    string `json:"tag" binding:"required"`
@@ -57,6 +58,7 @@ func AddTagToLink(repo *tags.TagsRepository, logger *log.Logger) http.Handler {
 	})
 }
 
+// DeleteTagFromLink ...
 func DeleteTagFromLink(repo *tags.TagsRepository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 

@@ -15,6 +15,7 @@ import (
 	"shortly/app/clicks"
 )
 
+// ClicksRoutes ...
 func ClicksRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.HandlerFunc, repository *clicks.Repository, historyDB *data.HistoryDB, billingLimiter *billing.BillingLimiter, logger *log.Logger) {
 
 	r.Get("/api/v1/users/links/clicks/total", auth(
@@ -34,6 +35,7 @@ func ClicksRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.Ha
 
 }
 
+// GetTotalClicks ...
 func GetTotalClicks(repo *clicks.Repository, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -50,17 +52,20 @@ func GetTotalClicks(repo *clicks.Repository, logger *log.Logger) http.HandlerFun
 	})
 }
 
+// DataSetResponse ...
 type DataSetResponse struct {
 	Label string        `json:"label"`
 	Fill  bool          `json:"fill"`
 	Data  []interface{} `json:"data"`
 }
 
+// DataResponse ...
 type DataResponse struct {
 	Labels   []string          `json:"labels"`
 	Datasets []DataSetResponse `json:"datasets"`
 }
 
+// GetDayClicksData ...
 func GetDayClicksData(repo *clicks.Repository, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -92,12 +97,14 @@ func GetDayClicksData(repo *clicks.Repository, logger *log.Logger) http.HandlerF
 	})
 }
 
+// LinkStatResponse ...
 type LinkStatResponse struct {
 	Clicks    DataResponse `json:"clicks"`
 	Referrers DataResponse `json:"referrers"`
 	Locations DataResponse `json:"locations"`
 }
 
+// GetLinkStat ...
 func GetLinkStat(repo *clicks.Repository, historyDB *data.HistoryDB, billingLimiter *billing.BillingLimiter, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 

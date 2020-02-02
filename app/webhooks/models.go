@@ -1,5 +1,6 @@
 package webhooks
 
+// Webhook ...
 type Webhook struct {
 	ID          int64
 	AccountID   int64

@@ -7,6 +7,7 @@ import (
 	"shortly/app/data"
 )
 
+// Repository ...
 type Repository struct {
 	DB        *sql.DB
 	HistoryDB *data.HistoryDB

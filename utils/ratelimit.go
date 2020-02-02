@@ -8,11 +8,13 @@ import (
 	"golang.org/x/time/rate"
 )
 
+// IPRateLimiter ...
 type IPRateLimiter struct {
 	*rate.Limiter
 	created time.Time
 }
 
+// RateLimit ...
 func RateLimit(getLimiter func(w http.ResponseWriter, r *http.Request) *rate.Limiter) func(next http.Handler) http.Handler {
 
 	var mu sync.Mutex

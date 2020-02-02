@@ -15,6 +15,7 @@ import (
 	"shortly/app/rbac"
 )
 
+// RbacRoutes ...
 func RbacRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.HandlerFunc, permissions map[string]rbac.Permission, userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) {
 
 	r.Get("/api/v1/roles", auth(
@@ -54,6 +55,7 @@ func RbacRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.Hand
 
 }
 
+// GetUserRoles ...
 func GetUserRoles(userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -80,17 +82,20 @@ func GetUserRoles(userRepo *accounts.UsersRepository, repo *rbac.RbacRepository,
 	})
 }
 
+// CreateRoleForm ...
 type CreateRoleForm struct {
 	Name        string `json:"name" binding:"required"`
 	Description string `json:"description"`
 }
 
+// RoleResponse ...
 type RoleResponse struct {
 	ID          int64  `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 }
 
+// CreateUserRole ...
 func CreateUserRole(repo rbac.IRbacRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -131,11 +136,13 @@ func CreateUserRole(repo rbac.IRbacRepository, logger *log.Logger) http.HandlerF
 	})
 }
 
+// ChangeRoleForm ...
 type ChangeRoleForm struct {
 	UserID int64 `json:"userID"`
 	RoleID int64 `json:"roleID"`
 }
 
+// ChangeUserRole ...
 func ChangeUserRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -191,11 +198,13 @@ func ChangeUserRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepositor
 	})
 }
 
+// DeleteRoleForm ...
 type DeleteRoleForm struct {
 	UserID int64 `json:"userId"`
 	RoleID int64 `json:"roleId"`
 }
 
+// DeleteUserRole ...
 func DeleteUserRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -241,12 +250,14 @@ func DeleteUserRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepositor
 	})
 }
 
+// GrantRoleForm ...
 type GrantRoleForm struct {
 	RoleID   int64  `json:"roleID"`
 	Resource string `json:"resource"`
 	Method   string `json:"method"`
 }
 
+// GrantAccessForRole ...
 func GrantAccessForRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var form GrantRoleForm
@@ -274,12 +285,14 @@ func GrantAccessForRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepos
 	})
 }
 
+// RevokeRoleForm ...
 type RevokeRoleForm struct {
 	RoleID   int64  `json:"roleID"`
 	Resource string `json:"resource"`
 	Method   string `json:"method"`
 }
 
+// RevokeAccessForRole ...
 func RevokeAccessForRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var form RevokeRoleForm
@@ -307,6 +320,7 @@ func RevokeAccessForRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepo
 	})
 }
 
+// PermissionResponse ...
 type PermissionResponse struct {
 	Url           string `json:"url"`
 	Name          string `json:"name"`
@@ -314,6 +328,7 @@ type PermissionResponse struct {
 	AccessGranted bool   `json:"accessGranted"`
 }
 
+// GetAllPermissions ...
 func GetAllPermissions(permissions map[string]rbac.Permission, userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 

@@ -2,7 +2,7 @@ package utils
 
 import "math/rand"
 
-// RandomString создает случайную строку длиной n из символом английского алфавита и цифр
+// RandomString ...
 func RandomString(n int) string {
 	var letter = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 

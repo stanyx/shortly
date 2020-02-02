@@ -11,6 +11,7 @@ import (
 	bolt "go.etcd.io/bbolt"
 )
 
+// Repository ...
 type Repository interface {
 	GetWebhooks(accountID int64) ([]Webhook, error)
 	GetWebhookByID(accountID int64, id int64) (*Webhook, error)
@@ -21,6 +22,7 @@ type Repository interface {
 	DisableWebhook(accountID int64, id int64) error
 }
 
+// WebhooksRepository ...
 type WebhooksRepository struct {
 	DB     *sql.DB
 	Cache  *bolt.DB

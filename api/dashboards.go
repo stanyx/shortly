@@ -15,6 +15,7 @@ import (
 	"shortly/api/response"
 )
 
+// DashboardsRoutes ...
 func DashboardsRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.HandlerFunc, repo *dashboards.Repository, logger *log.Logger) {
 
 	r.Get("/api/v1/dashboards", auth(
@@ -49,6 +50,7 @@ func DashboardsRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) htt
 
 }
 
+// DashboardResponse ...
 type DashboardResponse struct {
 	ID          int64  `json:"id"`
 	Name        string `json:"name"`
@@ -57,6 +59,7 @@ type DashboardResponse struct {
 	Height      int    `json:"height"`
 }
 
+// GetDashboards ...
 func GetDashboards(repo *dashboards.Repository, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -84,6 +87,7 @@ func GetDashboards(repo *dashboards.Repository, logger *log.Logger) http.Handler
 	})
 }
 
+// DashboardWidgetResponse ...
 type DashboardWidgetResponse struct {
 	ID      int64  `json:"id"`
 	Title   string `json:"title"`
@@ -94,6 +98,7 @@ type DashboardWidgetResponse struct {
 	DataURL string `json:"dataUrl"`
 }
 
+// GetDashboardWidgets ...
 func GetDashboardWidgets(repo *dashboards.Repository, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -131,6 +136,7 @@ func GetDashboardWidgets(repo *dashboards.Repository, logger *log.Logger) http.H
 	})
 }
 
+// CreateDashboardForm ...
 type CreateDashboardForm struct {
 	Name        string `json:"name" binding:"required"`
 	Description string `json:"description"`
@@ -138,6 +144,7 @@ type CreateDashboardForm struct {
 	Height      int    `json:"height"`
 }
 
+// CreateDashboard ...
 func CreateDashboard(repo *dashboards.Repository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -174,6 +181,7 @@ func CreateDashboard(repo *dashboards.Repository, logger *log.Logger) http.Handl
 	})
 }
 
+// CreateDashboardWidgetForm ...
 type CreateDashboardWidgetForm struct {
 	Title   string `json:"title"`
 	Type    string `json:"type"`
@@ -183,6 +191,7 @@ type CreateDashboardWidgetForm struct {
 	DataURL string `json:"dataUrl"`
 }
 
+// AddDashboardWidget ...
 func AddDashboardWidget(repo *dashboards.Repository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -229,6 +238,7 @@ func AddDashboardWidget(repo *dashboards.Repository, logger *log.Logger) http.Ha
 	})
 }
 
+// DeleteDashboard ...
 func DeleteDashboard(repo *dashboards.Repository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -252,6 +262,7 @@ func DeleteDashboard(repo *dashboards.Repository, logger *log.Logger) http.Handl
 	})
 }
 
+// DeleteDashboardWidget ...
 func DeleteDashboardWidget(repo *dashboards.Repository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 

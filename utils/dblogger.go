@@ -16,14 +16,17 @@ type linkRedirect struct {
 	Headers  map[string]interface{}
 }
 
+// DbLogger ...
 type DbLogger interface {
 	Push([]byte) error
 }
 
+// RMQLogger ...
 type RMQLogger struct {
 	queue rmq.Queue
 }
 
+// NewRMQLogger ...
 func NewRMQLogger(dbName string, queueName string, conf config.RedisConfig) *RMQLogger {
 	conn := rmq.OpenConnection(dbName, "tcp", fmt.Sprintf("%v:%v", conf.Host, conf.Port), 1)
 	queue := conn.OpenQueue(queueName)
@@ -37,10 +40,12 @@ func (l *RMQLogger) Push(body []byte) error {
 	return nil
 }
 
+// SyncLogger ...
 type SyncLogger struct {
 	db *sql.DB
 }
 
+// NewSyncLogger ...
 func NewSyncLogger(db *sql.DB) *SyncLogger {
 	return &SyncLogger{
 		db: db,

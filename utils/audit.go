@@ -8,13 +8,16 @@ import (
 	"github.com/pkg/errors"
 )
 
+// AuditRequest ...
 type AuditRequest struct {
 	//TODO
 }
 
+// AuditQuery ...
 type AuditQuery struct {
 }
 
+// AuditQuery ...
 func (i *AuditQuery) doInsertQuery(entityName string, tx *sql.Tx, query string, args ...interface{}) (int64, error) {
 	var rowID int64
 	err := tx.QueryRow(query, args...).Scan(&rowID)

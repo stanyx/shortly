@@ -37,12 +37,14 @@ var (
 	}
 )
 
+// BillingAccount ...
 type BillingAccount struct {
 	Start   time.Time
 	End     time.Time
 	Options []BillingOption
 }
 
+// BillingLimiter ...
 type BillingLimiter struct {
 	UrlRepo *links.LinksRepository
 	Repo    *BillingRepository

@@ -9,6 +9,7 @@ import (
 	"shortly/app/links"
 )
 
+// CampaignLink ...
 type CampaignLink struct {
 	ID          int64
 	CampaignID  int64
@@ -17,6 +18,7 @@ type CampaignLink struct {
 	Description string
 }
 
+// Repository ...
 type Repository struct {
 	DB        *sql.DB
 	HistoryDB *data.HistoryDB
@@ -92,6 +94,7 @@ func (r *Repository) GetUserCampaigns(accountID int64) ([]Campaign, error) {
 	return list, nil
 }
 
+// CampaignClickData ...
 type CampaignClickData struct {
 	ShortURL string
 	Data     []data.CounterData

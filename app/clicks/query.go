@@ -5,6 +5,7 @@ import (
 	"log"
 )
 
+// Repository ...
 type Repository struct {
 	DB     *sql.DB
 	Logger *log.Logger

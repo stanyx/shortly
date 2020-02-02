@@ -7,6 +7,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
+// PrometheusMiddleware ...
 func PrometheusMiddleware(counterName, counterDescription string) func(next http.Handler) http.HandlerFunc {
 
 	counter := promauto.NewCounter(prometheus.CounterOpts{

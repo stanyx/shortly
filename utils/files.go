@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+// Unzip ...
 func Unzip(src string, dest string) ([]string, error) {
 	var filenames []string
 

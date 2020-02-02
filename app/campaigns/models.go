@@ -4,6 +4,7 @@ import (
 	"shortly/app/links"
 )
 
+// Campaign ...
 type Campaign struct {
 	ID          int64
 	Name        string
@@ -12,6 +13,7 @@ type Campaign struct {
 	Links       []links.Link
 }
 
+// UTMSetting ...
 type UTMSetting struct {
 	Source  string
 	Medium  string

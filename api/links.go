@@ -25,6 +25,7 @@ import (
 	"shortly/app/rbac"
 )
 
+// LinksRoutes ...
 func LinksRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.HandlerFunc, linksRepository links.ILinksRepository, logger *log.Logger, historyDB *data.HistoryDB) {
 	r.Get("/api/v1/users/links", auth(
 		rbac.NewPermission("/api/v1/users/links", "read_links", "GET"),
@@ -53,6 +54,7 @@ func LinksRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.Han
 
 }
 
+// GetAccountID ...
 func GetAccountID(r *http.Request) int64 {
 	claims := r.Context().Value("user").(*JWTClaims)
 	return claims.AccountID
@@ -62,6 +64,7 @@ func GetAccountID(r *http.Request) int64 {
 
 // TODO - auto expired links
 
+// LinkResponse ...
 type LinkResponse struct {
 	ID          int64    `json:"id,omitempty"`
 	Short       string   `json:"short"`
@@ -72,6 +75,7 @@ type LinkResponse struct {
 }
 
 // TODO refactor to top links
+// GetURLList ...
 func GetURLList(repo links.ILinksRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -100,6 +104,7 @@ func GetURLList(repo links.ILinksRepository, logger *log.Logger) http.HandlerFun
 
 }
 
+// GetUserURLList ...
 func GetUserURLList(repo links.ILinksRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -159,11 +164,13 @@ func GetUserURLList(repo links.ILinksRepository, logger *log.Logger) http.Handle
 
 }
 
+// CreateLinkForm ...
 type CreateLinkForm struct {
 	Url         string `json:"url"`
 	Description string `json:"description"`
 }
 
+// CreateLink ...
 func CreateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -223,12 +230,14 @@ func CreateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *lo
 
 }
 
+// UpdateLinkForm ...
 type UpdateLinkForm struct {
 	LinkID      int64  `json:"linkId"`
 	Url         string `json:"url"`
 	Description string `json:"description"`
 }
 
+// UpdateLink ...
 func UpdateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -297,6 +306,7 @@ func UpdateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *lo
 
 }
 
+// CreateUserLink ...
 func CreateUserLink(repo *links.LinksRepository, historyDB *data.HistoryDB, urlCache cache.UrlCache, billingLimiter *billing.BillingLimiter, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -381,6 +391,7 @@ func CreateUserLink(repo *links.LinksRepository, historyDB *data.HistoryDB, urlC
 
 }
 
+// DeleteUserLink ...
 func DeleteUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, billingLimiter *billing.BillingLimiter, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -441,11 +452,13 @@ func DeleteUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, billin
 	})
 }
 
+// AddUrlToGroupForm ...
 type AddUrlToGroupForm struct {
 	GroupID int64 `json:"groupId"`
 	UrlID   int64 `json:"urlId"`
 }
 
+// AddUrlToGroup ...
 func AddUrlToGroup(repo links.ILinksRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -473,11 +486,13 @@ func AddUrlToGroup(repo links.ILinksRepository, logger *log.Logger) http.Handler
 
 }
 
+// DeleteUrlFromGroupForm ...
 type DeleteUrlFromGroupForm struct {
 	GroupID int64 `json:"groupId"`
 	UrlID   int64 `json:"urlId"`
 }
 
+// DeleteUrlFromGroup ...
 func DeleteUrlFromGroup(repo links.ILinksRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -505,11 +520,13 @@ func DeleteUrlFromGroup(repo links.ILinksRepository, logger *log.Logger) http.Ha
 
 }
 
+// ClickDataResponse ...
 type ClickDataResponse struct {
 	Time  time.Time
 	Count int64
 }
 
+// GetClicksData ...
 func GetClicksData(historyDB *data.HistoryDB, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -568,6 +585,7 @@ func GetClicksData(historyDB *data.HistoryDB, logger *log.Logger) http.HandlerFu
 
 }
 
+// UploadLinksInBulk ...
 func UploadLinksInBulk(limiter *billing.BillingLimiter, repo *links.LinksRepository, historyDB *data.HistoryDB, urlCache cache.UrlCache, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -651,10 +669,12 @@ func UploadLinksInBulk(limiter *billing.BillingLimiter, repo *links.LinksReposit
 	})
 }
 
+// HideLinkForm ...
 type HideLinkForm struct {
 	LinkID int64 `json:"linkId"`
 }
 
+// HideUserLink ...
 func HideUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -702,6 +722,7 @@ func HideUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, logger *
 
 }
 
+// GetTotalLinks ...
 func GetTotalLinks(repo links.ILinksRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

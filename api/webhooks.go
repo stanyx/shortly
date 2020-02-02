@@ -15,6 +15,7 @@ import (
 	"shortly/app/webhooks"
 )
 
+// WebhooksRoutes ...
 func WebhooksRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.HandlerFunc, repo webhooks.Repository, logger *log.Logger) {
 
 	r.Get("/api/v1/webhooks", auth(
@@ -50,6 +51,7 @@ func WebhooksRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.
 	r.Post("/webhook/{event}", TestWebhook(repo, logger))
 }
 
+// WebhookResponse ...
 type WebhookResponse struct {
 	ID          int64    `json:"id"`
 	Name        string   `json:"name"`
@@ -59,6 +61,7 @@ type WebhookResponse struct {
 	Active      bool     `json:"active"`
 }
 
+// GetWebhooks ...
 func GetWebhooks(repo webhooks.Repository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -87,6 +90,7 @@ func GetWebhooks(repo webhooks.Repository, logger *log.Logger) http.Handler {
 	})
 }
 
+// CreateWebhookForm ...
 type CreateWebhookForm struct {
 	Name        string   `json:"name"`
 	Description string   `json:"description"`
@@ -94,6 +98,7 @@ type CreateWebhookForm struct {
 	URL         string   `json:"url"`
 }
 
+// CreateWebhookResponse ...
 type CreateWebhookResponse struct {
 	ID          int64    `json:"id"`
 	Name        string   `json:"name"`
@@ -102,6 +107,7 @@ type CreateWebhookResponse struct {
 	URL         string   `json:"url"`
 }
 
+// CreateWebhook ...
 func CreateWebhook(repo webhooks.Repository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -138,6 +144,7 @@ func CreateWebhook(repo webhooks.Repository, logger *log.Logger) http.Handler {
 	})
 }
 
+// UpdateWebhookForm ...
 type UpdateWebhookForm struct {
 	ID          int64    `json:"id"`
 	Name        string   `json:"name"`
@@ -146,6 +153,7 @@ type UpdateWebhookForm struct {
 	URL         string   `json:"url"`
 }
 
+// UpdateWebhookResponse ...
 type UpdateWebhookResponse struct {
 	ID          int64    `json:"id"`
 	Name        string   `json:"name"`
@@ -154,6 +162,7 @@ type UpdateWebhookResponse struct {
 	URL         string   `json:"url"`
 }
 
+// UpdateWebhook ...
 func UpdateWebhook(repo webhooks.Repository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -190,6 +199,7 @@ func UpdateWebhook(repo webhooks.Repository, logger *log.Logger) http.Handler {
 	})
 }
 
+// EnableWebhook ...
 func EnableWebhook(repo webhooks.Repository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -218,6 +228,7 @@ func EnableWebhook(repo webhooks.Repository, logger *log.Logger) http.Handler {
 	})
 }
 
+// DisableWebhook ...
 func DisableWebhook(repo webhooks.Repository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -246,6 +257,7 @@ func DisableWebhook(repo webhooks.Repository, logger *log.Logger) http.Handler {
 	})
 }
 
+// DeleteWebhook ...
 func DeleteWebhook(repo webhooks.Repository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -274,6 +286,7 @@ func DeleteWebhook(repo webhooks.Repository, logger *log.Logger) http.Handler {
 	})
 }
 
+// TestWebhook ...
 func TestWebhook(repo webhooks.Repository, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 

@@ -53,6 +53,7 @@ type LoginResponse struct {
 	Token string       `json:"token"`
 }
 
+// RegisterAccount ...
 func RegisterAccount(repo *accounts.UsersRepository, billingRepo *billing.BillingRepository, billingLimiter *billing.BillingLimiter, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -133,6 +134,7 @@ func RegisterAccount(repo *accounts.UsersRepository, billingRepo *billing.Billin
 	})
 }
 
+// UserRegistrationForm ...
 type UserRegistrationForm struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -141,6 +143,7 @@ type UserRegistrationForm struct {
 	RoleID   int64  `json:"roleId"`
 }
 
+// AddUser ...
 func AddUser(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -178,11 +181,13 @@ func AddUser(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFun
 	})
 }
 
+// LoginForm ...
 type LoginForm struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
+// Login ...
 func Login(repo *accounts.UsersRepository, logger *log.Logger, authConfig config.JWTConfig) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -248,6 +253,7 @@ func Login(repo *accounts.UsersRepository, logger *log.Logger, authConfig config
 	})
 }
 
+// GetLoggedInUser ...
 func GetLoggedInUser(repo *accounts.UsersRepository, logger *log.Logger, authConfig config.JWTConfig) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -272,6 +278,7 @@ func GetLoggedInUser(repo *accounts.UsersRepository, logger *log.Logger, authCon
 	})
 }
 
+// GetGroups ...
 func GetGroups(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -297,17 +304,20 @@ func GetGroups(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerF
 	})
 }
 
+// CreateGroupForm ...
 type CreateGroupForm struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 }
 
+// GroupResponse ...
 type GroupResponse struct {
 	ID          int64  `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 }
 
+// AddGroup ...
 func AddGroup(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -344,6 +354,7 @@ func AddGroup(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFu
 
 }
 
+// DeleteGroup ...
 func DeleteGroup(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -375,11 +386,13 @@ func DeleteGroup(repo *accounts.UsersRepository, logger *log.Logger) http.Handle
 
 }
 
+// AddUserToGroupForm ...
 type AddUserToGroupForm struct {
 	GroupID int64 `json:"groupId"`
 	UserID  int64 `json:"userId"`
 }
 
+// AddUserToGroup ...
 func AddUserToGroup(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -411,11 +424,13 @@ func AddUserToGroup(repo *accounts.UsersRepository, logger *log.Logger) http.Han
 
 }
 
+// DeleteUserFromGroupForm ...
 type DeleteUserFromGroupForm struct {
 	GroupID int64 `json:"groupId"`
 	UserID  int64 `json:"userId"`
 }
 
+// DeleteUserFromGroup ...
 func DeleteUserFromGroup(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -447,18 +462,21 @@ func DeleteUserFromGroup(repo *accounts.UsersRepository, logger *log.Logger) htt
 
 }
 
+// BillingPlanOptionResponse ...
 type BillingPlanOptionResponse struct {
 	ID    int64  `json:"id"`
 	Name  string `json:"name"`
 	Price string `json:"fee"`
 }
 
+// BillingOptionCounterResponse ...
 type BillingOptionCounterResponse struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
 	Limit string `json:"limit"`
 }
 
+// ProfileResponse ...
 type ProfileResponse struct {
 	Username             string                         `json:"username"`
 	Company              string                         `json:"company"`
@@ -470,6 +488,7 @@ type ProfileResponse struct {
 	BillingUsage         []BillingOptionCounterResponse `json:"billingUsage"`
 }
 
+// GetProfile ...
 func GetProfile(repo *accounts.UsersRepository, rbacRepo rbac.IRbacRepository, billingRepo *billing.BillingRepository, billingLimiter *billing.BillingLimiter, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
