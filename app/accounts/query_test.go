@@ -1,6 +1,8 @@
 package accounts
 
 import (
+	"context"
+	"database/sql"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -41,11 +43,15 @@ func TestCreateAccount(t *testing.T) {
 		u.RoleID,
 	).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(testUserID))
 	mock.ExpectExec("insert into audit").WithArgs("users", testUserID).WillReturnResult(sqlmock.NewResult(1, 1))
-	mock.ExpectCommit()
 
 	repo := &UsersRepository{DB: db}
 
-	if _, _, err := repo.CreateAccount(u); err != nil {
+	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{})
+	if err != nil {
+		t.Errorf("tx error: %s", err)
+	}
+
+	if _, _, err := repo.CreateAccount(tx, u); err != nil {
 		t.Errorf("error create account: %s", err)
 	}
 

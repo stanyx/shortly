@@ -14,6 +14,7 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/mitchellh/mapstructure"
 
+	"shortly/api/response"
 	"shortly/config"
 
 	"shortly/app/rbac"
@@ -110,7 +111,7 @@ func TestCreateRole(t *testing.T) {
 		t.Errorf("Content-Type != application/json")
 	}
 
-	var response ApiResponse
+	var response response.ApiResponse
 
 	buff = bytes.NewBuffer(body)
 	err = json.NewDecoder(buff).Decode(&response)

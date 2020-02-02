@@ -14,6 +14,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 
 	"shortly/api"
+	"shortly/api/response"
 
 	"shortly/app/links"
 )
@@ -97,7 +98,7 @@ func TestGetLinks(t *testing.T) {
 		t.Errorf("Content-Type != application/json")
 	}
 
-	var response api.ApiResponse
+	var response response.ApiResponse
 
 	buff := bytes.NewBuffer(body)
 	err := json.NewDecoder(buff).Decode(&response)
