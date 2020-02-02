@@ -41,15 +41,9 @@ func (r *BillingRepository) GetBillingPlanCost(planID int64, isAnnual bool) (str
 	return cost, nil
 }
 
-func (r *BillingRepository) ApplyBillingPlan(accountID int64, activation BillingPlanActivation) error {
-
-	tx, err := r.DB.Begin()
-	if err != nil {
-		return err
-	}
+func (r *BillingRepository) UpgradeBillingPlan(tx *sql.Tx, accountID int64, activation BillingPlanActivation) error {
 
 	if _, err := tx.Exec("UPDATE billing_accounts SET active = false WHERE account_id = $1", accountID); err != nil {
-		_ = tx.Rollback()
 		return err
 	}
 
@@ -65,11 +59,6 @@ func (r *BillingRepository) ApplyBillingPlan(accountID int64, activation Billing
 		insert into "billing_accounts" (account_id, plan_id, started_at, ended_at, charge, is_annual, active) 
 		values ($1, $2, $3, $4, $5, $6, true)
 	`, accountID, activation.PlanID, activation.Start, activation.End, activation.Charge, activation.IsAnnual); err != nil {
-		_ = tx.Rollback()
-		return err
-	}
-
-	if err := tx.Commit(); err != nil {
 		return err
 	}
 
@@ -106,9 +95,9 @@ func (r *BillingRepository) GetDefaultPlanOptions(planID int64) ([]BillingOption
 	return options, err
 }
 
-func (r *BillingRepository) GetBillingPlanOptions(accountID, planID int64) ([]BillingOption, error) {
+func (r *BillingRepository) GetBillingPlanOptions(tx *sql.Tx, accountID, planID int64) ([]BillingOption, error) {
 
-	rows, err := r.DB.Query(`
+	rows, err := tx.Query(`
 		SELECT bp.id, opts.id, opts.name, opts.description, opts.value 
 		FROM billing_accounts ubp
 		INNER JOIN billing_plans bp ON ubp.plan_id = bp.id
@@ -202,7 +191,7 @@ func (r *BillingRepository) GetAllBillingPlans() ([]BillingPlan, error) {
 func (r *BillingRepository) GetActiveBillingPlans(accountID int64) ([]AccountBillingPlan, error) {
 	query := `
 		SELECT bp.id, ubp.account_id, ubp.started_at, ubp.ended_at, ubp.charge, ubp.is_annual,
-		bp.id, bp.name, bp.description 
+		bp.name, bp.description 
 		FROM billing_accounts ubp
 		INNER JOIN billing_plans bp ON bp.id = ubp.plan_id
 		WHERE ubp.active = true
@@ -230,7 +219,6 @@ func (r *BillingRepository) GetActiveBillingPlans(accountID int64) ([]AccountBil
 			&bp.End,
 			&bp.Charge,
 			&bp.IsAnnual,
-			&bp.ID,
 			&bp.Name,
 			&bp.Description,
 		); err != nil {
@@ -397,7 +385,7 @@ func (r *BillingRepository) IsAttachToPlan(accountID int64) (bool, error) {
 
 var ErrBillingAccountAlreadyExists = errors.New("account already attached to billing")
 
-func (r *BillingRepository) AttachToDefaultBilling(accountID, planID int64) (*BillingAccount, error) {
+func (r *BillingRepository) AttachToDefaultBilling(tx *sql.Tx, accountID, planID int64) (*BillingAccount, error) {
 
 	ok, err := r.IsAttachToPlan(accountID)
 	if err != nil {
@@ -417,11 +405,11 @@ func (r *BillingRepository) AttachToDefaultBilling(accountID, planID int64) (*Bi
 		End:    end,
 	}
 
-	if err := r.ApplyBillingPlan(accountID, planActivation); err != nil {
+	if err := r.UpgradeBillingPlan(tx, accountID, planActivation); err != nil {
 		return nil, errors.Wrap(err, "billing plan apply error:")
 	}
 
-	options, err := r.GetBillingPlanOptions(accountID, planID)
+	options, err := r.GetBillingPlanOptions(tx, accountID, planID)
 	if err != nil {
 		return nil, errors.Wrap(err, "get billing plan options error:")
 	}
@@ -485,7 +473,7 @@ func (r *BillingRepository) CancelSubscriptionExternal(stripeID string, timestam
 	return accountID, err
 }
 
-func (r *BillingRepository) CreateStripeCustomer(accountID int64, email string) error {
+func (r *BillingRepository) CreateStripeCustomer(tx *sql.Tx, accountID int64, email string) error {
 
 	params := &stripe.CustomerParams{
 		Description: stripe.String(fmt.Sprintf("Account<%d>", accountID)),
@@ -497,7 +485,7 @@ func (r *BillingRepository) CreateStripeCustomer(accountID int64, email string) 
 		return err
 	}
 
-	_, err = r.DB.Exec("insert into stripe_customers (account_id, stripe_id, created) values ($1, $2, $3)",
+	_, err = tx.Exec("insert into stripe_customers (account_id, stripe_id, created) values ($1, $2, $3)",
 		accountID, customer.ID, customer.Created)
 
 	return err

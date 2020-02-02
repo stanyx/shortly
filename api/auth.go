@@ -9,6 +9,7 @@ import (
 	"github.com/casbin/casbin/v2"
 	jwt "github.com/dgrijalva/jwt-go"
 
+	"shortly/api/response"
 	"shortly/app/rbac"
 	"shortly/config"
 )
@@ -50,7 +51,7 @@ func AuthMiddleware(enforcer *casbin.Enforcer, authConfig config.JWTConfig, perm
 			header = strings.TrimSpace(header)
 
 			if header == "" {
-				apiError(w, "access token is missing", http.StatusForbidden)
+				response.Error(w, "access token is missing", http.StatusForbidden)
 				return
 			}
 
@@ -61,7 +62,7 @@ func AuthMiddleware(enforcer *casbin.Enforcer, authConfig config.JWTConfig, perm
 			})
 
 			if err != nil {
-				apiError(w, err.Error(), http.StatusBadRequest)
+				response.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 
@@ -72,11 +73,11 @@ func AuthMiddleware(enforcer *casbin.Enforcer, authConfig config.JWTConfig, perm
 			if claims.IsStaff {
 				ok, err := enforcer.Enforce(fmt.Sprintf("role:%v", claims.RoleID), permission.Url, permission.Method)
 				if err != nil {
-					apiError(w, err.Error(), http.StatusInternalServerError)
+					response.Error(w, err.Error(), http.StatusInternalServerError)
 					return
 				}
 				if !ok {
-					apiError(w, "access denied", http.StatusForbidden)
+					response.Error(w, "access denied", http.StatusForbidden)
 					return
 				}
 			}

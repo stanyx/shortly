@@ -4,6 +4,8 @@ import (
 	"log"
 	"net/http"
 
+	"shortly/api/response"
+
 	"shortly/app/accounts"
 )
 
@@ -15,7 +17,7 @@ func GetUsers(repo *accounts.UsersRepository, logger *log.Logger) http.Handler {
 		rows, err := repo.GetAccountUsers(claims.AccountID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "internal error", http.StatusInternalServerError)
+			response.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 
@@ -29,6 +31,6 @@ func GetUsers(repo *accounts.UsersRepository, logger *log.Logger) http.Handler {
 			})
 		}
 
-		response(w, list, http.StatusOK)
+		response.Object(w, list, http.StatusOK)
 	})
 }

@@ -16,6 +16,8 @@ import (
 	"github.com/stripe/stripe-go/sub"
 	"github.com/stripe/stripe-go/webhook"
 
+	"shortly/api/response"
+
 	"shortly/app/billing"
 	"shortly/config"
 )
@@ -41,7 +43,7 @@ func ListBillingPlans(repo *billing.BillingRepository, logger *log.Logger) http.
 		plans, err := repo.GetAllBillingPlans()
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "list plan error", http.StatusInternalServerError)
+			response.Error(w, "list plan error", http.StatusInternalServerError)
 			return
 		}
 
@@ -68,7 +70,7 @@ func ListBillingPlans(repo *billing.BillingRepository, logger *log.Logger) http.
 			})
 		}
 
-		response(w, &list, http.StatusOK)
+		response.Object(w, &list, http.StatusOK)
 
 	})
 }
@@ -82,7 +84,7 @@ type ApplyBillingPlanForm struct {
 	IsAnnual    bool   `json:"isAnnual"`
 }
 
-func ApplyBillingPlan(repo *billing.BillingRepository, billingLimiter *billing.BillingLimiter, paymentConfig config.PaymentConfig, logger *log.Logger) http.HandlerFunc {
+func UpgradeBillingPlan(repo *billing.BillingRepository, billingLimiter *billing.BillingLimiter, paymentConfig config.PaymentConfig, logger *log.Logger) http.HandlerFunc {
 
 	stripe.Key = paymentConfig.Key
 
@@ -141,14 +143,14 @@ func ApplyBillingPlan(repo *billing.BillingRepository, billingLimiter *billing.B
 		var form ApplyBillingPlanForm
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
 		planCost, err := repo.GetBillingPlanCost(form.PlanID, form.IsAnnual)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "get billing plan error", http.StatusInternalServerError)
+			response.Error(w, "get billing plan error", http.StatusInternalServerError)
 			return
 		}
 		l, _ := time.LoadLocation("UTC")
@@ -162,7 +164,7 @@ func ApplyBillingPlan(repo *billing.BillingRepository, billingLimiter *billing.B
 
 		if err := createPaymentCharge(claims.AccountID, form.PlanID, planCost, form.StripeToken, !form.IsAnnual); err != nil {
 			logError(logger, err)
-			apiError(w, "payment error", http.StatusInternalServerError)
+			response.Error(w, "payment error", http.StatusInternalServerError)
 			return
 		}
 
@@ -176,16 +178,25 @@ func ApplyBillingPlan(repo *billing.BillingRepository, billingLimiter *billing.B
 			IsAnnual: form.IsAnnual,
 		}
 
-		if err := repo.ApplyBillingPlan(claims.AccountID, billingActivation); err != nil {
-			logError(logger, err)
-			apiError(w, "apply plan error", http.StatusInternalServerError)
+		tx, err := repo.DB.Begin()
+		if err != nil {
+			logError(logger, fmt.Errorf("upgrade plan error, tx: %v", err))
+			response.Error(w, "upgrade plan error", http.StatusInternalServerError)
 			return
 		}
 
-		options, err := repo.GetBillingPlanOptions(claims.AccountID, form.PlanID)
-		if err != nil {
+		if err := repo.UpgradeBillingPlan(tx, claims.AccountID, billingActivation); err != nil {
+			_ = tx.Rollback()
 			logError(logger, err)
-			apiError(w, "get plan error", http.StatusInternalServerError)
+			response.Error(w, "upgrade plan error", http.StatusInternalServerError)
+			return
+		}
+
+		options, err := repo.GetBillingPlanOptions(tx, claims.AccountID, form.PlanID)
+		if err != nil {
+			_ = tx.Rollback()
+			logError(logger, err)
+			response.Error(w, "get plan error", http.StatusInternalServerError)
 			return
 		}
 
@@ -197,11 +208,17 @@ func ApplyBillingPlan(repo *billing.BillingRepository, billingLimiter *billing.B
 
 		if err := billingLimiter.UpdateAccount(claims.AccountID, billingAccount); err != nil {
 			logError(logger, err)
-			apiError(w, "set plan error", http.StatusInternalServerError)
+			response.Error(w, "set plan error", http.StatusInternalServerError)
 			return
 		}
 
-		ok(w)
+		if err := tx.Commit(); err != nil {
+			_ = tx.Rollback()
+			logError(logger, err)
+			response.Error(w, "upgrade plan error", http.StatusInternalServerError)
+		}
+
+		response.Ok(w)
 
 	})
 }
@@ -220,34 +237,34 @@ func CancelSubscription(repo *billing.BillingRepository, billingLimiter *billing
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
 		account, err := repo.GetAccountBillingPlan(claims.AccountID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "get account billing plan error", http.StatusInternalServerError)
+			response.Error(w, "get account billing plan error", http.StatusInternalServerError)
 			return
 		}
 
 		if account.IsAnnual {
-			apiError(w, "annual plan cancelation is prohibited", http.StatusBadRequest)
+			response.Error(w, "annual plan cancelation is prohibited", http.StatusBadRequest)
 			return
 		}
 
 		if err := repo.CancelSubscription(claims.AccountID); err != nil {
-			apiError(w, "annual plan cancelation is prohibited", http.StatusBadRequest)
+			response.Error(w, "annual plan cancelation is prohibited", http.StatusBadRequest)
 			return
 		}
 
 		if err := billingLimiter.DowngradeToDefaultPlan(claims.AccountID); err != nil {
 			logError(logger, err)
-			apiError(w, "set plan error", http.StatusInternalServerError)
+			response.Error(w, "set plan error", http.StatusInternalServerError)
 			return
 		}
 
-		ok(w)
+		response.Ok(w)
 
 	})
 }
@@ -387,11 +404,11 @@ func BillingLimitMiddleware(optionName string, billingLimiter *billing.BillingLi
 
 			if err := billingLimiter.CheckLimits(optionName, claims.AccountID); err == billing.LimitExceededError {
 				logError(logger, errors.New("plan limit exceeded"))
-				apiError(w, "plan limit exceeded", http.StatusBadRequest)
+				response.Error(w, "plan limit exceeded", http.StatusBadRequest)
 				return
 			} else if err != nil {
 				logError(logger, err)
-				apiError(w, "internal server error", http.StatusInternalServerError)
+				response.Error(w, "internal server error", http.StatusInternalServerError)
 				return
 			}
 

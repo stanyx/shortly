@@ -1,6 +1,6 @@
 import * as React from 'react';
 import {httpPost} from '../utils';
-import {CardElement, Elements, StripeProvider, injectStripe} from 'react-stripe-elements';
+import {CardElement, injectStripe} from 'react-stripe-elements';
 
 
 class state {
@@ -29,7 +29,7 @@ class PaymentFormComponent extends React.Component<any, state> {
         e.preventDefault();
 
         let {token} = await this.props.stripe.createToken({name: "Name"});
-        httpPost('/api/v1/billing/apply', {
+        httpPost('/api/v1/billing/upgrade', {
             planID: Number(this.props.planID),
             fullName: this.state.fullName,
             country: this.state.country,

@@ -45,6 +45,8 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+
+	_ "shortly/docs"
 )
 
 func LoadCacheFromDatabase(repo *links.LinksRepository, urlCache cache.UrlCache) error {
@@ -105,19 +107,10 @@ func RunMigrations(database *sql.DB) error {
 	return nil
 }
 
-// @title Shotly API
+// @title Shortly API
 // @version 1.0
 // @description Url shortener web application.
-// @termsOfService http://swagger.io/terms/
 
-// @contact.name API Support
-// @contact.url http://www.swagger.io/support
-// @contact.email support@swagger.io
-
-// @license.name Apache 2.0
-// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
-
-// @host store.swagger.io
 // @BasePath /api/v1
 func main() {
 
@@ -358,11 +351,11 @@ func main() {
 
 	r.Get("/api/v1/billing/plans", api.ListBillingPlans(billingRepository, logger))
 
-	applyBillingPlansPromMiddleware := utils.PrometheusMiddleware("billingApplied", "TODO description")
-	r.Post("/api/v1/billing/apply", auth(
-		rbac.NewPermission("/api/v1/billing/apply", "apply_billingplan", "POST"),
-		applyBillingPlansPromMiddleware(
-			api.ApplyBillingPlan(billingRepository, billingLimiter, appConfig.Billing.Payment, logger),
+	upgradeBillingPlansPromMiddleware := utils.PrometheusMiddleware("billingUpgraded", "TODO description")
+	r.Post("/api/v1/billing/upgrade", auth(
+		rbac.NewPermission("/api/v1/billing/upgrade", "upgrade_billingplan", "POST"),
+		upgradeBillingPlansPromMiddleware(
+			api.UpgradeBillingPlan(billingRepository, billingLimiter, appConfig.Billing.Payment, logger),
 		),
 	))
 

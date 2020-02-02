@@ -13,6 +13,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	validator "gopkg.in/go-playground/validator.v9"
 
+	"shortly/api/response"
+
 	"shortly/app/accounts"
 	"shortly/app/billing"
 	"shortly/app/rbac"
@@ -59,13 +61,13 @@ func RegisterAccount(repo *accounts.UsersRepository, billingRepo *billing.Billin
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logger.Println(err)
-			apiError(w, "decode form error", http.StatusInternalServerError)
+			response.Error(w, "decode form error", http.StatusInternalServerError)
 			return
 		}
 
 		v := validator.New()
 		if err := v.Struct(&form); err != nil {
-			apiError(w, err.Error(), http.StatusBadRequest)
+			response.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -79,33 +81,50 @@ func RegisterAccount(repo *accounts.UsersRepository, billingRepo *billing.Billin
 			Company:  form.Company,
 		}
 
-		userID, accountID, err := repo.CreateAccount(user)
+		tx, err := repo.DB.Begin()
 		if err != nil {
+			logger.Println(fmt.Errorf("account registration, tx error: %v", err))
+			response.Error(w, "error", http.StatusInternalServerError)
+		}
+
+		userID, accountID, err := repo.CreateAccount(tx, user)
+		if err != nil {
+			_ = tx.Rollback()
 			logger.Println(err)
-			apiError(w, "create account error", http.StatusInternalServerError)
+			response.Error(w, "create account error", http.StatusInternalServerError)
 			return
 		}
 
-		billingAccount, err := billingRepo.AttachToDefaultBilling(accountID, 1)
+		billingAccount, err := billingRepo.AttachToDefaultBilling(tx, accountID, 1)
 		if err != nil {
+			_ = tx.Rollback()
 			logger.Println(err)
-			apiError(w, "attach to billing error", http.StatusInternalServerError)
+			response.Error(w, "attach to billing error", http.StatusInternalServerError)
 			return
 		}
 
 		if err := billingLimiter.UpdateAccount(accountID, *billingAccount); err != nil {
+			_ = tx.Rollback()
 			logger.Println(err)
-			apiError(w, "update billing account error", http.StatusInternalServerError)
+			response.Error(w, "update billing account error", http.StatusInternalServerError)
 			return
 		}
 
-		if err := billingRepo.CreateStripeCustomer(accountID, form.Email); err != nil {
+		if err := billingRepo.CreateStripeCustomer(tx, accountID, form.Email); err != nil {
+			_ = tx.Rollback()
 			logger.Println(err)
-			apiError(w, "create stripe customer error", http.StatusInternalServerError)
+			response.Error(w, "create stripe customer error", http.StatusInternalServerError)
 			return
 		}
 
-		response(w, &UserResponse{
+		if err := tx.Commit(); err != nil {
+			_ = tx.Rollback()
+			logger.Println(fmt.Errorf("account registration, commit error: %v", err))
+			response.Error(w, "error", http.StatusInternalServerError)
+			return
+		}
+
+		response.Object(w, &UserResponse{
 			ID:        userID,
 			AccountID: accountID,
 			Email:     user.Email,
@@ -131,7 +150,7 @@ func AddUser(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFun
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logger.Println(err)
-			apiError(w, "decode form error", http.StatusInternalServerError)
+			response.Error(w, "decode form error", http.StatusInternalServerError)
 			return
 		}
 
@@ -147,11 +166,11 @@ func AddUser(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFun
 		userID, err := repo.CreateUser(claims.AccountID, user)
 		if err != nil {
 			logger.Println(err)
-			apiError(w, "save user error", http.StatusInternalServerError)
+			response.Error(w, "save user error", http.StatusInternalServerError)
 			return
 		}
 
-		response(w, &UserResponse{
+		response.Object(w, &UserResponse{
 			ID:      userID,
 			Email:   user.Email,
 			Company: user.Company,
@@ -168,7 +187,7 @@ func Login(repo *accounts.UsersRepository, logger *log.Logger, authConfig config
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		if r.Method != "POST" {
-			apiError(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -176,21 +195,21 @@ func Login(repo *accounts.UsersRepository, logger *log.Logger, authConfig config
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logger.Println(err)
-			apiError(w, "decode form error", http.StatusInternalServerError)
+			response.Error(w, "decode form error", http.StatusInternalServerError)
 			return
 		}
 
 		user, err := repo.GetUserByEmail(form.Email)
 		if err != nil {
 			logger.Println(err)
-			apiError(w, "get user error", http.StatusInternalServerError)
+			response.Error(w, "get user error", http.StatusInternalServerError)
 			return
 		}
 
 		err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(form.Password))
 		if err != nil && err == bcrypt.ErrMismatchedHashAndPassword {
 			logger.Println(err)
-			apiError(w, "incorrect password", http.StatusBadRequest)
+			response.Error(w, "incorrect password", http.StatusBadRequest)
 			return
 		}
 
@@ -213,11 +232,11 @@ func Login(repo *accounts.UsersRepository, logger *log.Logger, authConfig config
 		tokenSigned, err := token.SignedString([]byte(authConfig.Secret))
 		if err != nil {
 			logger.Println(err)
-			apiError(w, "signing token error", http.StatusInternalServerError)
+			response.Error(w, "signing token error", http.StatusInternalServerError)
 			return
 		}
 
-		response(w, &LoginResponse{
+		response.Object(w, &LoginResponse{
 			User: UserResponse{
 				ID:      user.ID,
 				Email:   user.Email,
@@ -234,17 +253,17 @@ func GetLoggedInUser(repo *accounts.UsersRepository, logger *log.Logger, authCon
 
 		claims, err := ParseToken(w, r, authConfig)
 		if err != nil {
-			response(w, &UserResponse{}, http.StatusOK)
+			response.Object(w, &UserResponse{}, http.StatusOK)
 			return
 		}
 
 		user, err := repo.GetUserByID(claims.UserID)
 		if err != nil {
-			apiError(w, "get user error", http.StatusInternalServerError)
+			response.Error(w, "get user error", http.StatusInternalServerError)
 			return
 		}
 
-		response(w, &UserResponse{
+		response.Object(w, &UserResponse{
 			ID:      user.ID,
 			Email:   user.Email,
 			Company: user.Company,
@@ -261,7 +280,7 @@ func GetGroups(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerF
 		rows, err := repo.GetAccountGroups(claims.AccountID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "internal error", http.StatusInternalServerError)
+			response.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 
@@ -274,7 +293,7 @@ func GetGroups(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerF
 			})
 		}
 
-		response(w, list, http.StatusOK)
+		response.Object(w, list, http.StatusOK)
 	})
 }
 
@@ -300,7 +319,7 @@ func AddGroup(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFu
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
@@ -312,11 +331,11 @@ func AddGroup(repo *accounts.UsersRepository, logger *log.Logger) http.HandlerFu
 
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "add group error", http.StatusInternalServerError)
+			response.Error(w, "add group error", http.StatusInternalServerError)
 			return
 		}
 
-		response(w, &GroupResponse{
+		response.Object(w, &GroupResponse{
 			ID:          groupID,
 			Name:        form.Name,
 			Description: form.Description,
@@ -331,13 +350,13 @@ func DeleteGroup(repo *accounts.UsersRepository, logger *log.Logger) http.Handle
 
 		groupIDArg := chi.URLParam(r, "groupID")
 		if groupIDArg == "" {
-			apiError(w, "groupID is required argument", http.StatusBadRequest)
+			response.Error(w, "groupID is required argument", http.StatusBadRequest)
 			return
 		}
 
 		groupID, err := strconv.ParseInt(groupIDArg, 0, 64)
 		if err != nil {
-			apiError(w, "groupID is not a number", http.StatusBadRequest)
+			response.Error(w, "groupID is not a number", http.StatusBadRequest)
 			return
 		}
 
@@ -347,11 +366,11 @@ func DeleteGroup(repo *accounts.UsersRepository, logger *log.Logger) http.Handle
 		err = repo.DeleteGroup(groupID, accountID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "delete group error", http.StatusInternalServerError)
+			response.Error(w, "delete group error", http.StatusInternalServerError)
 			return
 		}
 
-		ok(w)
+		response.Ok(w)
 	})
 
 }
@@ -371,23 +390,23 @@ func AddUserToGroup(repo *accounts.UsersRepository, logger *log.Logger) http.Han
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
 		if _, err := repo.GetUserByAccountID(accountID); err != nil {
 			logError(logger, err)
-			apiError(w, "internal server error", http.StatusBadRequest)
+			response.Error(w, "internal server error", http.StatusBadRequest)
 			return
 		}
 
 		if err := repo.AddUserToGroup(form.GroupID, form.UserID); err != nil {
 			logError(logger, err)
-			apiError(w, "add user to group error", http.StatusInternalServerError)
+			response.Error(w, "add user to group error", http.StatusInternalServerError)
 			return
 		}
 
-		ok(w)
+		response.Ok(w)
 	})
 
 }
@@ -407,23 +426,23 @@ func DeleteUserFromGroup(repo *accounts.UsersRepository, logger *log.Logger) htt
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
-			apiError(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "decode form error", http.StatusBadRequest)
 			return
 		}
 
 		if _, err := repo.GetUserByAccountID(accountID); err != nil {
 			logError(logger, err)
-			apiError(w, "internal server error", http.StatusBadRequest)
+			response.Error(w, "internal server error", http.StatusBadRequest)
 			return
 		}
 
 		if err := repo.DeleteUserFromGroup(form.GroupID, form.UserID); err != nil {
 			logError(logger, err)
-			apiError(w, "delete user from group error", http.StatusInternalServerError)
+			response.Error(w, "delete user from group error", http.StatusInternalServerError)
 			return
 		}
 
-		ok(w)
+		response.Ok(w)
 	})
 
 }
@@ -459,14 +478,14 @@ func GetProfile(repo *accounts.UsersRepository, rbacRepo rbac.IRbacRepository, b
 		account, err := repo.GetAccount(claims.AccountID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "get account error", http.StatusInternalServerError)
+			response.Error(w, "get account error", http.StatusInternalServerError)
 			return
 		}
 
 		user, err := repo.GetUserByID(claims.UserID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "get user error", http.StatusInternalServerError)
+			response.Error(w, "get user error", http.StatusInternalServerError)
 			return
 		}
 
@@ -477,7 +496,7 @@ func GetProfile(repo *accounts.UsersRepository, rbacRepo rbac.IRbacRepository, b
 				userRole, err := rbacRepo.GetRole(user.RoleID)
 				if err != nil {
 					logError(logger, err)
-					apiError(w, "get role error", http.StatusInternalServerError)
+					response.Error(w, "get role error", http.StatusInternalServerError)
 					return
 				}
 				role = userRole
@@ -491,14 +510,14 @@ func GetProfile(repo *accounts.UsersRepository, rbacRepo rbac.IRbacRepository, b
 		billingPlan, err := billingRepo.GetAccountBillingPlan(claims.AccountID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "get billing plan error", http.StatusInternalServerError)
+			response.Error(w, "get billing plan error", http.StatusInternalServerError)
 			return
 		}
 
 		billingPlanToUpgrade, err := billingRepo.GetBillingPlansToUpgrade(billingPlan.ID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "get billing plans error", http.StatusInternalServerError)
+			response.Error(w, "get billing plans error", http.StatusInternalServerError)
 			return
 		}
 
@@ -514,7 +533,7 @@ func GetProfile(repo *accounts.UsersRepository, rbacRepo rbac.IRbacRepository, b
 		billingStat, err := billingLimiter.GetBillingStatistics(claims.AccountID, billingPlan.Start, billingPlan.End)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "get billing statistics error", http.StatusInternalServerError)
+			response.Error(w, "get billing statistics error", http.StatusInternalServerError)
 			return
 		}
 
@@ -538,6 +557,6 @@ func GetProfile(repo *accounts.UsersRepository, rbacRepo rbac.IRbacRepository, b
 			BillingUsage:         billingPlanUsageResponse,
 		}
 
-		response(w, resp, http.StatusOK)
+		response.Object(w, resp, http.StatusOK)
 	})
 }

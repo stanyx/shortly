@@ -10,6 +10,8 @@ import (
 
 	"github.com/go-chi/chi"
 
+	"shortly/api/response"
+
 	"shortly/app/clicks"
 )
 
@@ -40,11 +42,11 @@ func GetTotalClicks(repo *clicks.Repository, logger *log.Logger) http.HandlerFun
 		count, err := repo.GetTotalClicks(claims.AccountID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "internal error", http.StatusInternalServerError)
+			response.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 
-		response(w, count, http.StatusOK)
+		response.Object(w, count, http.StatusOK)
 	})
 }
 
@@ -67,7 +69,7 @@ func GetDayClicksData(repo *clicks.Repository, logger *log.Logger) http.HandlerF
 		rows, err := repo.GetClicksData(claims.AccountID)
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "internal error", http.StatusInternalServerError)
+			response.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 
@@ -86,7 +88,7 @@ func GetDayClicksData(repo *clicks.Repository, logger *log.Logger) http.HandlerF
 			resp.Datasets[0].Data = append(resp.Datasets[0].Data, r.Count)
 		}
 
-		response(w, resp, http.StatusOK)
+		response.Object(w, resp, http.StatusOK)
 	})
 }
 
@@ -112,7 +114,7 @@ func GetLinkStat(repo *clicks.Repository, historyDB *data.HistoryDB, billingLimi
 		rows, err := historyDB.GetClicksData(claims.AccountID, link, startTime, endTime, data.Limit(defaultDayLimit))
 		if err != nil {
 			logError(logger, err)
-			apiError(w, "(get link data) - internal error", http.StatusInternalServerError)
+			response.Error(w, "(get link data) - internal error", http.StatusInternalServerError)
 			return
 		}
 
@@ -143,6 +145,6 @@ func GetLinkStat(repo *clicks.Repository, historyDB *data.HistoryDB, billingLimi
 			resp.Clicks.Labels = append(resp.Clicks.Labels, ts.Format("01-02"))
 		}
 
-		response(w, resp, http.StatusOK)
+		response.Object(w, resp, http.StatusOK)
 	})
 }

@@ -16,17 +16,12 @@ type UsersRepository struct {
 	DB *sql.DB
 }
 
-func (r *UsersRepository) CreateAccount(u User) (int64, int64, error) {
+func (r *UsersRepository) CreateAccount(tx *sql.Tx, u User) (int64, int64, error) {
 
 	accountErrPrefix := "create account error: "
 
 	v := validator.New()
 	if err := v.Struct(u); err != nil {
-		return 0, 0, errors.Wrap(err, accountErrPrefix)
-	}
-
-	tx, err := r.DB.Begin()
-	if err != nil {
 		return 0, 0, errors.Wrap(err, accountErrPrefix)
 	}
 
@@ -44,7 +39,6 @@ func (r *UsersRepository) CreateAccount(u User) (int64, int64, error) {
 	if u.Password != "" {
 		genPassword, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
 		if err != nil {
-			_ = tx.Rollback()
 			return 0, 0, errors.Wrap(err, accountErrPrefix+"(password)")
 		}
 		password = string(genPassword)
@@ -65,12 +59,7 @@ func (r *UsersRepository) CreateAccount(u User) (int64, int64, error) {
 	)
 
 	if err != nil {
-		_ = tx.Rollback()
 		return 0, 0, errors.Wrap(err, accountErrPrefix+"(user)")
-	}
-
-	if err := tx.Commit(); err != nil {
-		return 0, 0, errors.Wrap(err, accountErrPrefix)
 	}
 
 	return userID, accountID, nil
