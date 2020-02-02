@@ -13,6 +13,7 @@ type TagsRepository struct {
 	Logger *log.Logger
 }
 
+// GetAllLinkTags ...
 func (r *TagsRepository) GetAllLinkTags(linkID int64) ([]string, error) {
 	rows, err := r.DB.Query(
 		"select tag from tags where link_id = $1",
@@ -42,6 +43,7 @@ func (r *TagsRepository) GetAllLinkTags(linkID int64) ([]string, error) {
 	return tags, nil
 }
 
+// GetAllLinksForTags ...
 func (r *TagsRepository) GetAllLinksForTags(tags []string) ([]links.Link, error) {
 	rows, err := r.DB.Query(
 		`select distinct(id, short_url, long_url) from links u
@@ -73,6 +75,7 @@ func (r *TagsRepository) GetAllLinksForTags(tags []string) ([]links.Link, error)
 	return list, err
 }
 
+// AddTagToLink ...
 func (r *TagsRepository) AddTagToLink(linkID int64, tag string) (int64, error) {
 	var rowID int64
 	err := r.DB.QueryRow(
@@ -82,6 +85,7 @@ func (r *TagsRepository) AddTagToLink(linkID int64, tag string) (int64, error) {
 	return rowID, err
 }
 
+// DeleteTagFromLink ...
 func (r *TagsRepository) DeleteTagFromLink(linkID int64, tagName string) (int64, error) {
 	var rowID int64
 	err := r.DB.QueryRow(

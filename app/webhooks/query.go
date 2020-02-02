@@ -29,6 +29,7 @@ type WebhooksRepository struct {
 	Logger *log.Logger
 }
 
+// InitCache ...
 func (r *WebhooksRepository) InitCache() error {
 
 	ws, err := r.GetWebhooks(0)
@@ -50,6 +51,7 @@ func (r *WebhooksRepository) InitCache() error {
 
 }
 
+// GetWebhooks ...
 func (r *WebhooksRepository) GetWebhooks(accountID int64) ([]Webhook, error) {
 	var list []Webhook
 
@@ -85,6 +87,7 @@ func (r *WebhooksRepository) GetWebhooks(accountID int64) ([]Webhook, error) {
 	return list, nil
 }
 
+// GetWebhookByID ...
 func (r *WebhooksRepository) GetWebhookByID(accountID int64, id int64) (*Webhook, error) {
 
 	rows := r.DB.QueryRow(
@@ -100,6 +103,7 @@ func (r *WebhooksRepository) GetWebhookByID(accountID int64, id int64) (*Webhook
 	return &m, nil
 }
 
+// CreateWebhook ...
 func (r *WebhooksRepository) CreateWebhook(accountID int64, m Webhook) (int64, error) {
 	var rowID int64
 
@@ -129,6 +133,7 @@ func (r *WebhooksRepository) CreateWebhook(accountID int64, m Webhook) (int64, e
 	return rowID, nil
 }
 
+// UpdateWebhook ...
 func (r *WebhooksRepository) UpdateWebhook(accountID int64, m Webhook) error {
 	_, err := r.DB.Exec(`
 		update "webhooks" set name = $1, description = $2, events = $3, url = $4 where id = $5 and account_id = $6
@@ -151,6 +156,7 @@ func (r *WebhooksRepository) UpdateWebhook(accountID int64, m Webhook) error {
 	return err
 }
 
+// DeleteWebhook ...
 func (r *WebhooksRepository) DeleteWebhook(accountID int64, id int64) error {
 	_, err := r.DB.Exec(`
 		delete from "webhooks" where id = $1 and account_id = $2
@@ -173,6 +179,7 @@ func (r *WebhooksRepository) DeleteWebhook(accountID int64, id int64) error {
 	return err
 }
 
+// EnableWebhook ...
 func (r *WebhooksRepository) EnableWebhook(accountID int64, id int64) error {
 
 	var events []string
@@ -200,6 +207,7 @@ func (r *WebhooksRepository) EnableWebhook(accountID int64, id int64) error {
 	return err
 }
 
+// DisableWebhook ...
 func (r *WebhooksRepository) DisableWebhook(accountID int64, id int64) error {
 
 	var events []string

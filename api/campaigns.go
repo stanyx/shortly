@@ -18,35 +18,35 @@ import (
 // CampaignRoutes ...
 func CampaignRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.HandlerFunc, repo *campaigns.Repository, logger *log.Logger) {
 	r.Get("/api/v1/campaigns", http.HandlerFunc(auth(
-		rbac.NewPermission("/api/v1/campaings", "read_campaigns", "GET"),
+		rbac.NewPermission("/api/v1/campaigns", "read_campaigns", "GET"),
 		GetUserCampaigns(repo, logger),
 	)))
-	r.Post("/api/v1/campaigns/create", http.HandlerFunc(auth(
-		rbac.NewPermission("/api/v1/campaings", "create_campaign", "POST"),
+	r.Post("/api/v1/campaigns", http.HandlerFunc(auth(
+		rbac.NewPermission("/api/v1/campaigns", "create_campaign", "POST"),
 		CreateCampaign(repo, logger),
 	)))
 	r.Post("/api/v1/campaigns/start", http.HandlerFunc(auth(
-		rbac.NewPermission("/api/v1/campaings/start", "start_campaign", "POST"),
+		rbac.NewPermission("/api/v1/campaigns/start", "start_campaign", "POST"),
 		StartCampaign(repo, logger),
 	)))
 	r.Post("/api/v1/campaigns/stop", http.HandlerFunc(auth(
-		rbac.NewPermission("/api/v1/campaings/stop", "stop_campaign", "POST"),
+		rbac.NewPermission("/api/v1/campaigns/stop", "stop_campaign", "POST"),
 		StopCampaign(repo, logger),
 	)))
-	r.Delete("/api/v1/campaigns/delete", http.HandlerFunc(auth(
-		rbac.NewPermission("/api/v1/campaings/delete", "delete_campaign", "DELETE"),
+	r.Delete("/api/v1/campaigns", http.HandlerFunc(auth(
+		rbac.NewPermission("/api/v1/campaigns", "delete_campaign", "DELETE"),
 		DeleteCampaign(repo, logger),
 	)))
 	r.Post("/api/v1/campaigns/add_link", http.HandlerFunc(auth(
-		rbac.NewPermission("/api/v1/campaings/add_link", "add_link_to_campaign", "POST"),
+		rbac.NewPermission("/api/v1/campaigns/add_link", "add_link_to_campaign", "POST"),
 		AddLinkToCampaign(repo, logger),
 	)))
 	r.Delete("/api/v1/campaigns/delete_link", http.HandlerFunc(auth(
-		rbac.NewPermission("/api/v1/campaings/delete_link", "delete_link_from_campaign", "DELETE"),
+		rbac.NewPermission("/api/v1/campaigns/delete_link", "delete_link_from_campaign", "DELETE"),
 		DeleteLinkFromCampaign(repo, logger),
 	)))
 	r.Get("/api/v1/campaigns/data", http.HandlerFunc(auth(
-		rbac.NewPermission("/api/v1/campaings/data", "get_link_data_for_campaign", "GET"),
+		rbac.NewPermission("/api/v1/campaigns/data", "get_link_data_for_campaign", "GET"),
 		GetLinkDataForCampaign(repo, logger),
 	)))
 }

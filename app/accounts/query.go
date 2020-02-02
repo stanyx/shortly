@@ -17,6 +17,7 @@ type UsersRepository struct {
 	DB *sql.DB
 }
 
+// CreateAccount ...
 func (r *UsersRepository) CreateAccount(tx *sql.Tx, u User) (int64, int64, error) {
 
 	accountErrPrefix := "create account error: "
@@ -66,6 +67,7 @@ func (r *UsersRepository) CreateAccount(tx *sql.Tx, u User) (int64, int64, error
 	return userID, accountID, nil
 }
 
+// CreateUser ...
 func (r *UsersRepository) CreateUser(accountID int64, u User) (int64, error) {
 
 	password, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
@@ -88,6 +90,7 @@ func (r *UsersRepository) CreateUser(accountID int64, u User) (int64, error) {
 	)
 }
 
+// GetAccount ...
 func (r *UsersRepository) GetAccount(accountID int64) (*Account, error) {
 
 	var account Account
@@ -107,6 +110,7 @@ func (r *UsersRepository) GetAccount(accountID int64) (*Account, error) {
 	return &account, nil
 }
 
+// GetAccountUsers ...
 func (r *UsersRepository) GetAccountUsers(accountID int64) ([]User, error) {
 
 	rows, err := r.DB.Query(
@@ -137,6 +141,7 @@ func (r *UsersRepository) GetAccountUsers(accountID int64) ([]User, error) {
 	return list, nil
 }
 
+// GetUserByEmail ...
 func (r *UsersRepository) GetUserByEmail(email string) (*User, error) {
 
 	var user User
@@ -180,6 +185,7 @@ func (r *UsersRepository) GetUserByEmail(email string) (*User, error) {
 
 }
 
+// getUserFiltered ...
 func (r *UsersRepository) getUserFiltered(fieldName string, value interface{}) (*User, error) {
 	var user User
 
@@ -206,16 +212,18 @@ func (r *UsersRepository) getUserFiltered(fieldName string, value interface{}) (
 	return &user, nil
 }
 
+// GetUserByID ...
 func (r *UsersRepository) GetUserByID(userID int64) (*User, error) {
 	return r.getUserFiltered("id", userID)
 }
 
+// GetUserByAccountID ...
 func (r *UsersRepository) GetUserByAccountID(accountID int64) (*User, error) {
 	return r.getUserFiltered("account_id", accountID)
 }
 
 // TODO - move to another application
-
+// GetAccountGroups ...
 func (repo *UsersRepository) GetAccountGroups(accountID int64) ([]Group, error) {
 	rows, err := repo.DB.Query(
 		"select id, name, description from groups where account_id = $1",
@@ -245,6 +253,7 @@ func (repo *UsersRepository) GetAccountGroups(accountID int64) ([]Group, error) 
 	return list, nil
 }
 
+// AddGroup ...
 func (repo *UsersRepository) AddGroup(g Group) (int64, error) {
 	return repo.CreateTx("groups", repo.DB, `
 		insert into "groups" (name, description, account_id) 
@@ -256,6 +265,7 @@ func (repo *UsersRepository) AddGroup(g Group) (int64, error) {
 	)
 }
 
+// DeleteGroup ...
 func (repo *UsersRepository) DeleteGroup(groupID, accountID int64) error {
 	//TODO - cascade delete
 	_, err := repo.DeleteTx("groups", repo.DB,
@@ -265,6 +275,7 @@ func (repo *UsersRepository) DeleteGroup(groupID, accountID int64) error {
 	return err
 }
 
+// AddUserToGroup ...
 func (repo *UsersRepository) AddUserToGroup(groupID, userID int64) error {
 	_, err := repo.CreateTx("users_groups", repo.DB, `
 		insert into users_groups (group_id, user_id) values ( $1, $2 )
@@ -273,6 +284,7 @@ func (repo *UsersRepository) AddUserToGroup(groupID, userID int64) error {
 	return err
 }
 
+// DeleteUserFromGroup ...
 func (repo *UsersRepository) DeleteUserFromGroup(groupID int64, userID int64) error {
 	_, err := repo.DeleteTx("users_groups", repo.DB, `
 		delete from users_groups e where group_id = $1 and user_id = $2

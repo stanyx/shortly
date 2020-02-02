@@ -11,6 +11,7 @@ type Repository struct {
 	Logger *log.Logger
 }
 
+// GetTotalClicks ...
 func (r *Repository) GetTotalClicks(accountID int64) (int64, error) {
 
 	var count int64
@@ -25,6 +26,7 @@ func (r *Repository) GetTotalClicks(accountID int64) (int64, error) {
 	return count, nil
 }
 
+// GetClicksData ...
 func (r *Repository) GetClicksData(accountID int64) ([]ClickData, error) {
 
 	rows, err := r.DB.Query(`
@@ -64,6 +66,7 @@ func (r *Repository) GetClicksData(accountID int64) ([]ClickData, error) {
 	return list, nil
 }
 
+// GetClicksDataByDay ...
 func (r *Repository) GetClicksDataByDay(shortURL string) ([]ClickData, error) {
 
 	rows, err := r.DB.Query(`

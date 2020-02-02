@@ -17,6 +17,7 @@ type Sender struct {
 	Logger *log.Logger
 }
 
+// Send ...
 func (s *Sender) Send(url string, payload interface{}) {
 
 	body, err := json.Marshal(payload)
@@ -51,6 +52,7 @@ func (s *Sender) Send(url string, payload interface{}) {
 
 var DefaultSender = &Sender{}
 
+// Send ...
 func Send(hookName string) func(int64, interface{}) {
 	return func(accountID int64, payload interface{}) {
 		go func() {

@@ -50,18 +50,22 @@ func (repo *LinksRepository) callback(name string, accountID int64, payload inte
 	cb(accountID, payload)
 }
 
+// OnCreate ...
 func (repo *LinksRepository) OnCreate(f func(int64, interface{})) {
 	repo.addCallback("Create", f)
 }
 
+// OnDelete ...
 func (repo *LinksRepository) OnDelete(f func(int64, interface{})) {
 	repo.addCallback("Delete", f)
 }
 
+// OnHide ...
 func (repo *LinksRepository) OnHide(f func(int64, interface{})) {
 	repo.addCallback("Hide", f)
 }
 
+// UnshortenURL ...
 func (repo *LinksRepository) UnshortenURL(shortURL string) (string, error) {
 
 	query := "select long_url from links where short_url = $1"
@@ -75,6 +79,7 @@ func (repo *LinksRepository) UnshortenURL(shortURL string) (string, error) {
 	return longURL, nil
 }
 
+// GetAllLinks ...
 func (repo *LinksRepository) GetAllLinks() ([]Link, error) {
 
 	query := "select short_url, long_url, account_id from links"
@@ -109,6 +114,7 @@ func (repo *LinksRepository) GetAllLinks() ([]Link, error) {
 	return list, nil
 }
 
+// CreateLink ...
 func (repo *LinksRepository) CreateLink(link *Link) error {
 	_, err := repo.DB.Exec(`
 		insert into "links" (short_url, long_url, description) VALUES ( $1, $2, $3 )
@@ -125,6 +131,7 @@ type LinkFilter struct {
 	LinkID   int64
 }
 
+// GetUserLinks ...
 func (repo *LinksRepository) GetUserLinks(accountID, userID int64, filters ...LinkFilter) ([]Link, error) {
 
 	query := `
@@ -214,6 +221,7 @@ func (repo *LinksRepository) GetUserLinks(accountID, userID int64, filters ...Li
 	return list, nil
 }
 
+// GetLinkByID ...
 func (repo *LinksRepository) GetLinkByID(linkID int64) (Link, error) {
 
 	var link Link
@@ -224,6 +232,7 @@ func (repo *LinksRepository) GetLinkByID(linkID int64) (Link, error) {
 	return link, err
 }
 
+// GetUserLinksCount ...
 func (repo *LinksRepository) GetUserLinksCount(accountID int64, createdStartTime, createdEndTime time.Time) (int, error) {
 
 	var count int
@@ -237,10 +246,12 @@ func (repo *LinksRepository) GetUserLinksCount(accountID int64, createdStartTime
 	return count, nil
 }
 
+// GenerateLink ...
 func (repo *LinksRepository) GenerateLink() string {
 	return utils.RandomString(5)
 }
 
+// CreateUserLink ...
 func (repo *LinksRepository) CreateUserLink(accountID int64, link *Link) (*sql.Tx, int64, error) {
 	var rowID int64
 	tx, err := repo.DB.Begin()
@@ -259,6 +270,7 @@ func (repo *LinksRepository) CreateUserLink(accountID int64, link *Link) (*sql.T
 	return tx, rowID, err
 }
 
+// UpdateUserLink ...
 func (repo *LinksRepository) UpdateUserLink(accountID, linkID int64, link *Link) (*sql.Tx, error) {
 	tx, err := repo.DB.Begin()
 	if err != nil {
@@ -271,6 +283,7 @@ func (repo *LinksRepository) UpdateUserLink(accountID, linkID int64, link *Link)
 	return tx, err
 }
 
+// DeleteUserLink ...
 func (repo *LinksRepository) DeleteUserLink(accountID int64, linkID int64) (*sql.Tx, int64, error) {
 	var rowID int64
 	tx, err := repo.DB.Begin()
@@ -287,6 +300,7 @@ func (repo *LinksRepository) DeleteUserLink(accountID int64, linkID int64) (*sql
 	return tx, rowID, err
 }
 
+// AddUrlToGroup ...
 func (repo *LinksRepository) AddUrlToGroup(groupID, linkID int64) error {
 	_, err := repo.DB.Exec(`
 		insert into links_groups (group_id, link_id) values ($1, $2)
@@ -294,6 +308,7 @@ func (repo *LinksRepository) AddUrlToGroup(groupID, linkID int64) error {
 	return err
 }
 
+// DeleteUrlFromGroup ...
 func (repo *LinksRepository) DeleteUrlFromGroup(groupID, linkID int64) error {
 	_, err := repo.DB.Exec(`
 		delete from links_groups where group_id = $1 and link_id = $2
@@ -301,6 +316,7 @@ func (repo *LinksRepository) DeleteUrlFromGroup(groupID, linkID int64) error {
 	return err
 }
 
+// BulkCreateLinks ...
 func (repo *LinksRepository) BulkCreateLinks(accountID int64, links []string) ([]Link, error) {
 
 	query := "insert into links (short_url, long_url, account_id) values "
@@ -327,6 +343,7 @@ func (repo *LinksRepository) BulkCreateLinks(accountID int64, links []string) ([
 	return createdLinks, err
 }
 
+// HideUserLink ...
 func (repo *LinksRepository) HideUserLink(accountID int64, linkID int64) (*sql.Tx, error) {
 
 	tx, err := repo.DB.Begin()

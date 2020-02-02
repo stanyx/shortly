@@ -45,8 +45,10 @@ type HistoryDB struct {
 	Logger  *log.Logger
 }
 
+// LinkDetailsNotFound ...
 var LinkDetailsNotFound = errors.New("link details not found")
 
+// InsertClick ...
 func (d *HistoryDB) InsertClick(link string, t time.Time, counter int) error {
 	return d.Update(func(tx *bolt.Tx) error {
 		clicksBucket, err := tx.CreateBucketIfNotExists([]byte("clicks:" + link))
@@ -58,6 +60,7 @@ func (d *HistoryDB) InsertClick(link string, t time.Time, counter int) error {
 	})
 }
 
+// Insert ...
 func (d *HistoryDB) Insert(link string, r *http.Request) error {
 
 	ipAddr := utils.GetIPAdress(r)
@@ -102,6 +105,7 @@ func (d *HistoryDB) Insert(link string, r *http.Request) error {
 	return err
 }
 
+// InsertDetail ...
 func (db *HistoryDB) InsertDetail(shortURL string, accountID int64) error {
 	return db.Update(func(tx *bolt.Tx) error {
 
@@ -132,12 +136,14 @@ type HistoryQueryOption struct {
 	Limit int64
 }
 
+// Limit ...
 func Limit(limit int64) HistoryQueryOption {
 	return HistoryQueryOption{
 		Limit: limit,
 	}
 }
 
+// GetClicksData ...
 func (db *HistoryDB) GetClicksData(accountID int64, link string, start, end time.Time, options ...HistoryQueryOption) ([]CounterData, error) {
 
 	dataStoreLimit, err := db.Limiter.GetOptionValue("timedata_limit", accountID)

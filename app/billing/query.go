@@ -16,6 +16,7 @@ type BillingRepository struct {
 	DB *sql.DB
 }
 
+// GetBillingPlanCost ...
 func (r *BillingRepository) GetBillingPlanCost(planID int64, isAnnual bool) (string, error) {
 
 	var cost string
@@ -42,6 +43,7 @@ func (r *BillingRepository) GetBillingPlanCost(planID int64, isAnnual bool) (str
 	return cost, nil
 }
 
+// UpgradeBillingPlan ...
 func (r *BillingRepository) UpgradeBillingPlan(tx *sql.Tx, accountID int64, activation BillingPlanActivation) error {
 
 	if _, err := tx.Exec("UPDATE billing_accounts SET active = false WHERE account_id = $1", accountID); err != nil {
@@ -66,6 +68,7 @@ func (r *BillingRepository) UpgradeBillingPlan(tx *sql.Tx, accountID int64, acti
 	return nil
 }
 
+// GetDefaultPlanOptions ...
 func (r *BillingRepository) GetDefaultPlanOptions(planID int64) ([]BillingOption, error) {
 	rows, err := r.DB.Query(`
 		SELECT bp.id, opts.id, opts.name, opts.description, opts.value 
@@ -96,6 +99,7 @@ func (r *BillingRepository) GetDefaultPlanOptions(planID int64) ([]BillingOption
 	return options, err
 }
 
+// GetBillingPlanOptions ...
 func (r *BillingRepository) GetBillingPlanOptions(tx *sql.Tx, accountID, planID int64) ([]BillingOption, error) {
 
 	rows, err := tx.Query(`
@@ -129,6 +133,7 @@ func (r *BillingRepository) GetBillingPlanOptions(tx *sql.Tx, accountID, planID 
 	return options, err
 }
 
+// GetAllBillingPlans ...
 func (r *BillingRepository) GetAllBillingPlans() ([]BillingPlan, error) {
 
 	rows1, err := r.DB.Query(`
@@ -189,6 +194,7 @@ func (r *BillingRepository) GetAllBillingPlans() ([]BillingPlan, error) {
 	return plans, nil
 }
 
+// GetActiveBillingPlans ...
 func (r *BillingRepository) GetActiveBillingPlans(accountID int64) ([]AccountBillingPlan, error) {
 	query := `
 		SELECT bp.id, ubp.account_id, ubp.started_at, ubp.ended_at, ubp.charge, ubp.is_annual,
@@ -235,6 +241,7 @@ func (r *BillingRepository) GetActiveBillingPlans(accountID int64) ([]AccountBil
 	return plans, nil
 }
 
+// GetPlansOptions ...
 func (r *BillingRepository) GetPlansOptions(accountID int64) (map[int64][]BillingOption, error) {
 
 	query := `
@@ -278,6 +285,7 @@ func (r *BillingRepository) GetPlansOptions(accountID int64) (map[int64][]Billin
 }
 
 // TODO rename to GetAccountBillingPlans
+// GetAllUserBillingPlans ...
 func (r *BillingRepository) GetAllUserBillingPlans(accountID int64) ([]AccountBillingPlan, error) {
 
 	optionByAccount, err := r.GetPlansOptions(accountID)
@@ -297,6 +305,7 @@ func (r *BillingRepository) GetAllUserBillingPlans(accountID int64) ([]AccountBi
 	return plans, nil
 }
 
+// GetDefaultPlan ...
 func (r *BillingRepository) GetDefaultPlan() (*BillingPlan, error) {
 
 	var defaultPlan BillingPlan
@@ -316,6 +325,7 @@ func (r *BillingRepository) GetDefaultPlan() (*BillingPlan, error) {
 	return &defaultPlan, nil
 }
 
+// GetBillingPlansToUpgrade ...
 func (r *BillingRepository) GetBillingPlansToUpgrade(planID int64) ([]BillingPlan, error) {
 
 	rows, err := r.DB.Query(`
@@ -355,6 +365,7 @@ func (r *BillingRepository) GetBillingPlansToUpgrade(planID int64) ([]BillingPla
 
 }
 
+// GetAccountBillingPlan ...
 func (r *BillingRepository) GetAccountBillingPlan(accountID int64) (*AccountBillingPlan, error) {
 	plans, err := r.GetAllUserBillingPlans(accountID)
 	if err != nil {
@@ -370,6 +381,7 @@ func (r *BillingRepository) GetAccountBillingPlan(accountID int64) (*AccountBill
 	return &plan, nil
 }
 
+// IsAttachToPlan ...
 func (r *BillingRepository) IsAttachToPlan(accountID int64) (bool, error) {
 
 	plans, err := r.GetAllUserBillingPlans(accountID)
@@ -386,6 +398,7 @@ func (r *BillingRepository) IsAttachToPlan(accountID int64) (bool, error) {
 
 var ErrBillingAccountAlreadyExists = errors.New("account already attached to billing")
 
+// AttachToDefaultBilling ...
 func (r *BillingRepository) AttachToDefaultBilling(tx *sql.Tx, accountID, planID int64) (*BillingAccount, error) {
 
 	ok, err := r.IsAttachToPlan(accountID)
@@ -424,18 +437,21 @@ func (r *BillingRepository) AttachToDefaultBilling(tx *sql.Tx, accountID, planID
 	return billingAccount, err
 }
 
+// GetStripeSubscriptionID ...
 func (r *BillingRepository) GetStripeSubscriptionID(planID int64) (string, error) {
 	var stripeID string
 	err := r.DB.QueryRow("select stripe_id from billing_plans where id = $1", planID).Scan(&stripeID)
 	return stripeID, err
 }
 
+// GetAccountIDByStripeCharge ...
 func (r *BillingRepository) GetAccountIDByStripeCharge(stripeID string) (int64, error) {
 	var accountID int64
 	err := r.DB.QueryRow("select account_id from stripe_charges where stripe_id = $1", stripeID).Scan(&accountID)
 	return accountID, err
 }
 
+// CancelSubscription ...
 func (r *BillingRepository) CancelSubscription(accountID int64) error {
 
 	var subscriptionID string
@@ -474,6 +490,7 @@ func (r *BillingRepository) CancelSubscriptionExternal(stripeID string, timestam
 	return accountID, err
 }
 
+// CreateStripeCustomer ...
 func (r *BillingRepository) CreateStripeCustomer(tx *sql.Tx, accountID int64, email string) error {
 
 	params := &stripe.CustomerParams{
@@ -492,6 +509,7 @@ func (r *BillingRepository) CreateStripeCustomer(tx *sql.Tx, accountID int64, em
 	return err
 }
 
+// GetStripeCustomer ...
 func (r *BillingRepository) GetStripeCustomer(accountID int64) (string, error) {
 	var stripeID string
 	err := r.DB.QueryRow(
@@ -499,18 +517,21 @@ func (r *BillingRepository) GetStripeCustomer(accountID int64) (string, error) {
 	return stripeID, err
 }
 
+// CreateStripeSubscription ...
 func (r *BillingRepository) CreateStripeSubscription(accountID, planID int64, s *stripe.Subscription) error {
 	_, err := r.DB.Exec("insert into stripe_subscriptions (account_id, plan_id, stripe_id, created) values ($1, $2, $3, $4)",
 		accountID, planID, s.ID, s.Created)
 	return err
 }
 
+// CreateStripeCharge ...
 func (r *BillingRepository) CreateStripeCharge(accountID, planID int64, ch *stripe.Charge) error {
 	_, err := r.DB.Exec("insert into stripe_charges (account_id, plan_id, stripe_id, created) values ($1, $2, $3, $4)",
 		accountID, planID, ch.ID, ch.Created)
 	return err
 }
 
+// CreateStripeEvent ...
 func (r *BillingRepository) CreateStripeEvent(id string, ev string, timestamp int64, eventErr error) error {
 
 	var errMessage string
@@ -523,6 +544,7 @@ func (r *BillingRepository) CreateStripeEvent(id string, ev string, timestamp in
 	return err
 }
 
+// UpsertStripeProduct ...
 func (r *BillingRepository) UpsertStripeProduct(pr *stripe.Product) error {
 	_, err := r.DB.Exec(`
 		insert into stripe_products (stripe_id, name, created) values ($1, $2, $3)
@@ -531,6 +553,7 @@ func (r *BillingRepository) UpsertStripeProduct(pr *stripe.Product) error {
 	return err
 }
 
+// UpsertStripePlan ...
 func (r *BillingRepository) UpsertStripePlan(pr *stripe.Plan) error {
 	_, err := r.DB.Exec(`
 		insert into stripe_plans (stripe_id, name, created) values ($1, $2, $3)

@@ -25,6 +25,7 @@ type Repository struct {
 	Logger    *log.Logger
 }
 
+// GetUserCampaigns ...
 func (r *Repository) GetUserCampaigns(accountID int64) ([]Campaign, error) {
 
 	query := `select cmp.id, l.id, l.short_url, l.long_url, l.description
@@ -100,6 +101,7 @@ type CampaignClickData struct {
 	Data     []data.CounterData
 }
 
+// GetCampaignClicksData ...
 func (r *Repository) GetCampaignClicksData(accountID, campaignID int64, startTime, endTime time.Time) ([]CampaignClickData, error) {
 
 	query := `select l.id, l.short_url
@@ -142,6 +144,7 @@ func (r *Repository) GetCampaignClicksData(accountID, campaignID int64, startTim
 	return list, nil
 }
 
+// CreateCampaign ...
 func (r *Repository) CreateCampaign(cmp Campaign) (int64, error) {
 	var rowID int64
 
@@ -158,21 +161,25 @@ func (r *Repository) CreateCampaign(cmp Campaign) (int64, error) {
 	return rowID, nil
 }
 
+// StartCampaign ...
 func (r *Repository) StartCampaign(cmpID int64) error {
 	_, err := r.DB.Exec(`update "campaigns" set active = true where id = $1`, cmpID)
 	return err
 }
 
+// StopCampaign ...
 func (r *Repository) StopCampaign(cmpID int64) error {
 	_, err := r.DB.Exec(`update "campaigns" set active = false where id = $1`, cmpID)
 	return err
 }
 
+// DeleteCampaign ...
 func (r *Repository) DeleteCampaign(cmpID int64) error {
 	_, err := r.DB.Exec(`delete from "campaigns" where id = $1`, cmpID)
 	return err
 }
 
+// AddLinkToCampaign ...
 func (r *Repository) AddLinkToCampaign(cmpID, linkID int64, utm UTMSetting) (int64, error) {
 	var rowID int64
 	err := r.DB.QueryRow(`
@@ -183,6 +190,7 @@ func (r *Repository) AddLinkToCampaign(cmpID, linkID int64, utm UTMSetting) (int
 	return rowID, err
 }
 
+// DeleteLinkFromCampaign ...
 func (r *Repository) DeleteLinkFromCampaign(cmpID, linkID int64) error {
 	_, err := r.DB.Exec(`delete from "campaigns_links" where campaign_id = $1 and link_id = $2`, cmpID, linkID)
 	return err

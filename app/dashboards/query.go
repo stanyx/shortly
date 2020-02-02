@@ -14,6 +14,7 @@ type Repository struct {
 	Logger    *log.Logger
 }
 
+// GetTotalClicks ...
 func (r *Repository) GetDashboards(accountID int64) ([]Dashboard, error) {
 	query := `select id, name, description, width, height from "dashboards"
 		where account_id = $1
@@ -42,6 +43,7 @@ func (r *Repository) GetDashboards(accountID int64) ([]Dashboard, error) {
 	return list, err
 }
 
+// GetDashboardWidgets ...
 func (r *Repository) GetDashboardWidgets(accountID, dashboardID int64) ([]DashboardWidget, error) {
 	query := `select id, title, widget_type, data_url, x, y, span from "dashboards_widgets"
 		where account_id = $1 and dashboard_id = $2
@@ -70,6 +72,7 @@ func (r *Repository) GetDashboardWidgets(accountID, dashboardID int64) ([]Dashbo
 	return widgets, err
 }
 
+// CreateDashboard ...
 func (r *Repository) CreateDashboard(accountID int64, d Dashboard) (int64, error) {
 	var rowID int64
 
@@ -86,6 +89,7 @@ func (r *Repository) CreateDashboard(accountID int64, d Dashboard) (int64, error
 	return rowID, nil
 }
 
+// AddWidget ...
 func (r *Repository) AddWidget(accountID, dashboardID int64, widget DashboardWidget) error {
 	_, err := r.DB.Exec(`
 		insert into "dashboards_widgets" (account_id, dashboard_id, title, widget_type, data_url, x, y, span)
@@ -94,6 +98,7 @@ func (r *Repository) AddWidget(accountID, dashboardID int64, widget DashboardWid
 	return err
 }
 
+// DeleteDashboard ...
 func (r *Repository) DeleteDashboard(accountID, dashboardID int64) error {
 	_, err := r.DB.Exec(`
 		delete from "dashboards" where id = $1 and account_id = $2
@@ -101,6 +106,7 @@ func (r *Repository) DeleteDashboard(accountID, dashboardID int64) error {
 	return err
 }
 
+// DeleteDashboardWidget ...
 func (r *Repository) DeleteDashboardWidget(accountID, dashboardID, widgetID int64) error {
 	_, err := r.DB.Exec(`
 		delete from "dashboards_widgets" where id = $1 and dashboard_id = $2 and account_id = $3

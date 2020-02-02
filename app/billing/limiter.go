@@ -18,7 +18,9 @@ import (
 const billingDatabaseName = "billing"
 
 var (
-	LimitExceededError         = errors.New("limit exceeded error")
+	// LimitExceededError ...
+	LimitExceededError = errors.New("limit exceeded error")
+	// BillingAccountExpiredError ...
 	BillingAccountExpiredError = errors.New("billing account expired")
 
 	// counters
@@ -55,6 +57,7 @@ type BillingLimiter struct {
 	defaultAccountPlan AccountBillingPlan
 }
 
+// Lock ...
 func (l *BillingLimiter) Lock(accountID int64) *sync.Mutex {
 	var lock sync.Mutex
 	v, _ := l.locks.LoadOrStore(accountID, &lock)
@@ -82,6 +85,7 @@ func (l *BillingLimiter) resetOptionForInterval(tx *bolt.Tx, option BillingOptio
 	}
 }
 
+// resetOption ...
 func (l *BillingLimiter) resetOption(tx *bolt.Tx, optionName string, accountID int64) (*BillingOption, error) {
 
 	plans, err := l.Repo.GetAllUserBillingPlans(accountID)
@@ -114,6 +118,7 @@ func (l *BillingLimiter) resetOption(tx *bolt.Tx, optionName string, accountID i
 	return option, nil
 }
 
+// GetBillingStatistics ...
 func (l *BillingLimiter) GetBillingStatistics(accountID int64, startTime, endTime time.Time) ([]BillingParameter, error) {
 
 	var stat []BillingParameter
@@ -155,6 +160,7 @@ func (l *BillingLimiter) GetBillingStatistics(accountID int64, startTime, endTim
 	return stat, nil
 }
 
+// Reset ...
 func (l *BillingLimiter) Reset(optionName string, accountID int64) error {
 	return l.DB.Update(func(tx *bolt.Tx) error {
 		_, err := l.resetOption(tx, optionName, accountID)
@@ -162,6 +168,7 @@ func (l *BillingLimiter) Reset(optionName string, accountID int64) error {
 	})
 }
 
+// UpdateAccount ...
 func (l *BillingLimiter) UpdateAccount(accountID int64, account BillingAccount) error {
 
 	return l.DB.Update(func(tx *bolt.Tx) error {
@@ -178,6 +185,7 @@ func (l *BillingLimiter) UpdateAccount(accountID int64, account BillingAccount) 
 
 }
 
+// DowngradeToDefaultPlan ...
 func (l *BillingLimiter) DowngradeToDefaultPlan(accountID int64) error {
 	l.Logger.Printf("plan for account(%v) expired, init account downgrade to default billing plan\n", accountID)
 	defaultPlan := l.defaultAccountPlan
@@ -185,6 +193,7 @@ func (l *BillingLimiter) DowngradeToDefaultPlan(accountID int64) error {
 	return l.ActualizePlanCounters(defaultPlan)
 }
 
+// ActualizePlanCounters ...
 func (l *BillingLimiter) ActualizePlanCounters(p AccountBillingPlan) error {
 
 	for i, opt := range p.Options {
@@ -264,6 +273,7 @@ func (l *BillingLimiter) LoadData() error {
 
 var OptionNotFound = errors.New("option not found")
 
+// GetOptionValue ...
 func (l *BillingLimiter) GetOptionValue(optionName string, accountID int64) (*BillingOption, error) {
 	var optionValue *BillingOption
 	err := l.DB.View(func(tx *bolt.Tx) error {
@@ -312,6 +322,7 @@ func (l *BillingLimiter) getOption(tx *bolt.Tx, optionName string, accountID int
 	return nil, OptionNotFound
 }
 
+// CheckLimits ...
 func (l *BillingLimiter) CheckLimits(optionName string, accountID int64) error {
 
 	return l.DB.Update(func(tx *bolt.Tx) error {
@@ -357,6 +368,7 @@ func (l *BillingLimiter) getAccount(tx *bolt.Tx, accountID int64) (*BillingAccou
 	return &acc, nil
 }
 
+// UpdateOption ...
 func (l *BillingLimiter) UpdateOption(tx *bolt.Tx, optionName string, accountID int64, f func(int64) int64) error {
 
 	b := tx.Bucket([]byte(billingDatabaseName))
@@ -391,6 +403,7 @@ func (l *BillingLimiter) UpdateOption(tx *bolt.Tx, optionName string, accountID 
 	return nil
 }
 
+// Reduce ...
 func (l *BillingLimiter) Reduce(optionName string, accountID int64) error {
 	return l.DB.Update(func(tx *bolt.Tx) error {
 		return l.UpdateOption(tx, optionName, accountID, func(v int64) int64 {
@@ -399,6 +412,7 @@ func (l *BillingLimiter) Reduce(optionName string, accountID int64) error {
 	})
 }
 
+// Increase ...
 func (l *BillingLimiter) Increase(optionName string, accountID int64) error {
 	return l.DB.Update(func(tx *bolt.Tx) error {
 		return l.UpdateOption(tx, optionName, accountID, func(v int64) int64 {
