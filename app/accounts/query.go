@@ -189,11 +189,11 @@ func (r *UsersRepository) GetUserByEmail(email string) (*User, error) {
 func (r *UsersRepository) getUserFiltered(fieldName string, value interface{}) (*User, error) {
 	var user User
 
-	err := r.DB.QueryRow(fmt.Sprintf(`
-		select id, username, password, phone, email, company, is_staff, account_id, role_id
-		from "users" WHERE %s = $1`, fieldName),
-		value,
-	).Scan(
+	query := fmt.Sprintf(`
+	select id, username, password, phone, email, company, is_staff, account_id, role_id
+	from "users" WHERE %s = $1`, fieldName)
+
+	err := r.DB.QueryRow(query, value).Scan(
 		&user.ID,
 		&user.Username,
 		&user.Password,
@@ -212,14 +212,19 @@ func (r *UsersRepository) getUserFiltered(fieldName string, value interface{}) (
 	return &user, nil
 }
 
+const (
+	UserIDField        = "id"
+	UserAccountIDField = "account_id"
+)
+
 // GetUserByID ...
 func (r *UsersRepository) GetUserByID(userID int64) (*User, error) {
-	return r.getUserFiltered("id", userID)
+	return r.getUserFiltered(UserIDField, userID)
 }
 
 // GetUserByAccountID ...
 func (r *UsersRepository) GetUserByAccountID(accountID int64) (*User, error) {
-	return r.getUserFiltered("account_id", accountID)
+	return r.getUserFiltered(UserAccountIDField, accountID)
 }
 
 // TODO - move to another application

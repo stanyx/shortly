@@ -12,7 +12,7 @@ info:
   title: Shortly API
   version: "1.0"
 paths:
-  /api/v1/tags/create:
+  /tags/create:
     post:
       consumes:
       - application/json
@@ -38,4 +38,27 @@ paths:
           schema:
             $ref: '#/definitions/response.ApiResponse'
       summary: Adds tag to link
+      tags:
+      - Tags
+  /users:
+    get:
+      operationId: get-users
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.ApiResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ApiResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ApiResponse'
+      summary: Retrieve all users for current account
+      tags:
+      - Users
 swagger: "2.0"

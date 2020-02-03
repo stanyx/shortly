@@ -48,18 +48,19 @@ func Redirect(repo links.ILinksRepository, redirectLogger utils.DbLogger, histor
 
 		var longURL string
 
-		if !ok {
-			longURL, _ = repo.UnshortenURL(shortURL)
-			if longURL == "" {
-				w.WriteHeader(http.StatusNotFound)
-				_, _ = w.Write([]byte("not found"))
+		if ok {
+			longURL, ok = cacheURLValue.(string)
+			if !ok {
+				response.Error(w, "url is not a string", http.StatusBadRequest)
 				return
 			}
+		} else {
+			longURL, _ = repo.UnshortenURL(shortURL)
 		}
 
-		longURL, ok = cacheURLValue.(string)
-		if !ok {
-			response.Error(w, "url is not a string", http.StatusBadRequest)
+		if longURL == "" {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte("not found"))
 			return
 		}
 

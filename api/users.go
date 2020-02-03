@@ -10,6 +10,14 @@ import (
 )
 
 // GetUsers ...
+// @Summary Retrieve all users for current account
+// @Tags Users
+// @ID get-users
+// @Produce json
+// @Success 200 {object} response.ApiResponse
+// @Failure 403 {object} response.ApiResponse
+// @Failure 500 {object} response.ApiResponse
+// @Router /users [get]
 func GetUsers(repo *accounts.UsersRepository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 

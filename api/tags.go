@@ -22,6 +22,7 @@ type AddTagForm struct {
 
 // AddTagToLink handler for adding tag to link
 // @Summary Adds tag to link
+// @Tags Tags
 // @Description create new tag for link
 // @ID add-tag-to-link
 // @Accept  json
@@ -30,7 +31,7 @@ type AddTagForm struct {
 // @Failure 400 {object} response.ApiResponse
 // @Failure 404 {object} response.ApiResponse
 // @Failure 500 {object} response.ApiResponse
-// @Router /api/v1/tags/create [post]
+// @Router /tags/create [post]
 func AddTagToLink(repo *tags.TagsRepository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 

@@ -68,7 +68,7 @@ func (repo *LinksRepository) OnHide(f func(int64, interface{})) {
 // UnshortenURL ...
 func (repo *LinksRepository) UnshortenURL(shortURL string) (string, error) {
 
-	query := "select long_url from links where short_url = $1"
+	query := "select long_url from links where short_url = $1 and active = true"
 
 	var longURL string
 	err := repo.DB.QueryRow(query, shortURL).Scan(&longURL)
@@ -360,5 +360,24 @@ func (repo *LinksRepository) HideUserLink(accountID int64, linkID int64) (*sql.T
 	}
 
 	repo.callback("Hide", accountID, linkID)
+	return tx, err
+}
+
+func (repo *LinksRepository) ActivateUserLink(accountID int64, linkID int64) (*sql.Tx, error) {
+
+	tx, err := repo.DB.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	query := "update links set hide = false where id = $1 and account_id = $2"
+	queryArgs := []interface{}{linkID, accountID}
+
+	_, err = tx.Exec(query, queryArgs...)
+	if err != nil {
+		return nil, err
+	}
+
+	repo.callback("Activate", accountID, linkID)
 	return tx, err
 }

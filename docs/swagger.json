@@ -9,7 +9,7 @@
     },
     "basePath": "/api/v1",
     "paths": {
-        "/api/v1/tags/create": {
+        "/tags/create": {
             "post": {
                 "description": "create new tag for link",
                 "consumes": [
@@ -17,6 +17,9 @@
                 ],
                 "produces": [
                     "application/json"
+                ],
+                "tags": [
+                    "Tags"
                 ],
                 "summary": "Adds tag to link",
                 "operationId": "add-tag-to-link",
@@ -35,6 +38,38 @@
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ApiResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/users": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Retrieve all users for current account",
+                "operationId": "get-users",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.ApiResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/response.ApiResponse"
                         }

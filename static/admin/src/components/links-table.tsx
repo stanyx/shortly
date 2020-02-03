@@ -1,7 +1,9 @@
 
 import * as React from 'react';
 import {Link} from 'react-router-dom';
-import {httpGet, httpDelete} from '../utils';
+import {InputSwitch} from 'primereact/inputswitch';
+
+import {httpGet, httpPost, httpDelete} from '../utils';
 
 class LinkTableState {
     rows: Array<any>;
@@ -24,6 +26,19 @@ class LinksTable extends React.Component<any, LinkTableState> {
         httpDelete(`/api/v1/users/links/${linkID}`).then(() => {
             this.loadData();
         });
+    }
+    toggleLink(r: any, value: boolean, index: number) {
+        if (value) {
+            httpPost(`/api/v1/links/${r.id}/activate`, {}).then(() => {
+                this.state.rows[index].is_active = true;
+                this.setState({rows: this.state.rows});
+            });
+        } else {
+            httpPost(`/api/v1/links/${r.id}/hide`, {}).then(() => {
+                this.state.rows[index].is_active = false;
+                this.setState({rows: this.state.rows});
+            });
+        }
     }
     render() {
     return (
@@ -58,14 +73,19 @@ class LinksTable extends React.Component<any, LinkTableState> {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                            {this.state.rows.map((r: any) => {
+                                            {this.state.rows.map((r: any, index: number) => {
                                                 return (
                                                     <tr role="row" className="odd">
                                                         <td className="sorting_1">
                                                             <a href={"http://" + location.host + "/" + r.short}>{r.short}</a>
                                                         </td>
                                                         <td>{r.long}</td>
-                                                        <td>{r.is_active ? 'active': 'not active'}</td>
+                                                        <td>
+                                                            <span>{r.is_active ? 'active': 'not active'}</span>
+                                                            <InputSwitch checked={r.is_active}
+                                                                onChange={(e: any) => this.toggleLink(r, e.value, index)}>
+                                                            </InputSwitch>
+                                                        </td>
                                                         <td>
                                                             <Link to={`/links/${r.id}/tags`} className="btn btn-success">
                                                                 Tags

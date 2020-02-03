@@ -218,7 +218,7 @@ func main() {
 
 	cacheConfig := appConfig.Cache
 
-	pretty.Printf("\n\nCONFIG\n======\n\n%# v\n\n", appConfig)
+	_, _ = pretty.Printf("\n\nCONFIG\n======\n\n%# v\n\n", appConfig)
 
 	switch cacheConfig.CacheType {
 	case "memory", "":
@@ -408,6 +408,16 @@ func main() {
 		urlBillingLimit(api.CreateUserLink(linksRepository, historyDB, urlCache, billingLimiter, logger)),
 	))
 
+	r.Post("/api/v1/links/{id}/hide", auth(
+		rbac.NewPermission("/api/v1/links/{id}/hide", "hide_link", "POST"),
+		api.HideUserLink(linksRepository, urlCache, logger),
+	))
+
+	r.Post("/api/v1/links/{id}/activate", auth(
+		rbac.NewPermission("/api/v1/links/{id}/activate", "activate_link", "POST"),
+		api.ActivateUserLink(linksRepository, urlCache, logger),
+	))
+
 	r.Post("/api/v1/users/links/upload", auth(
 		rbac.NewPermission("/api/v1/users/links/upload", "upload_links", "POST"),
 		api.UploadLinksInBulk(billingLimiter, linksRepository, historyDB, urlCache, logger),
@@ -527,7 +537,9 @@ func main() {
 			logger.Printf("server shutdown error, cause: %+v", err)
 		}
 
-		billingDataStorage.Close()
+		if err := billingDataStorage.Close(); err != nil {
+			logger.Printf("billing data storage close with error: %v", err)
+		}
 
 		doneCh <- struct{}{}
 	}()

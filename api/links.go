@@ -669,11 +669,6 @@ func UploadLinksInBulk(limiter *billing.BillingLimiter, repo *links.LinksReposit
 	})
 }
 
-// HideLinkForm ...
-type HideLinkForm struct {
-	LinkID int64 `json:"linkId"`
-}
-
 // HideUserLink ...
 func HideUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, logger *log.Logger) http.HandlerFunc {
 
@@ -682,25 +677,25 @@ func HideUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, logger *
 		claims := r.Context().Value("user").(*JWTClaims)
 		accountID := claims.AccountID
 
-		var form HideLinkForm
-
-		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
-			response.Error(w, "decode form error", http.StatusBadRequest)
+		linkIDArg := chi.URLParam(r, "id")
+		if linkIDArg == "" {
+			response.Error(w, "id parameter is required", http.StatusBadRequest)
 			return
 		}
 
-		if form.LinkID == 0 {
-			response.Error(w, "linkId parameter is required", http.StatusBadRequest)
+		linkID, err := strconv.ParseInt(linkIDArg, 0, 64)
+		if err != nil {
+			response.Error(w, "id parameter is not a number", http.StatusBadRequest)
 			return
 		}
 
-		link, err := repo.GetLinkByID(form.LinkID)
+		link, err := repo.GetLinkByID(linkID)
 		if err != nil {
 			response.Error(w, "get link error", http.StatusBadRequest)
 			return
 		}
 
-		tx, err := repo.HideUserLink(accountID, form.LinkID)
+		tx, err := repo.HideUserLink(accountID, linkID)
 		if err != nil {
 			_ = tx.Rollback()
 			logError(logger, err)
@@ -719,7 +714,52 @@ func HideUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, logger *
 		response.Ok(w)
 
 	})
+}
 
+// ActivateUserLink ...
+func ActivateUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, logger *log.Logger) http.HandlerFunc {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		claims := r.Context().Value("user").(*JWTClaims)
+		accountID := claims.AccountID
+
+		linkIDArg := chi.URLParam(r, "id")
+		if linkIDArg == "" {
+			response.Error(w, "id parameter is required", http.StatusBadRequest)
+			return
+		}
+
+		linkID, err := strconv.ParseInt(linkIDArg, 0, 64)
+		if err != nil {
+			response.Error(w, "id parameter is not a number", http.StatusBadRequest)
+			return
+		}
+
+		link, err := repo.GetLinkByID(linkID)
+		if err != nil {
+			response.Error(w, "get link error", http.StatusBadRequest)
+			return
+		}
+
+		tx, err := repo.ActivateUserLink(accountID, linkID)
+		if err != nil {
+			_ = tx.Rollback()
+			logError(logger, err)
+			response.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		urlCache.Store(link.Short, link.Long)
+
+		if err := tx.Commit(); err != nil {
+			logError(logger, err)
+			response.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		response.Ok(w)
+	})
 }
 
 // GetTotalLinks ...

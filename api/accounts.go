@@ -2,9 +2,11 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -53,6 +55,14 @@ type LoginResponse struct {
 	Token string       `json:"token"`
 }
 
+func validateEmail(email string) error {
+	var rxEmail = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+	if rxEmail.MatchString(email) {
+		return nil
+	}
+	return errors.New("invalid email address")
+}
+
 // RegisterAccount ...
 func RegisterAccount(repo *accounts.UsersRepository, billingRepo *billing.BillingRepository, billingLimiter *billing.BillingLimiter, logger *log.Logger) http.HandlerFunc {
 
@@ -68,6 +78,11 @@ func RegisterAccount(repo *accounts.UsersRepository, billingRepo *billing.Billin
 
 		v := validator.New()
 		if err := v.Struct(&form); err != nil {
+			response.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if err := validateEmail(form.Email); err != nil {
 			response.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
