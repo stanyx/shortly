@@ -48,7 +48,7 @@ func Redirect(repo links.ILinksRepository, redirectLogger utils.DbLogger, histor
 		var err error
 
 		if geoipDB == nil {
-			geoipDB, err = geoip2.Open(filepath.Join(geoipDbPath, "GeoLite2-Country", "GeoLite2-Country.mmdb"))
+			geoipDB, _ = geoip2.Open(filepath.Join(geoipDbPath, "GeoLite2-Country", "GeoLite2-Country.mmdb"))
 		}
 
 		if geoipDB != nil {
