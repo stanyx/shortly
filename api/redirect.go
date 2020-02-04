@@ -3,9 +3,13 @@ package api
 import (
 	"encoding/json"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
+
+	"github.com/oschwald/geoip2-golang"
 
 	"shortly/app/data"
 	"shortly/cache"
@@ -20,12 +24,36 @@ type LinkRedirect struct {
 	ShortUrl string
 	LongUrl  string
 	Headers  http.Header
+	IPAddr   string
+	Country  string
 }
 
 // Redirect ...
-func Redirect(repo links.ILinksRepository, redirectLogger utils.DbLogger, historyDB *data.HistoryDB, urlCache cache.UrlCache, logger *log.Logger) http.HandlerFunc {
+// @Summary Redirect from short link to associated long url
+// @Tags Links
+// @ID redirect-short-link
+// @Success 307
+// @Success 308
+// @Failure 400
+// @Failure 500
+// @Router /* [get]
+func Redirect(repo links.ILinksRepository, redirectLogger utils.DbLogger, historyDB *data.HistoryDB, urlCache cache.UrlCache, logger *log.Logger, geoipDbPath string) http.HandlerFunc {
+
+	geoipDB, err := geoip2.Open(filepath.Join(geoipDbPath, "GeoLite2-Country", "GeoLite2-Country.mmdb"))
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		ipAddr := utils.GetIPAdress(r)
+		var country string
+		countryObject, err := geoipDB.Country(net.ParseIP(ipAddr))
+		if err == nil {
+			country = countryObject.Country.Names["en"]
+		}
+
+		logger.Printf("redirect start, id_addr = %s, country = %s\n", ipAddr, country)
 
 		shortURL := strings.TrimPrefix(r.URL.Path, "/")
 
@@ -51,11 +79,15 @@ func Redirect(repo links.ILinksRepository, redirectLogger utils.DbLogger, histor
 		if ok {
 			longURL, ok = cacheURLValue.(string)
 			if !ok {
-				response.Error(w, "url is not a string", http.StatusBadRequest)
+				response.Text(w, "url is not a string", http.StatusBadRequest)
 				return
 			}
 		} else {
-			longURL, _ = repo.UnshortenURL(shortURL)
+			longURL, err = repo.UnshortenURL(shortURL)
+			if err == nil {
+				logger.Printf("cache miss, short=%v, long=%v\n", shortURL, longURL)
+				urlCache.Store(shortURL, longURL)
+			}
 		}
 
 		if longURL == "" {
@@ -70,13 +102,13 @@ func Redirect(repo links.ILinksRepository, redirectLogger utils.DbLogger, histor
 
 		validURL, err := url.Parse(longURL)
 		if err != nil {
-			response.Error(w, "url has incorrect format", http.StatusBadRequest)
+			response.Text(w, "url has incorrect format", http.StatusBadRequest)
 			return
 		}
 
 		if err := historyDB.Insert(shortURL, r); err != nil {
 			logError(logger, err)
-			response.Error(w, "internal server error", http.StatusInternalServerError)
+			response.Text(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 
@@ -84,16 +116,18 @@ func Redirect(repo links.ILinksRepository, redirectLogger utils.DbLogger, histor
 			ShortUrl: shortURL,
 			LongUrl:  validURL.String(),
 			Headers:  r.Header,
+			IPAddr:   ipAddr,
+			Country:  country,
 		})
 		if err != nil {
 			logError(logger, err)
-			response.Error(w, "internal server error", http.StatusInternalServerError)
+			response.Text(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 
 		if err := redirectLogger.Push(body); err != nil {
 			logError(logger, err)
-			response.Error(w, "internal server error", http.StatusInternalServerError)
+			response.Text(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 

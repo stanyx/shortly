@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"archive/tar"
 	"archive/zip"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"os"
@@ -61,6 +63,58 @@ func Unzip(src string, dest string) ([]string, error) {
 		if err != nil {
 			return filenames, err
 		}
+	}
+	return filenames, nil
+}
+
+// Untar ...
+func Untar(src string, dest string) ([]string, error) {
+
+	f, err := os.Open(src)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	uncompressedStream, err := gzip.NewReader(f)
+	if err != nil {
+		return nil, err
+	}
+
+	tarReader := tar.NewReader(uncompressedStream)
+
+	var filenames []string
+
+	for {
+
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return nil, err
+		}
+
+		switch header.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(filepath.Join(dest, header.Name), 0755); err != nil {
+				return nil, err
+			}
+		case tar.TypeReg:
+			outFile, err := os.Create(filepath.Join(dest, header.Name))
+			if err != nil {
+				return nil, err
+			}
+			if _, err := io.Copy(outFile, tarReader); err != nil {
+				return nil, err
+			}
+			_ = outFile.Close()
+			filenames = append(filenames, header.Name)
+		default:
+			return nil, fmt.Errorf("unknown type: %s", string(header.Typeflag))
+		}
+
 	}
 	return filenames, nil
 }

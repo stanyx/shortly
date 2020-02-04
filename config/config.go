@@ -99,6 +99,18 @@ type DatabaseConfig struct {
 	SSLMode  string
 }
 
+func setDefaults(cfg *viper.Viper) {
+	// database default settings
+	cfg.SetDefault("Database.Host", "localhost")
+	cfg.SetDefault("Database.Port", 5432)
+	cfg.SetDefault("Database.User", "shortly_user")
+	cfg.SetDefault("Database.Password", "1")
+	cfg.SetDefault("Database.Database", "shortly")
+	cfg.SetDefault("Database.SSLMode", "disable")
+
+	cfg.SetDefault("Billing.Dir", ".")
+}
+
 func ReadConfig(configFilePath string) (*ApplicationConfig, error) {
 
 	appConfig := &ApplicationConfig{}
@@ -113,15 +125,7 @@ func ReadConfig(configFilePath string) (*ApplicationConfig, error) {
 	pflag.Parse()
 	_ = cfg.BindPFlags(pflag.CommandLine)
 
-	// database default settings
-	cfg.SetDefault("Database.Host", "localhost")
-	cfg.SetDefault("Database.Port", 5432)
-	cfg.SetDefault("Database.User", "shortly_user")
-	cfg.SetDefault("Database.Password", "1")
-	cfg.SetDefault("Database.Database", "shortly")
-	cfg.SetDefault("Database.SSLMode", "disable")
-
-	cfg.SetDefault("Billing.Dir", ".")
+	setDefaults(cfg)
 
 	cfg.SetConfigFile(configFilePath)
 

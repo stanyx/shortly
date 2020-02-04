@@ -2,6 +2,7 @@ package response
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -17,7 +18,10 @@ type ApiResponse struct {
 	Result interface{} `json:"result"`
 }
 
-var jsonContentType = "application/json"
+const (
+	jsonContentType = "application/json"
+	textContentType = "text/plain"
+)
 
 func Error(w http.ResponseWriter, message string, statusCode int) {
 	w.Header().Set("Content-Type", jsonContentType)
@@ -35,4 +39,10 @@ func Object(w http.ResponseWriter, result interface{}, statusCode int) {
 	w.Header().Set("Content-Type", jsonContentType)
 	w.WriteHeader(statusCode)
 	_ = json.NewEncoder(w).Encode(&ApiResponse{Result: result})
+}
+
+func Text(w http.ResponseWriter, str string, statusCode int) {
+	w.Header().Set("Content-Type", textContentType)
+	w.WriteHeader(statusCode)
+	fmt.Fprint(w, str)
 }

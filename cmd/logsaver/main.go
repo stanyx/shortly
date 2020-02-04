@@ -23,6 +23,8 @@ type linkRedirect struct {
 	ShortUrl string
 	LongUrl  string
 	Headers  map[string]interface{}
+	IPAddr   string
+	Country  string
 }
 
 type Consumer struct {
@@ -53,10 +55,15 @@ func (consumer *Consumer) Consume(delivery rmq.Delivery) {
 		return
 	}
 
-	_, err = consumer.db.Exec("insert into redirect_log(short_url, long_url, headers, timestamp) values ($1, $2, $3, now())",
+	_, err = consumer.db.Exec(`
+		insert into redirect_log(short_url, long_url, headers, country, ip_addr, timestamp) 
+		values ($1, $2, $3, $4, $5, now())
+	`,
 		msg.ShortUrl,
 		msg.LongUrl,
 		string(headers),
+		msg.Country,
+		msg.IPAddr,
 	)
 	if err != nil {
 		log.Println("error on save", err)

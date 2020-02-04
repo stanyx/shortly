@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -92,10 +93,33 @@ func UpdateGeoIPDatabase(downloadURL, geoIPDatabasePath, key string, logger *log
 			return
 		}
 
-		if _, err := utils.Unzip(tf.Name(), geoIPDatabasePath); err != nil {
+		_, err = utils.Untar(tf.Name(), geoIPDatabasePath)
+		if err != nil {
 			logError(logger, err)
 			response.Error(w, "unzip file error", http.StatusInternalServerError)
 			return
+		}
+
+		matches, err := filepath.Glob(filepath.Join(filepath.Dir(tf.Name()), "GeoLite2-Country_*"))
+		if err != nil {
+			logError(logger, err)
+			response.Error(w, "rename file error", http.StatusInternalServerError)
+			return
+		}
+
+		for _, m := range matches {
+			re, err := regexp.Compile("_\\d+")
+			if err != nil {
+				logError(logger, err)
+				response.Error(w, "rename file error", http.StatusInternalServerError)
+				return
+			}
+			if err := os.Rename(m, re.ReplaceAllString(m, "")); err != nil {
+				logError(logger, err)
+				response.Error(w, "rename file error", http.StatusInternalServerError)
+				return
+			}
+			break
 		}
 
 		response.Ok(w)
@@ -106,6 +130,17 @@ func UpdateGeoIPDatabase(downloadURL, geoIPDatabasePath, key string, logger *log
 // UploadGeoIPDatabase ...
 func UploadGeoIPDatabase(uploadPath string, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		dbType := "tar"
+		dbTypeArgs := r.URL.Query()["dbType"]
+		if len(dbTypeArgs) > 0 {
+			dbType = dbTypeArgs[0]
+		}
+
+		if !(dbType == "csv" || dbType == "tar") {
+			fmt.Fprintf(w, "file type is invalid")
+			return
+		}
 
 		if err := r.ParseMultipartForm(10 << 20); err != nil {
 			logError(logger, err)
@@ -149,10 +184,18 @@ func UploadGeoIPDatabase(uploadPath string, logger *log.Logger) http.HandlerFunc
 			return
 		}
 
-		if _, err := utils.Unzip(tf.Name(), uploadPath); err != nil {
-			logError(logger, err)
-			fmt.Fprintf(w, "internal server error")
-			return
+		if dbType == "csv" {
+			if _, err := utils.Unzip(tf.Name(), uploadPath); err != nil {
+				logError(logger, err)
+				fmt.Fprintf(w, "internal server error")
+				return
+			}
+		} else if dbType == "tar" {
+			if _, err := utils.Untar(tf.Name(), uploadPath); err != nil {
+				logError(logger, err)
+				fmt.Fprintf(w, "internal server error")
+				return
+			}
 		}
 
 		defer func() {

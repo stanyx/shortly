@@ -498,7 +498,8 @@ func main() {
 		logger.Fatal("incorrect config params for redirect logger")
 	}
 	r.Get("/metrics", promhttp.Handler().(http.HandlerFunc))
-	r.Get("/*", totalRedirectsPromMiddleware(api.Redirect(linksRepository, dbLogger, historyDB, urlCache, logger)))
+	r.Get("/*", totalRedirectsPromMiddleware(api.Redirect(
+		linksRepository, dbLogger, historyDB, urlCache, logger, appConfig.GeoIP.DatabasePath)))
 
 	var srv *http.Server
 	// server running

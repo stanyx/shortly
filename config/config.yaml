@@ -27,6 +27,6 @@ RedirectLogger:
   Redis:
     Port: 6379
 GeoIP:
-  DownloadURL: 'https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country-CSV&license_key=%s&suffix=zip'
+  DownloadURL: 'https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country&license_key=%s&suffix=tar.gz'
   DatabasePath: ./downloads/
-  LicenseKey: ''
+  LicenseKey: 'GrJyMeHTORrjqrY3'

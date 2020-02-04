@@ -14,6 +14,8 @@ type linkRedirect struct {
 	ShortUrl string
 	LongUrl  string
 	Headers  map[string]interface{}
+	IPAddr   string
+	Country  string
 }
 
 // DbLogger ...
@@ -65,10 +67,15 @@ func (l *SyncLogger) Push(body []byte) error {
 		return err
 	}
 
-	_, err = l.db.Exec("insert into redirect_log(short_url, long_url, headers, timestamp) values ($1, $2, $3, now())",
+	_, err = l.db.Exec(`
+		insert into redirect_log(short_url, long_url, headers, country, ip_addr, timestamp) 
+		values ($1, $2, $3, $4, $5, now())
+	`,
 		msg.ShortUrl,
 		msg.LongUrl,
 		string(headers),
+		msg.Country,
+		msg.IPAddr,
 	)
 
 	return err
