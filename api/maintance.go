@@ -107,8 +107,8 @@ func UpdateGeoIPDatabase(downloadURL, geoIPDatabasePath, key string, logger *log
 			return
 		}
 
-		for _, m := range matches {
-			re, err := regexp.Compile("_\\d+")
+		for i, m := range matches {
+			re, err := regexp.Compile(`_\d+`)
 			if err != nil {
 				logError(logger, err)
 				response.Error(w, "rename file error", http.StatusInternalServerError)
@@ -119,7 +119,10 @@ func UpdateGeoIPDatabase(downloadURL, geoIPDatabasePath, key string, logger *log
 				response.Error(w, "rename file error", http.StatusInternalServerError)
 				return
 			}
-			break
+
+			if i > 0 {
+				break
+			}
 		}
 
 		response.Ok(w)
