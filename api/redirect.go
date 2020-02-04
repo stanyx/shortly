@@ -39,18 +39,23 @@ type LinkRedirect struct {
 // @Router /* [get]
 func Redirect(repo links.ILinksRepository, redirectLogger utils.DbLogger, historyDB *data.HistoryDB, urlCache cache.UrlCache, logger *log.Logger, geoipDbPath string) http.HandlerFunc {
 
-	geoipDB, err := geoip2.Open(filepath.Join(geoipDbPath, "GeoLite2-Country", "GeoLite2-Country.mmdb"))
-	if err != nil {
-		log.Fatal(err)
-	}
+	var geoipDB *geoip2.Reader
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ipAddr := utils.GetIPAdress(r)
 		var country string
-		countryObject, err := geoipDB.Country(net.ParseIP(ipAddr))
-		if err == nil {
-			country = countryObject.Country.Names["en"]
+		var err error
+
+		if geoipDB == nil {
+			geoipDB, err = geoip2.Open(filepath.Join(geoipDbPath, "GeoLite2-Country", "GeoLite2-Country.mmdb"))
+		}
+
+		if geoipDB != nil {
+			countryObject, err := geoipDB.Country(net.ParseIP(ipAddr))
+			if err == nil {
+				country = countryObject.Country.Names["en"]
+			}
 		}
 
 		logger.Printf("redirect start, id_addr = %s, country = %s\n", ipAddr, country)
