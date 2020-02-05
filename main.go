@@ -481,7 +481,7 @@ func main() {
 	r.Post("/maintance/upload_geoip_db", basicAuth(api.UpdateGeoIPDatabase(
 		appConfig.GeoIP.DownloadURL, appConfig.GeoIP.DatabasePath, appConfig.GeoIP.LicenseKey, logger,
 	)))
-
+	r.Post("/maintance/ip_info", basicAuth(api.GetIPInfo(appConfig.GeoIP.DatabasePath)))
 	r.Post("/maintance/load_geoip_database", basicAuth(
 		api.UploadGeoIPDatabase(appConfig.GeoIP.DatabasePath, logger)))
 	r.Post("/maintance/load_stripe_fixtures", basicAuth(

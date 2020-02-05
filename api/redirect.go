@@ -152,3 +152,32 @@ func Redirect(repo links.ILinksRepository, redirectLogger utils.DbLogger, histor
 
 	})
 }
+
+type IPInfo struct {
+	Country string
+}
+
+func GetIPInfo(geoipDbPath string) http.HandlerFunc {
+
+	var geoipDB *geoip2.Reader
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		ipAddr := utils.GetIPAdress(r)
+		var country string
+
+		if geoipDB == nil {
+			geoipDB, _ = geoip2.Open(filepath.Join(geoipDbPath, "GeoLite2-Country", "GeoLite2-Country.mmdb"))
+		}
+
+		if geoipDB != nil {
+			countryObject, err := geoipDB.Country(net.ParseIP(ipAddr))
+			if err == nil {
+				country = countryObject.Country.Names["en"]
+			}
+		}
+
+		response.Object(w, &IPInfo{Country: country}, http.StatusOK)
+
+	})
+}
