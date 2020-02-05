@@ -2,9 +2,31 @@ import * as React from 'react';
 import {httpPost, httpGet} from '../utils';
 import {Chart} from 'primereact/chart';
 
+import * as d3 from 'd3-scale-chromatic';
+
 class widgetState {
     value: any;
 }
+
+function calculatePoint(i: number, intervalSize: number, colorRangeInfo: any) {
+  var { colorStart, colorEnd, useEndAsStart } = colorRangeInfo;
+  return (useEndAsStart ? (colorEnd - (i * intervalSize)): (colorStart + (i * intervalSize)));
+}
+
+function interpolateColors(dataLength: number, colorScale: any, colorRangeInfo: any) {
+    var { colorStart, colorEnd } = colorRangeInfo;
+    var colorRange = colorEnd - colorStart;
+    var intervalSize = colorRange / dataLength;
+    var i, colorPoint;
+    var colorArray = [];
+  
+    for (i = 0; i < dataLength; i++) {
+      colorPoint = calculatePoint(i, intervalSize, colorRangeInfo);
+      colorArray.push(colorScale(colorPoint));
+    }
+  
+    return colorArray;
+}  
 
 class Widget extends React.Component<any, widgetState> {
     constructor(props: any) {
@@ -113,10 +135,38 @@ class MainDashboardComponent extends React.Component<any, state> {
     }
     showLinkStatistics(l: any) {
         httpGet(`/api/v1/users/links/${l.short}/stat`).then((response) => {
-            this.setState({linkStatistics: response.data.result});
+
+            const d = response.data.result;
+            const referrersDataLength = d.referrers.datasets[0].data.length;
+            const locationsDataLength = d.locations.datasets[0].data.length;
+
+            const colorScale = d3.interpolateRainbow;
+
+            const colorRangeInfo = {
+              colorStart: 0,
+              colorEnd: 1,
+              useEndAsStart: false,
+            }; 
+
+            var referrersColors = interpolateColors(referrersDataLength, colorScale, colorRangeInfo);
+            var locationsColors = interpolateColors(locationsDataLength, colorScale, colorRangeInfo);
+
+            d.referrers.datasets[0].backgroundColor = [];
+            d.locations.datasets[0].backgroundColor = [];
+
+            for (let col of referrersColors) {
+                d.referrers.datasets[0].backgroundColor.push(col);
+            }
+
+            for (let col of locationsColors) {
+                d.locations.datasets[0].backgroundColor.push(col);
+            }
+
+            this.setState({linkStatistics: d});
         })
     }
     render() {
+
         return (
         <div className="container-fluid">
             <div className="row">

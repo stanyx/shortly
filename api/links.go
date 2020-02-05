@@ -568,7 +568,7 @@ func GetClicksData(historyDB *data.HistoryDB, logger *log.Logger) http.HandlerFu
 			return
 		}
 
-		rows, err := historyDB.GetClicksData(accountID, urlArg[0], startTime, endTime)
+		data, err := historyDB.GetClicksData(accountID, urlArg[0], startTime, endTime)
 		if err != nil {
 			logError(logger, err)
 			response.Error(w, "(get link data) - internal error", http.StatusInternalServerError)
@@ -576,7 +576,7 @@ func GetClicksData(historyDB *data.HistoryDB, logger *log.Logger) http.HandlerFu
 		}
 
 		var list []ClickDataResponse
-		for _, r := range rows {
+		for _, r := range data.Clicks {
 			list = append(list, ClickDataResponse{Time: r.Time, Count: r.Count})
 		}
 

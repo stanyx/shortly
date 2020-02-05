@@ -33,6 +33,39 @@ func incrementTimeSeriesCounter(bucket *bolt.Bucket) error {
 	return bucket.Put([]byte(key), []byte(strconv.Itoa(int(intCounter))))
 }
 
+type LinkInfo struct {
+	Referrers map[string]int
+	Locations map[string]int
+}
+
+func updateLinkInfo(info LinkRequestData, bucket *bolt.Bucket) error {
+
+	timeValue := time.Now()
+	dayRounded := time.Date(timeValue.Year(), timeValue.Month(), timeValue.Day(), 0, 0, 0, 0, time.UTC)
+	key := dayRounded.Format(time.RFC3339)
+	linkInfo := bucket.Get([]byte(key))
+
+	var linkInfoData LinkInfo
+	if len(linkInfo) > 0 {
+		if err := json.NewDecoder(bytes.NewBuffer(linkInfo)).Decode(&linkInfoData); err != nil {
+			return nil
+		}
+	} else {
+		linkInfoData.Referrers = make(map[string]int)
+		linkInfoData.Locations = make(map[string]int)
+	}
+
+	linkInfoData.Locations[info.Location] += 1
+	linkInfoData.Referrers[info.Referrer] += 1
+
+	bf := bytes.NewBuffer([]byte{})
+	if err := json.NewEncoder(bf).Encode(&linkInfoData); err != nil {
+		return nil
+	}
+
+	return bucket.Put([]byte(key), bf.Bytes())
+}
+
 // LinkDetail ...
 type LinkDetail struct {
 	AccountID int64
@@ -60,8 +93,13 @@ func (d *HistoryDB) InsertClick(link string, t time.Time, counter int) error {
 	})
 }
 
+type LinkRequestData struct {
+	Location string
+	Referrer string
+}
+
 // Insert ...
-func (d *HistoryDB) Insert(link string, r *http.Request) error {
+func (d *HistoryDB) Insert(link string, info LinkRequestData, r *http.Request) error {
 
 	ipAddr := utils.GetIPAdress(r)
 
@@ -99,6 +137,15 @@ func (d *HistoryDB) Insert(link string, r *http.Request) error {
 			return err
 		}
 
+		linkDataBucket, err := tx.CreateBucketIfNotExists([]byte("info:" + link))
+		if err != nil {
+			return err
+		}
+
+		if err := updateLinkInfo(info, linkDataBucket); err != nil {
+			return err
+		}
+
 		return nil
 	})
 
@@ -131,9 +178,20 @@ type CounterData struct {
 	Count int64
 }
 
+// LinkInfoData ...
+type LinkInfoData struct {
+	Time time.Time
+	Info LinkInfo
+}
+
 // HistoryQueryOption ...
 type HistoryQueryOption struct {
 	Limit int64
+}
+
+type LinkStatistics struct {
+	Clicks []CounterData
+	Infos  []LinkInfoData
 }
 
 // Limit ...
@@ -144,7 +202,7 @@ func Limit(limit int64) HistoryQueryOption {
 }
 
 // GetClicksData ...
-func (db *HistoryDB) GetClicksData(accountID int64, link string, start, end time.Time, options ...HistoryQueryOption) ([]CounterData, error) {
+func (db *HistoryDB) GetClicksData(accountID int64, link string, start, end time.Time, options ...HistoryQueryOption) (*LinkStatistics, error) {
 
 	dataStoreLimit, err := db.Limiter.GetOptionValue("timedata_limit", accountID)
 	if err != nil {
@@ -170,6 +228,7 @@ func (db *HistoryDB) GetClicksData(accountID int64, link string, start, end time
 	}
 
 	var counters []CounterData
+	var infos []LinkInfoData
 
 	err = db.View(func(tx *bolt.Tx) error {
 
@@ -210,6 +269,39 @@ func (db *HistoryDB) GetClicksData(accountID int64, link string, start, end time
 
 		db.Logger.Printf("history - fetched interval(%s, %s), found: %v", startKey, endKey, len(counters))
 
+		linkInfoBucket := tx.Bucket([]byte("info:" + link))
+
+		if linkInfoBucket == nil {
+			db.Logger.Printf("history - link(%s) info bucket not found\n", link)
+			return nil
+		}
+
+		linkInfoBucketCursor := linkInfoBucket.Cursor()
+
+		if linkInfoBucketCursor == nil {
+			db.Logger.Printf("history - link(%s) info cursor empty\n", link)
+			return nil
+		}
+
+		for k, v := linkInfoBucketCursor.Seek([]byte(startKey)); k != nil && bytes.Compare(k, []byte(endKey)) <= 0; k, v = b.Next() {
+
+			timeK, err := time.Parse(time.RFC3339, string(k))
+			if err != nil {
+				return err
+			}
+
+			var linkInfo LinkInfo
+
+			if err := json.NewDecoder(bytes.NewBuffer(v)).Decode(&linkInfo); err != nil {
+				return err
+			}
+
+			infos = append(infos, LinkInfoData{
+				Time: timeK,
+				Info: linkInfo,
+			})
+		}
+
 		return nil
 	})
 
@@ -217,5 +309,5 @@ func (db *HistoryDB) GetClicksData(accountID int64, link string, start, end time
 		return nil, err
 	}
 
-	return counters, nil
+	return &LinkStatistics{Clicks: counters, Infos: infos}, nil
 }

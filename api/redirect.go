@@ -111,7 +111,19 @@ func Redirect(repo links.ILinksRepository, redirectLogger utils.DbLogger, histor
 			return
 		}
 
-		if err := historyDB.Insert(shortURL, r); err != nil {
+		referrers := r.Header[http.CanonicalHeaderKey("Referer")]
+
+		var referer string
+		if len(referrers) > 0 {
+			referer = referrers[0]
+		}
+
+		requestData := data.LinkRequestData{
+			Location: country,
+			Referrer: referer,
+		}
+
+		if err := historyDB.Insert(shortURL, requestData, r); err != nil {
 			logError(logger, err)
 			response.Text(w, "internal server error", http.StatusInternalServerError)
 			return

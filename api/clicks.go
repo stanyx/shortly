@@ -118,7 +118,7 @@ func GetLinkStat(repo *clicks.Repository, historyDB *data.HistoryDB, billingLimi
 		startTime := time.Date(c.Year(), c.Month(), 1, 0, 0, 0, 0, time.UTC)
 		endTime := startTime.Add(time.Hour * 24 * time.Duration(defaultDayLimit))
 
-		rows, err := historyDB.GetClicksData(claims.AccountID, link, startTime, endTime, data.Limit(defaultDayLimit))
+		data, err := historyDB.GetClicksData(claims.AccountID, link, startTime, endTime, data.Limit(defaultDayLimit))
 		if err != nil {
 			logError(logger, err)
 			response.Error(w, "(get link data) - internal error", http.StatusInternalServerError)
@@ -130,20 +130,42 @@ func GetLinkStat(repo *clicks.Repository, historyDB *data.HistoryDB, billingLimi
 				Datasets: []DataSetResponse{{Label: ""}},
 			},
 			Referrers: DataResponse{
-				Labels:   []string{"Location"},
-				Datasets: []DataSetResponse{{Label: "", Data: []interface{}{1}}},
+				Labels:   []string{},
+				Datasets: []DataSetResponse{{Label: "", Data: []interface{}{}}},
 			},
 			Locations: DataResponse{
-				Labels:   []string{"SMS/Email/Direct"},
-				Datasets: []DataSetResponse{{Label: "", Data: []interface{}{1}}},
+				Labels:   []string{},
+				Datasets: []DataSetResponse{{Label: "", Data: []interface{}{}}},
 			},
 		}
 
 		clickData := make(map[int64]int64)
-		for _, r := range rows {
+		for _, r := range data.Clicks {
 			t := r.Time
 			ts := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
 			clickData[ts.Unix()] += r.Count
+		}
+
+		referers := make(map[string]int)
+		location := make(map[string]int)
+
+		for _, i := range data.Infos {
+			for k, v := range i.Info.Referrers {
+				referers[k] += v
+			}
+			for k, v := range i.Info.Locations {
+				location[k] += v
+			}
+		}
+
+		for k, v := range referers {
+			resp.Referrers.Labels = append(resp.Referrers.Labels, k)
+			resp.Referrers.Datasets[0].Data = append(resp.Referrers.Datasets[0].Data, v)
+		}
+
+		for k, v := range location {
+			resp.Locations.Labels = append(resp.Locations.Labels, k)
+			resp.Locations.Datasets[0].Data = append(resp.Locations.Datasets[0].Data, v)
 		}
 
 		for i := 0; i < int(defaultDayLimit); i++ {

@@ -137,7 +137,7 @@ func (r *Repository) GetCampaignClicksData(accountID, campaignID int64, startTim
 		}
 		list = append(list, CampaignClickData{
 			ShortURL: shortURL,
-			Data:     data,
+			Data:     data.Clicks,
 		})
 	}
 
