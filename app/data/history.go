@@ -93,6 +93,21 @@ func (d *HistoryDB) InsertClick(link string, t time.Time, counter int) error {
 	})
 }
 
+func (d *HistoryDB) InsertInfo(link string, t time.Time, linkInfo LinkInfo) error {
+	return d.Update(func(tx *bolt.Tx) error {
+		clicksBucket, err := tx.CreateBucketIfNotExists([]byte("info:" + link))
+		if err != nil {
+			return err
+		}
+		bf := bytes.NewBuffer([]byte{})
+		if err := json.NewEncoder(bf).Encode(&linkInfo); err != nil {
+			return nil
+		}
+		key := t.Format(time.RFC3339)
+		return clicksBucket.Put([]byte(key), bf.Bytes())
+	})
+}
+
 type LinkRequestData struct {
 	Location string
 	Referrer string

@@ -26,6 +26,7 @@ type LinkRedirect struct {
 	Headers  http.Header
 	IPAddr   string
 	Country  string
+	Referer  string
 }
 
 // Redirect ...
@@ -135,6 +136,7 @@ func Redirect(repo links.ILinksRepository, redirectLogger utils.DbLogger, histor
 			Headers:  r.Header,
 			IPAddr:   ipAddr,
 			Country:  country,
+			Referer:  referer,
 		})
 		if err != nil {
 			logError(logger, err)

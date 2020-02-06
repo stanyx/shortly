@@ -74,12 +74,34 @@ func LoadHistoryFromDatabase(repo *links.LinksRepository, clicksRepo *clicks.Rep
 		if err := historyDB.InsertDetail(r.Short, r.AccountID); err != nil {
 			return err
 		}
-		data, err := clicksRepo.GetClicksDataByDay(r.Short)
+		clickData, err := clicksRepo.GetClicksDataByDay(r.Short)
 		if err != nil {
 			return err
 		}
-		for _, d := range data {
+		for _, d := range clickData {
 			if err := historyDB.InsertClick(r.Short, d.Time, int(d.Count)); err != nil {
+				return err
+			}
+		}
+		info, err := clicksRepo.GetLinkInfoByDay(r.Short)
+		if err != nil {
+			return err
+		}
+
+		agg := make(map[time.Time]*data.LinkInfo)
+		for _, d := range info {
+			if agg[d.Time] == nil {
+				agg[d.Time] = &data.LinkInfo{
+					Referrers: make(map[string]int),
+					Locations: make(map[string]int),
+				}
+			}
+			agg[d.Time].Referrers[d.Referer] += int(d.Count)
+			agg[d.Time].Locations[d.Location] += int(d.Count)
+		}
+
+		for t, d := range agg {
+			if err := historyDB.InsertInfo(r.Short, t, *d); err != nil {
 				return err
 			}
 		}

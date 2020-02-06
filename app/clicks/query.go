@@ -96,3 +96,33 @@ func (r *Repository) GetClicksDataByDay(shortURL string) ([]ClickData, error) {
 
 	return list, nil
 }
+
+func (r *Repository) GetLinkInfoByDay(shortURL string) ([]LinkData, error) {
+
+	rows, err := r.DB.Query(`
+	select date_trunc('day', timestamp) t, country, referer, count(*) from redirect_log where short_url = $1
+	group by t, country, referer
+	`, shortURL)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var list []LinkData
+	for rows.Next() {
+		var u LinkData
+		err := rows.Scan(&u.Time, &u.Location, &u.Referer, &u.Count)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, u)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	return list, nil
+}
