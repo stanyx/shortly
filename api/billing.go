@@ -17,6 +17,7 @@ import (
 	"github.com/stripe/stripe-go/webhook"
 
 	"shortly/api/response"
+	"shortly/utils"
 
 	"shortly/app/billing"
 	"shortly/config"
@@ -158,9 +159,8 @@ func UpgradeBillingPlan(repo *billing.BillingRepository, billingLimiter *billing
 			response.Error(w, "get billing plan error", http.StatusInternalServerError)
 			return
 		}
-		l, _ := time.LoadLocation("UTC")
-		tNow := time.Now().In(l)
-		start := time.Date(tNow.Year(), tNow.Month(), tNow.Day(), 0, 0, 0, 0, time.UTC).In(l)
+
+		start := utils.DayNow()
 		end := start.Add(time.Hour * 24 * 30)
 
 		if form.IsAnnual {

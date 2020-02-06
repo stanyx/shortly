@@ -17,8 +17,7 @@ import (
 
 func incrementTimeSeriesCounter(bucket *bolt.Bucket) error {
 
-	timeValue := time.Now()
-	dayRounded := time.Date(timeValue.Year(), timeValue.Month(), timeValue.Day(), 0, 0, 0, 0, time.UTC)
+	dayRounded := utils.DayNow()
 
 	key := dayRounded.Format(time.RFC3339)
 
@@ -40,15 +39,14 @@ type LinkInfo struct {
 
 func updateLinkInfo(info LinkRequestData, bucket *bolt.Bucket) error {
 
-	timeValue := time.Now()
-	dayRounded := time.Date(timeValue.Year(), timeValue.Month(), timeValue.Day(), 0, 0, 0, 0, time.UTC)
+	dayRounded := utils.DayNow()
 	key := dayRounded.Format(time.RFC3339)
 	linkInfo := bucket.Get([]byte(key))
 
-	var linkInfoData LinkInfo
+	linkInfoData := &LinkInfo{}
 	if len(linkInfo) > 0 {
-		if err := json.NewDecoder(bytes.NewBuffer(linkInfo)).Decode(&linkInfoData); err != nil {
-			return nil
+		if err := json.NewDecoder(bytes.NewBuffer(linkInfo)).Decode(linkInfoData); err != nil {
+			return err
 		}
 	} else {
 		linkInfoData.Referrers = make(map[string]int)
@@ -60,7 +58,7 @@ func updateLinkInfo(info LinkRequestData, bucket *bolt.Bucket) error {
 
 	bf := bytes.NewBuffer([]byte{})
 	if err := json.NewEncoder(bf).Encode(&linkInfoData); err != nil {
-		return nil
+		return err
 	}
 
 	return bucket.Put([]byte(key), bf.Bytes())
@@ -81,6 +79,13 @@ type HistoryDB struct {
 // LinkDetailsNotFound ...
 var LinkDetailsNotFound = errors.New("link details not found")
 
+// DeleteClicks ...
+func (d *HistoryDB) DeleteClicks(link string) error {
+	return d.Update(func(tx *bolt.Tx) error {
+		return tx.DeleteBucket([]byte("clicks:" + link))
+	})
+}
+
 // InsertClick ...
 func (d *HistoryDB) InsertClick(link string, t time.Time, counter int) error {
 	return d.Update(func(tx *bolt.Tx) error {
@@ -93,9 +98,16 @@ func (d *HistoryDB) InsertClick(link string, t time.Time, counter int) error {
 	})
 }
 
+// DeleteInfos ...
+func (d *HistoryDB) DeleteInfos(link string) error {
+	return d.Update(func(tx *bolt.Tx) error {
+		return tx.DeleteBucket([]byte("info:" + link))
+	})
+}
+
 func (d *HistoryDB) InsertInfo(link string, t time.Time, linkInfo LinkInfo) error {
 	return d.Update(func(tx *bolt.Tx) error {
-		clicksBucket, err := tx.CreateBucketIfNotExists([]byte("info:" + link))
+		bucket, err := tx.CreateBucketIfNotExists([]byte("info:" + link))
 		if err != nil {
 			return err
 		}
@@ -104,7 +116,7 @@ func (d *HistoryDB) InsertInfo(link string, t time.Time, linkInfo LinkInfo) erro
 			return nil
 		}
 		key := t.Format(time.RFC3339)
-		return clicksBucket.Put([]byte(key), bf.Bytes())
+		return bucket.Put([]byte(key), bf.Bytes())
 	})
 }
 
@@ -298,7 +310,7 @@ func (db *HistoryDB) GetClicksData(accountID int64, link string, start, end time
 			return nil
 		}
 
-		for k, v := linkInfoBucketCursor.Seek([]byte(startKey)); k != nil && bytes.Compare(k, []byte(endKey)) <= 0; k, v = b.Next() {
+		for k, v := linkInfoBucketCursor.Seek([]byte(startKey)); k != nil && bytes.Compare(k, []byte(endKey)) <= 0; k, v = linkInfoBucketCursor.Next() {
 
 			timeK, err := time.Parse(time.RFC3339, string(k))
 			if err != nil {

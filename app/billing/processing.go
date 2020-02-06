@@ -2,6 +2,7 @@ package billing
 
 import (
 	"log"
+	"shortly/utils"
 	"sync"
 	"time"
 )
@@ -26,7 +27,7 @@ func SubsriptionCheck(repo *BillingRepository, billingLimiter *BillingLimiter, l
 			var wg sync.WaitGroup
 
 			for _, acc := range accountPlans {
-				if acc.End.Before(time.Now()) {
+				if acc.End.Before(utils.Now()) {
 					wg.Add(1)
 					go func(acc AccountBillingPlan) {
 						lock := billingLimiter.Lock(acc.ID)

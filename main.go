@@ -74,10 +74,15 @@ func LoadHistoryFromDatabase(repo *links.LinksRepository, clicksRepo *clicks.Rep
 		if err := historyDB.InsertDetail(r.Short, r.AccountID); err != nil {
 			return err
 		}
+
+		_ = historyDB.DeleteClicks(r.Short)
+		_ = historyDB.DeleteInfos(r.Short)
+
 		clickData, err := clicksRepo.GetClicksDataByDay(r.Short)
 		if err != nil {
 			return err
 		}
+
 		for _, d := range clickData {
 			if err := historyDB.InsertClick(r.Short, d.Time, int(d.Count)); err != nil {
 				return err
@@ -136,7 +141,7 @@ func RunMigrations(database *sql.DB) error {
 // @BasePath /api/v1
 func main() {
 
-	rand.Seed(time.Now().UnixNano())
+	rand.Seed(utils.Now().UnixNano())
 
 	logger := log.New(os.Stdout, "", log.LstdFlags|log.Llongfile)
 

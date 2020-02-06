@@ -770,7 +770,7 @@ func GetTotalLinks(repo links.ILinksRepository, logger *log.Logger) http.Handler
 		claims := r.Context().Value("user").(*JWTClaims)
 		accountID := claims.AccountID
 
-		count, err := repo.GetUserLinksCount(accountID, time.Time{}, time.Now())
+		count, err := repo.GetUserLinksCount(accountID, time.Time{}, utils.Now())
 		if err != nil {
 			logError(logger, err)
 			response.Error(w, "internal error", http.StatusInternalServerError)

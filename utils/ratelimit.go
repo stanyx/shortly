@@ -43,11 +43,11 @@ func RateLimit(getLimiter func(w http.ResponseWriter, r *http.Request) *rate.Lim
 
 			ipLimiter, exists := limiterStorage[ip]
 			if !exists {
-				ipLimiter = &IPRateLimiter{getLimiter(w, r), time.Now()}
+				ipLimiter = &IPRateLimiter{getLimiter(w, r), Now()}
 				// Include the current time when creating a new visitor.
 				limiterStorage[ip] = ipLimiter
 			} else {
-				ipLimiter.created = time.Now()
+				ipLimiter.created = Now()
 			}
 
 			if !ipLimiter.Allow() {

@@ -13,6 +13,7 @@ import (
 	bolt "go.etcd.io/bbolt"
 
 	"shortly/app/links"
+	"shortly/utils"
 )
 
 const billingDatabaseName = "billing"
@@ -241,10 +242,12 @@ func (l *BillingLimiter) LoadData() error {
 		return nil
 	}
 
+	curTime := utils.Now()
+
 	l.defaultAccountPlan = AccountBillingPlan{
 		BillingPlan: *defaultPlan,
-		Start:       time.Now(),
-		End:         time.Now().Add(24 * 365 * 100 * time.Hour),
+		Start:       curTime,
+		End:         curTime.Add(24 * 365 * 100 * time.Hour),
 	}
 
 	plans, err := l.Repo.GetAllUserBillingPlans(0)
@@ -255,7 +258,6 @@ func (l *BillingLimiter) LoadData() error {
 	for _, p := range plans {
 
 		// if current plan expired reset to default plan
-		curTime := time.Now()
 		if !(p.Start.Before(curTime) && p.End.After(curTime)) {
 			if err := l.DowngradeToDefaultPlan(p.AccountID); err != nil {
 				return errors.Wrap(err, "downgrade to default plan error:")
@@ -308,7 +310,7 @@ func (l *BillingLimiter) getOption(tx *bolt.Tx, optionName string, accountID int
 		return nil, err
 	}
 
-	curTime := time.Now()
+	curTime := utils.Now()
 	if !(curTime.After(acc.Start) && curTime.Before(acc.End)) {
 		return nil, BillingAccountExpiredError
 	}

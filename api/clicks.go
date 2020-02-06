@@ -6,6 +6,7 @@ import (
 	"shortly/app/billing"
 	"shortly/app/data"
 	"shortly/app/rbac"
+	"shortly/utils"
 	"time"
 
 	"github.com/go-chi/chi"
@@ -82,8 +83,7 @@ func GetDayClicksData(repo *clicks.Repository, logger *log.Logger) http.HandlerF
 			Datasets: []DataSetResponse{{Label: ""}},
 		}
 
-		c := time.Now()
-		t := time.Date(c.Year(), c.Month(), c.Day(), 0, 0, 0, 0, time.UTC)
+		t := utils.DayNow()
 
 		for i := 0; i < 24; i++ {
 			resp.Labels = append(resp.Labels, t.Add(time.Hour*time.Duration(i)).Format("15:04"))
@@ -114,8 +114,7 @@ func GetLinkStat(repo *clicks.Repository, historyDB *data.HistoryDB, billingLimi
 
 		link := chi.URLParam(r, "link")
 
-		c := time.Now()
-		startTime := time.Date(c.Year(), c.Month(), 1, 0, 0, 0, 0, time.UTC)
+		startTime := utils.MonthNow()
 		endTime := startTime.Add(time.Hour * 24 * time.Duration(defaultDayLimit))
 
 		data, err := historyDB.GetClicksData(claims.AccountID, link, startTime, endTime, data.Limit(defaultDayLimit))

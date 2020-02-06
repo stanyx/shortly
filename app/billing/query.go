@@ -3,6 +3,7 @@ package billing
 import (
 	"database/sql"
 	"fmt"
+	"shortly/utils"
 	"time"
 
 	"github.com/pkg/errors"
@@ -50,12 +51,14 @@ func (r *BillingRepository) UpgradeBillingPlan(tx *sql.Tx, accountID int64, acti
 		return err
 	}
 
+	curTime := utils.Now()
+
 	if activation.Start.Unix() == 0 {
-		activation.Start = time.Now()
+		activation.Start = curTime
 	}
 
 	if activation.End.Unix() == 0 {
-		activation.End = time.Now().Add(time.Hour * 24 * 30)
+		activation.End = curTime.Add(time.Hour * 24 * 30)
 	}
 
 	if _, err := tx.Exec(`
@@ -409,8 +412,7 @@ func (r *BillingRepository) AttachToDefaultBilling(tx *sql.Tx, accountID, planID
 		return nil, ErrBillingAccountAlreadyExists
 	}
 
-	tNow := time.Now()
-	start := time.Date(tNow.Year(), tNow.Month(), tNow.Day(), 0, 0, 0, 0, time.UTC)
+	start := utils.DayNow()
 	end := start.Add(time.Duration(24*365*100) * time.Hour)
 
 	planActivation := BillingPlanActivation{
