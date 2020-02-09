@@ -49,13 +49,20 @@ func Redirect(repo links.ILinksRepository, redirectLogger utils.DbLogger, histor
 		var err error
 
 		if geoipDB == nil {
-			geoipDB, _ = geoip2.Open(filepath.Join(geoipDbPath, "GeoLite2-Country", "GeoLite2-Country.mmdb"))
+			geoipDBAbsolutePath := filepath.Join(geoipDbPath, "GeoLite2-Country", "GeoLite2-Country.mmdb")
+			geoipDB, err = geoip2.Open(geoipDBAbsolutePath)
+			if err != nil {
+				logger.Printf("geoip database not found in path: %v\n", geoipDBAbsolutePath)
+			}
 		}
 
 		if geoipDB != nil {
-			countryObject, err := geoipDB.Country(net.ParseIP(ipAddr))
+			validIP := net.ParseIP(ipAddr)
+			countryObject, err := geoipDB.Country(validIP)
 			if err == nil {
 				country = countryObject.Country.Names["en"]
+			} else {
+				logger.Printf("geoip parse error: %v", country)
 			}
 		}
 

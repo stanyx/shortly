@@ -37,6 +37,7 @@ import (
 	"shortly/app/dashboards"
 	"shortly/app/data"
 	"shortly/app/links"
+	"shortly/app/maintance"
 	"shortly/app/rbac"
 	"shortly/app/tags"
 	"shortly/app/webhooks"
@@ -505,8 +506,12 @@ func main() {
 		}
 	}
 
+	if err := maintance.EnsureGeoIPDatabase(database, appConfig.GeoIP.DatabasePath); err != nil {
+		log.Fatal(err)
+	}
+
 	r.Post("/maintance/upload_geoip_db", basicAuth(api.UpdateGeoIPDatabase(
-		appConfig.GeoIP.DownloadURL, appConfig.GeoIP.DatabasePath, appConfig.GeoIP.LicenseKey, logger,
+		database, appConfig.GeoIP.DownloadURL, appConfig.GeoIP.DatabasePath, appConfig.GeoIP.LicenseKey, logger,
 	)))
 	r.Post("/maintance/ip_info", basicAuth(api.GetIPInfo(appConfig.GeoIP.DatabasePath)))
 	r.Post("/maintance/load_geoip_database", basicAuth(

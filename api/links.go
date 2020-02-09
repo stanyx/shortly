@@ -54,7 +54,7 @@ func LinksRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.Han
 
 }
 
-// GetAccountID ...
+// GetAccountID extract account id from http context
 func GetAccountID(r *http.Request) int64 {
 	claims := r.Context().Value("user").(*JWTClaims)
 	return claims.AccountID
@@ -104,6 +104,11 @@ func GetURLList(repo links.ILinksRepository, logger *log.Logger) http.HandlerFun
 
 }
 
+type LinkListResponse struct {
+	Links []LinkResponse `json:"links"`
+	Total int64          `json:"total"`
+}
+
 // GetUserURLList ...
 func GetUserURLList(repo links.ILinksRepository, logger *log.Logger) http.HandlerFunc {
 
@@ -117,6 +122,16 @@ func GetUserURLList(repo links.ILinksRepository, logger *log.Logger) http.Handle
 		longUrlFilter := query["longUrl"]
 		fullTextFilter := query["fullText"]
 		linkIDFilter := query["linkID"]
+
+		var limit, offset int64
+		limitArg := query["limit"]
+		if len(limitArg) > 0 {
+			limit, _ = strconv.ParseInt(limitArg[0], 0, 64)
+		}
+		offsetArg := query["offset"]
+		if len(offsetArg) > 0 {
+			offset, _ = strconv.ParseInt(offsetArg[0], 0, 64)
+		}
 
 		var filters []links.LinkFilter
 		if len(tagsFilter) > 0 {
@@ -140,7 +155,7 @@ func GetUserURLList(repo links.ILinksRepository, logger *log.Logger) http.Handle
 			filters = append(filters, links.LinkFilter{LinkID: linkID})
 		}
 
-		rows, err := repo.GetUserLinks(claims.AccountID, claims.UserID, filters...)
+		result, err := repo.GetUserLinks(claims.AccountID, claims.UserID, limit, offset, filters...)
 		if err != nil {
 			logError(logger, err)
 			response.Error(w, "internal error", http.StatusInternalServerError)
@@ -148,7 +163,7 @@ func GetUserURLList(repo links.ILinksRepository, logger *log.Logger) http.Handle
 		}
 
 		var list []LinkResponse
-		for _, r := range rows {
+		for _, r := range result.Rows {
 			list = append(list, LinkResponse{
 				ID:          r.ID,
 				Short:       r.Short,
@@ -159,7 +174,10 @@ func GetUserURLList(repo links.ILinksRepository, logger *log.Logger) http.Handle
 			})
 		}
 
-		response.Object(w, list, http.StatusOK)
+		response.Object(w, &LinkListResponse{
+			Links: list,
+			Total: result.Total,
+		}, http.StatusOK)
 	})
 
 }
@@ -412,14 +430,14 @@ func DeleteUserLink(repo *links.LinksRepository, urlCache cache.UrlCache, billin
 			return
 		}
 
-		links, err := repo.GetUserLinks(accountID, claims.UserID, links.LinkFilter{LinkID: linkID})
+		links, err := repo.GetUserLinks(accountID, claims.UserID, 1, 0, links.LinkFilter{LinkID: linkID})
 		if err != nil {
 			logError(logger, err)
 			response.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 
-		link := links[0]
+		link := links.Rows[0]
 
 		lock := billingLimiter.Lock(accountID)
 		defer lock.Unlock()

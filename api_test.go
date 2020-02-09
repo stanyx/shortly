@@ -45,11 +45,12 @@ func (repo *MockLinksRepository) GetLinkByID(_ int64) (links.Link, error) {
 	return links.Link{}, nil
 }
 
-func (repo *MockLinksRepository) GetUserLinks(_, _ int64, filters ...links.LinkFilter) ([]links.Link, error) {
-	return []links.Link{
+func (repo *MockLinksRepository) GetUserLinks(_, _, _, _ int64, filters ...links.LinkFilter) (*links.LinkResult, error) {
+	rows := []links.Link{
 		{Short: "12345", Long: "www.facebook.com"},
 		{Short: "ABCDE", Long: "www.netflix.com"},
-	}, nil
+	}
+	return &links.LinkResult{Total: 2, Rows: rows}, nil
 }
 
 func (repo *MockLinksRepository) UpdateUserLink(_, _ int64, _ *links.Link) (*sql.Tx, error) {

@@ -3,28 +3,37 @@ import * as React from 'react';
 import {Link} from 'react-router-dom';
 import {InputSwitch} from 'primereact/inputswitch';
 
+import Paginator from './lib/paginator';
 import {httpGet, httpPost, httpDelete} from '../utils';
 
 class LinkTableState {
     rows: Array<any>;
+    total: number;
+    limit: number;
+    offset: number;
 }
 
 class LinksTable extends React.Component<any, LinkTableState> {
     constructor(props: any) {
         super(props);
-        this.state = {rows: []};
+        this.state = {rows: [], total: 0, limit: 20, offset: 0};
     }
-    loadData() {
-        httpGet('/api/v1/users/links').then((response: any) => {
-            this.setState({rows: (response.data.result ? response.data.result: [])});
+    loadData(limit: number, offset: number) {
+        httpGet(`/api/v1/users/links?limit=${limit}&offset=${offset}`).then((response: any) => {
+            this.setState({
+                limit: limit,
+                offset: offset,
+                rows: (response.data.result.links ? response.data.result.links: []),
+                total: response.data.result.total
+            });
         })
     }
     componentDidMount() {
-        this.loadData();
+        this.loadData(this.state.limit, this.state.offset);
     }
     deleteRow(linkID: number) {
         httpDelete(`/api/v1/users/links/${linkID}`).then(() => {
-            this.loadData();
+            this.loadData(this.state.limit, this.state.offset);
         });
     }
     toggleLink(r: any, value: boolean, index: number) {
@@ -55,7 +64,7 @@ class LinksTable extends React.Component<any, LinkTableState> {
                             <h3 className="card-title">Links</h3>
                         </div>
                         <div className="card-body">
-                            <div id="example2_wrapper" className="dataTables_wrapper dt-bootstrap4">
+                            <div className="dataTables_wrapper dt-bootstrap4">
                                 <div className="row">
                                     <div className="col-sm-12 col-md-6"></div>
                                     <div className="col-sm-12 col-md-6"></div>
@@ -67,7 +76,7 @@ class LinksTable extends React.Component<any, LinkTableState> {
                                                 <tr role="row">
                                                     <th className="sorting_asc">Short link</th>
                                                     <th className="sorting">Long link</th>
-                                                    <th className="sorting">Is Active</th>
+                                                    <th className="sorting">Is Active?</th>
                                                     <th></th>
                                                     <th></th>
                                                 </tr>
@@ -112,43 +121,11 @@ class LinksTable extends React.Component<any, LinkTableState> {
                                         </table>
                                     </div>
                                 </div>
-                                <div className="row">
-                                    <div className="col-sm-12 col-md-5">
-                                        <div className="dataTables_info" id="example2_info" role="status" aria-live="polite">
-                                            Showing 1 to 10 of - entries
-                                        </div>
-                                    </div>
-                                    <div className="col-sm-12 col-md-7">
-                                        <div className="dataTables_paginate paging_simple_numbers" id="example2_paginate">
-                                            <ul className="pagination">
-                                                <li className="paginate_button page-item previous disabled" id="example2_previous">
-                                                    <a href="#" className="page-link">Previous</a>
-                                                </li>
-                                                <li className="paginate_button page-item active">
-                                                    <a href="#" className="page-link">1</a>
-                                                </li>
-                                                <li className="paginate_button page-item ">
-                                                    <a href="#" className="page-link">2</a>
-                                                </li>
-                                                <li className="paginate_button page-item ">
-                                                    <a href="#" className="page-link">3</a>
-                                                </li>
-                                                <li className="paginate_button page-item ">
-                                                    <a href="#" className="page-link">4</a>
-                                                </li>
-                                                <li className="paginate_button page-item ">
-                                                    <a href="#" className="page-link">5</a>
-                                                </li>
-                                                <li className="paginate_button page-item ">
-                                                    <a href="#" className="page-link">6</a>
-                                                </li>
-                                                <li className="paginate_button page-item next" id="example2_next">
-                                                    <a href="#" className="page-link">Next</a>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
+                                <Paginator 
+                                    total={this.state.total} 
+                                    offset={this.state.offset} 
+                                    limit={this.state.limit} 
+                                    loadPage={(page: number) => this.loadData(this.state.limit, (page - 1) * this.state.limit)}/>
                             </div>
                         </div>
                     </div>

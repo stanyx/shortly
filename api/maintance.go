@@ -2,6 +2,7 @@ package api
 
 import (
 	"bufio"
+	"database/sql"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -22,7 +23,7 @@ import (
 )
 
 // UpdateGeoIPDatabase ...
-func UpdateGeoIPDatabase(downloadURL, geoIPDatabasePath, key string, logger *log.Logger) http.HandlerFunc {
+func UpdateGeoIPDatabase(db *sql.DB, downloadURL, geoIPDatabasePath, key string, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -107,17 +108,44 @@ func UpdateGeoIPDatabase(downloadURL, geoIPDatabasePath, key string, logger *log
 			return
 		}
 
+		re, err := regexp.Compile(`_\d+`)
+		if err != nil {
+			logError(logger, err)
+			response.Error(w, "rename file error", http.StatusInternalServerError)
+			return
+		}
+
+		var geo2ipDatabaseName string
+
 		for i, m := range matches {
-			re, err := regexp.Compile(`_\d+`)
-			if err != nil {
+			geo2ipDatabaseName = re.ReplaceAllString(m, "")
+			if err := os.Rename(m, geo2ipDatabaseName); err != nil {
 				logError(logger, err)
 				response.Error(w, "rename file error", http.StatusInternalServerError)
 				return
 			}
-			if err := os.Rename(m, re.ReplaceAllString(m, "")); err != nil {
+
+			f, err := os.Open(filepath.Join(geo2ipDatabaseName, "GeoLite2-Country.mmdb"))
+			if err != nil {
 				logError(logger, err)
-				response.Error(w, "rename file error", http.StatusInternalServerError)
+				response.Error(w, "open file error", http.StatusInternalServerError)
 				return
+			}
+
+			fileContent, err := ioutil.ReadAll(f)
+			if err != nil {
+				f.Close()
+				logError(logger, err)
+				response.Error(w, "read file error", http.StatusInternalServerError)
+				return
+			}
+
+			f.Close()
+
+			_, err = db.Exec("insert into files (name, content, downloaded_at) values ($1, $2, now())", "geo2ip", fileContent)
+			if err != nil {
+				logError(logger, err)
+				response.Error(w, "insert data error", http.StatusInternalServerError)
 			}
 
 			if i > 0 {

@@ -22,7 +22,7 @@ type ILinksRepository interface {
 	CreateLink(*Link) error
 	CreateUserLink(accountID int64, link *Link) (*sql.Tx, int64, error)
 	DeleteUserLink(accountID int64, linkID int64) (*sql.Tx, int64, error)
-	GetUserLinks(accountID, userID int64, filters ...LinkFilter) ([]Link, error)
+	GetUserLinks(accountID, userID int64, limit, offset int64, filters ...LinkFilter) (*LinkResult, error)
 	GetUserLinksCount(accountID int64, startTime, endTime time.Time) (int, error)
 	AddUrlToGroup(groupID int64, linkID int64) error
 	DeleteUrlFromGroup(groupID int64, linkID int64) error
@@ -131,8 +131,15 @@ type LinkFilter struct {
 	LinkID   int64
 }
 
+type LinkResult struct {
+	Rows  []Link
+	Total int64
+}
+
 // GetUserLinks ...
-func (repo *LinksRepository) GetUserLinks(accountID, userID int64, filters ...LinkFilter) ([]Link, error) {
+func (repo *LinksRepository) GetUserLinks(accountID, userID int64, limit, offset int64, filters ...LinkFilter) (*LinkResult, error) {
+
+	querySelect := "select u.id, u.short_url, u.long_url, u.description, u.tl, u.hide"
 
 	query := `
 	with url_group as (
@@ -143,7 +150,7 @@ func (repo *LinksRepository) GetUserLinks(accountID, userID int64, filters ...Li
 		select link_id, array_agg(tags.tag) tags_list from tags 
 		group by link_id
 	)
-	select u.id, u.short_url, u.long_url, u.description, u.tl, u.hide
+	%s
 	from (
 		select *, t.tags_list tl from links
 		left join url_group ug on ug.link_id = links.id
@@ -151,7 +158,6 @@ func (repo *LinksRepository) GetUserLinks(accountID, userID int64, filters ...Li
 		where (links.account_id = $1 and not exists (select 1 from url_group)) 
 		or (ug.link_id is not null and exists (select 1 from url_group))
 	) u
-	order by u.id desc
 	`
 
 	queryArgs := []interface{}{accountID, userID}
@@ -201,6 +207,25 @@ func (repo *LinksRepository) GetUserLinks(accountID, userID int64, filters ...Li
 		query += "where " + strings.Join(filterExpressions, " AND ")
 	}
 
+	var result LinkResult
+
+	totalQuery := query
+	err := repo.DB.QueryRow(fmt.Sprintf(totalQuery, "select count(*) "), queryArgs...).Scan(&result.Total)
+	if err != nil {
+		return nil, err
+	}
+
+	query = fmt.Sprintf(query, querySelect) + " order by u.id desc"
+	if limit > 0 {
+		queryArgs = append(queryArgs, limit)
+		query += fmt.Sprintf(" limit $%d", len(queryArgs))
+	}
+
+	if offset > 0 {
+		queryArgs = append(queryArgs, offset)
+		query += fmt.Sprintf(" offset $%d", len(queryArgs))
+	}
+
 	rows, err := repo.DB.Query(query, queryArgs...)
 
 	if err != nil {
@@ -218,7 +243,8 @@ func (repo *LinksRepository) GetUserLinks(accountID, userID int64, filters ...Li
 		list = append(list, link)
 	}
 
-	return list, nil
+	result.Rows = list
+	return &result, nil
 }
 
 // GetLinkByID ...

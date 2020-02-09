@@ -106,7 +106,7 @@ class MainDashboardComponent extends React.Component<any, state> {
             }
         })
         httpGet(`/api/v1/users/links`).then((response) => {
-            this.setState({links: (response.data.result || [])});
+            this.setState({links: (response.data.result.links || [])});
         })
     }
     showData(dashboard: any) {
