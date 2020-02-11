@@ -541,7 +541,7 @@ func main() {
 	// server running
 	go func() {
 		srv = &http.Server{
-			Addr:    fmt.Sprintf(":%v", serverPort),
+			Addr:    fmt.Sprintf("0.0.0.0:%v", serverPort),
 			Handler: r,
 		}
 		logger.Printf("starting web server at port: %v, tls: %v\n", serverConfig.Port, appConfig.Server.UseTLS)
