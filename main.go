@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -171,17 +172,20 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	billingDataStorage, err := bolt.Open(appConfig.Billing.Dir+"/billing.db", 0666, nil)
+	billingStoragePath := filepath.Join(appConfig.Billing.Dir, "billing.db")
+	billingDataStorage, err := bolt.Open(billingStoragePath, os.ModePerm, nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	linksStorage, err := bolt.Open(appConfig.LinkDB.Dir+"/links.db", 0666, nil)
+	linkStoragePath := filepath.Join(appConfig.LinkDB.Dir, "links.db")
+	linksStorage, err := bolt.Open(linkStoragePath, os.ModePerm, nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	serviceStorage, err := bolt.Open(appConfig.ServiceDB.Dir+"/service.db", 0666, nil)
+	serviceStoragePath := filepath.Join(appConfig.ServiceDB.Dir, "service.db")
+	serviceStorage, err := bolt.Open(serviceStoragePath, os.ModePerm, nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
