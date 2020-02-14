@@ -27,6 +27,7 @@ const NavMenu = () => {
         {url: '/', title: 'Home', icon: 'fa fa-home', active: true},
         {url: '/dashboards', title: 'Dashboards', icon: 'fa fa-tachometer-alt'},
         {url: '/links', title: 'Links', icon: 'fa fa-link'},
+        {url: '/campaigns', title: 'Campaigns', icon: 'fa fa-table'},
         {url: '/roles', title: 'Roles', icon: 'fa fa-user-tag'},
         {url: '/users', title: 'Users', icon: 'fa fa-user'},
         {url: '/groups', title: 'Groups', icon: 'fa fa-layer-group'},

@@ -37,7 +37,7 @@ type LinkRedirect struct {
 // @Success 308
 // @Failure 400
 // @Failure 500
-// @Router /* [get]
+// @Router / [get]
 func Redirect(repo links.ILinksRepository, redirectLogger utils.DbLogger, historyDB *data.HistoryDB, urlCache cache.UrlCache, logger *log.Logger, geoipDbPath string) http.HandlerFunc {
 
 	var geoipDB *geoip2.Reader

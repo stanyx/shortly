@@ -18,6 +18,11 @@ type CampaignLink struct {
 	Description string
 }
 
+// CampaignRepository ...
+type CampaignRepository interface {
+	GetUserCampaigns(accountID int64) ([]Campaign, error)
+}
+
 // Repository ...
 type Repository struct {
 	DB        *sql.DB
@@ -28,7 +33,8 @@ type Repository struct {
 // GetUserCampaigns ...
 func (r *Repository) GetUserCampaigns(accountID int64) ([]Campaign, error) {
 
-	query := `select cmp.id, l.id, l.short_url, l.long_url, l.description
+	query := `
+		select cmp.id, l.id, l.short_url, l.long_url, l.description
 		from campaigns cmp
 		inner join campaigns_links cmpl on cmpl.campaign_id = cmp.id 
 		inner join links l on l.id = cmpl.link_id
@@ -43,10 +49,6 @@ func (r *Repository) GetUserCampaigns(accountID int64) ([]Campaign, error) {
 
 	defer rows.Close()
 
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
 	linksByCampaign := make(map[int64][]CampaignLink)
 
 	for rows.Next() {
@@ -58,12 +60,18 @@ func (r *Repository) GetUserCampaigns(accountID int64) ([]Campaign, error) {
 		linksByCampaign[link.CampaignID] = append(linksByCampaign[link.CampaignID], link)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	campaignsQuery := `select id, name, description from campaigns where account_id = $1`
 	campaignRows, err := r.DB.Query(campaignsQuery, accountID)
 
 	if err != nil {
 		return nil, err
 	}
+
+	defer campaignRows.Close()
 
 	var list []Campaign
 
@@ -85,8 +93,6 @@ func (r *Repository) GetUserCampaigns(accountID int64) ([]Campaign, error) {
 
 		list = append(list, cmp)
 	}
-
-	defer campaignRows.Close()
 
 	if err := campaignRows.Err(); err != nil {
 		return nil, err

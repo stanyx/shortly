@@ -33,7 +33,7 @@ func CampaignRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.
 		rbac.NewPermission("/api/v1/campaigns/stop", "stop_campaign", "POST"),
 		StopCampaign(repo, logger),
 	)))
-	r.Delete("/api/v1/campaigns", http.HandlerFunc(auth(
+	r.Delete("/api/v1/campaigns/{id}", http.HandlerFunc(auth(
 		rbac.NewPermission("/api/v1/campaigns", "delete_campaign", "DELETE"),
 		DeleteCampaign(repo, logger),
 	)))
@@ -67,8 +67,16 @@ type CampaignLinkResponse struct {
 	Description string `json:"description"`
 }
 
-// GetUserCampaigns ...
-func GetUserCampaigns(repo *campaigns.Repository, logger *log.Logger) http.Handler {
+// GetUserCampaigns request handler returns a campaings list for current authorized account
+// @Tags Campaigns
+// @Description read campaigns list for current authorized account
+// @ID get-all-campaigns
+// @Produce  json
+// @Success 200 {object} response.ApiResponse
+// @Failure 401 {object} response.ApiResponse
+// @Failure 500 {object} response.ApiResponse
+// @Router /campaigns [post]
+func GetUserCampaigns(repo campaigns.CampaignRepository, logger *log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		claims := r.Context().Value("user").(*JWTClaims)
@@ -77,11 +85,11 @@ func GetUserCampaigns(repo *campaigns.Repository, logger *log.Logger) http.Handl
 		cmps, err := repo.GetUserCampaigns(accountID)
 		if err != nil {
 			logError(logger, err)
-			response.Error(w, "get campaigns error", http.StatusBadRequest)
+			response.Error(w, "get campaigns error", http.StatusInternalServerError)
 			return
 		}
 
-		var resp []CampaignResponse
+		resp := make([]CampaignResponse, 0)
 		for _, cmp := range cmps {
 
 			var links []CampaignLinkResponse
@@ -223,31 +231,30 @@ func StopCampaign(repo *campaigns.Repository, logger *log.Logger) http.Handler {
 	})
 }
 
-// DeleteCampaignForm ...
-type DeleteCampaignForm struct {
-	CampaignID int64 `json:"campaignId"`
-}
-
 // DeleteCampaign ...
 func DeleteCampaign(repo *campaigns.Repository, logger *log.Logger) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		var form DeleteCampaignForm
+		idArg := chi.URLParam(r, "id")
 
-		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
-			logError(logger, err)
-			response.Error(w, "decode form error", http.StatusBadRequest)
+		if idArg == "" {
+			response.Error(w, "url parameter is required", http.StatusBadRequest)
 			return
 		}
 
-		if form.CampaignID == 0 {
+		id, err := strconv.ParseInt(idArg, 0, 64)
+		if err != nil {
+			response.Error(w, "id is not a number", http.StatusBadRequest)
+			return
+		}
+
+		if id == 0 {
 			response.Error(w, "campaignId is required", http.StatusBadRequest)
 			return
 		}
 
-		err := repo.DeleteCampaign(form.CampaignID)
-		if err != nil {
+		if err := repo.DeleteCampaign(id); err != nil {
 			logError(logger, err)
 			response.Error(w, "create form error", http.StatusBadRequest)
 			return

@@ -12,12 +12,21 @@ info:
   title: Shortly API
   version: "1.0"
 paths:
+  /:
+    get:
+      operationId: redirect-short-link
+      responses:
+        "307": {}
+        "308": {}
+        "400": {}
+        "500": {}
+      summary: Redirect from short link to associated long url
+      tags:
+      - Links
   /tags/create:
     post:
-      consumes:
-      - application/json
-      description: create new tag for link
-      operationId: add-tag-to-link
+      description: read campaigns list for current authorized account
+      operationId: get-all-campaigns
       produces:
       - application/json
       responses:
@@ -25,21 +34,16 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/response.ApiResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ApiResponse'
-        "404":
-          description: Not Found
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/response.ApiResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/response.ApiResponse'
-      summary: Adds tag to link
       tags:
-      - Tags
+      - Campaigns
   /users:
     get:
       operationId: get-users

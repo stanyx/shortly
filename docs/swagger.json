@@ -9,20 +9,31 @@
     },
     "basePath": "/api/v1",
     "paths": {
+        "/": {
+            "get": {
+                "tags": [
+                    "Links"
+                ],
+                "summary": "Redirect from short link to associated long url",
+                "operationId": "redirect-short-link",
+                "responses": {
+                    "307": {},
+                    "308": {},
+                    "400": {},
+                    "500": {}
+                }
+            }
+        },
         "/tags/create": {
             "post": {
-                "description": "create new tag for link",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "read campaigns list for current authorized account",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Tags"
+                    "Campaigns"
                 ],
-                "summary": "Adds tag to link",
-                "operationId": "add-tag-to-link",
+                "operationId": "get-all-campaigns",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -30,14 +41,8 @@
                             "$ref": "#/definitions/response.ApiResponse"
                         }
                     },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.ApiResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/response.ApiResponse"
                         }

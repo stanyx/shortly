@@ -19,6 +19,8 @@ import CreateGroupComponent from './components/create-group';
 import ChangeRoleComponent from './components/change-role';
 import WebhookTableComponent from './components/webhooks-table';
 import CreateWebhookComponent from './components/create-webhook';
+import CampaignsTable from './components/campaigns-table';
+import CreateCampaignComponent from './components/create-campaign';
 import DashboardManagerComponent from './components/dashboards';
 import CreateDashboardComponent from './components/create-dashboard';
 import CreateDashboardWidgetComponent from './components/create-dashboard-widget';
@@ -164,6 +166,12 @@ const App = () => {
                         </Route>
                         <Route path="/webhooks/create">
                             <CreateWebhookComponent />
+                        </Route>
+                        <Route path="/campaigns" exact>
+                            <CampaignsTable />
+                        </Route>
+                        <Route path="/campaigns/create" exact>
+                            <CreateCampaignComponent />
                         </Route>
                         <Route path="/profile" exact>
                             <ProfileComponent />
