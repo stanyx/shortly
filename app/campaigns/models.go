@@ -1,16 +1,12 @@
 package campaigns
 
-import (
-	"shortly/app/links"
-)
-
 // Campaign ...
 type Campaign struct {
 	ID          int64
 	Name        string
 	Description string
 	AccountID   int64
-	Links       []links.Link
+	Links       []CampaignLink
 }
 
 // UTMSetting ...
@@ -19,4 +15,10 @@ type UTMSetting struct {
 	Medium  string
 	Term    string
 	Content string
+}
+
+// Channel ...
+type Channel struct {
+	ID   int64
+	Name string
 }

@@ -95,8 +95,8 @@ class CampaignsTable extends React.Component<any, state> {
                                                             </InputSwitch>
                                                         </td>
                                                         <td>
-                                                            <Link to={`/campaigns/${r.id}/links`} className="btn btn-success">
-                                                                Links
+                                                            <Link to={`/campaigns/${r.id}/channels`} className="btn btn-success">
+                                                                Channels
                                                             </Link>
                                                         </td>
                                                         <td>

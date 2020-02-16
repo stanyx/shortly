@@ -13,7 +13,20 @@ module.exports = {
   module: {
     rules: [
       { test: /\.tsx?$/, loader: "ts-loader" },
-      { test:/\.css$/, use:['style-loader','css-loader']}
+      { test:/\.css$/, use:['style-loader','css-loader']},
+      {
+        test: /\.(jpg|png|svg|gif|eot|woff|ttf)$/,
+        use: [
+          {
+            loader: 'file-loader',
+            options: {
+              name: '[name].[ext]',
+              publicPath: 'img',
+              outputPath: 'img'
+            }
+          }
+        ]
+      }
     ]
   },
   devServer: {

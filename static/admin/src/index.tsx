@@ -4,6 +4,10 @@ import {BrowserRouter as Router, Switch, Route, useParams} from 'react-router-do
 import {Elements, StripeProvider} from 'react-stripe-elements';
 import {httpGet} from './utils';
 
+import 'primereact/resources/themes/nova-light/theme.css';
+import 'primereact/resources/primereact.min.css';
+import 'primeicons/primeicons.css';
+
 import NavLink from './components/navmenu';
 import LinksTable from './components/links-table';
 import LinkTagsComponent from './components/links-tags';
@@ -21,6 +25,7 @@ import WebhookTableComponent from './components/webhooks-table';
 import CreateWebhookComponent from './components/create-webhook';
 import CampaignsTable from './components/campaigns-table';
 import CreateCampaignComponent from './components/create-campaign';
+import CampaingChannelsComponent from './components/campaign-channels';
 import DashboardManagerComponent from './components/dashboards';
 import CreateDashboardComponent from './components/create-dashboard';
 import CreateDashboardWidgetComponent from './components/create-dashboard-widget';
@@ -52,6 +57,13 @@ const CreateDashboardWidgetComponentWrapper = () => {
     let {dashboardID, posX, posY, maxSpan} = useParams();
     return (
         <CreateDashboardWidgetComponent dashboardID={dashboardID} posX={posX} posY={posY} maxSpan={maxSpan}/>
+    )
+}
+
+const CampaignChannelsComponentWrapper = () => {
+    let {id} = useParams();
+    return (
+        <CampaingChannelsComponent id={id}/>
     )
 }
 
@@ -172,6 +184,9 @@ const App = () => {
                         </Route>
                         <Route path="/campaigns/create" exact>
                             <CreateCampaignComponent />
+                        </Route>
+                        <Route path="/campaigns/:id/channels" exact>
+                            <CampaignChannelsComponentWrapper />
                         </Route>
                         <Route path="/profile" exact>
                             <ProfileComponent />
