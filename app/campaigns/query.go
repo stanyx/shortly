@@ -93,9 +93,7 @@ func (r *Repository) GetUserCampaigns(accountID int64) ([]Campaign, error) {
 			return nil, err
 		}
 
-		for _, l := range linksByCampaign[cmp.ID] {
-			cmp.Links = append(cmp.Links, l)
-		}
+		cmp.Links = append(cmp.Links, linksByCampaign[cmp.ID]...)
 
 		list = append(list, cmp)
 	}
