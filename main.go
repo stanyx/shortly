@@ -533,10 +533,10 @@ func main() {
 	} else {
 		logger.Fatal("incorrect config params for redirect logger")
 	}
+	r.Get("/qr/*", api.QrCodeHandler(linksRepository, urlCache, logger))
 	r.Get("/metrics", promhttp.Handler().(http.HandlerFunc))
 	r.Get("/*", totalRedirectsPromMiddleware(api.Redirect(
 		linksRepository, dbLogger, historyDB, urlCache, logger, appConfig.GeoIP.DatabasePath)))
-
 	var srv *http.Server
 	// server running
 	go func() {
@@ -576,6 +576,10 @@ func main() {
 
 		if err := billingDataStorage.Close(); err != nil {
 			logger.Printf("billing data storage close with error: %v", err)
+		}
+
+		if err := urlCache.Close(); err != nil {
+			logger.Printf("link cache close error: %v", err)
 		}
 
 		doneCh <- struct{}{}

@@ -128,7 +128,7 @@ class CampaignsChannelsComponent extends React.Component<any, state> {
                 allLinks: response.data.result || [],
                 showAddLinksDialog: true
             })
-        })    
+        })
     }
     addLink(linkID: number) {
         httpPost(`/api/v1/campaigns/${this.props.id}/channels/${this.state.selectedChannelID}/links`, {

@@ -54,6 +54,7 @@ class CampaignsTable extends React.Component<any, state> {
             <div className="row">
                 <div className="col-12">
                     <Link to="/campaigns/create" className="btn btn-primary">Create</Link>
+                    <Link to="/campaigns/dashboard" className="btn btn-success">Dashboard</Link>
                 </div>
             </div>
             <div className="row">

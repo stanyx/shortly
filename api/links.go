@@ -10,9 +10,11 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi"
+	qrcode "github.com/skip2/go-qrcode"
 
 	"shortly/cache"
 	"shortly/utils"
@@ -188,20 +190,22 @@ type CreateLinkForm struct {
 	Description string `json:"description"`
 }
 
-// CreateLink ...
+// CreateLink http handler creates a short link for a long url provided via POST form
+// @Summary CreateLink creates a short link for a long url
+// @Tags Links
+// @ID create-short-link
+// @Success 201
+// @Failure 400
+// @Failure 500
+// @Router /api/v1/links [post]
 func CreateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		if r.Method != "POST" {
-			response.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
 		var form CreateLinkForm
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
-			response.Error(w, "decode form error", http.StatusBadRequest)
+			response.Error(w, "form body is not json", http.StatusBadRequest)
 			return
 		}
 
@@ -231,18 +235,21 @@ func CreateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *lo
 			return
 		}
 
-		urlCache.Store(link.Short, validLongURL.String())
+		urlCache.StoreExp(link.Short, validLongURL.String(), 86400*60)
 
 		urlScheme := "http"
 		if r.URL.Scheme != "" {
 			urlScheme = r.URL.Scheme
 		}
 
-		response.Object(w, &LinkResponse{
-			Short:       urlScheme + "://" + r.Host + "/" + link.Short,
+		shortVersion := url.URL{Scheme: urlScheme, Host: r.Host, Path: link.Short}
+
+		linkResponse := &LinkResponse{
+			Short:       shortVersion.String(),
 			Long:        link.Long,
 			Description: link.Description,
-		}, http.StatusOK)
+		}
+		response.Object(w, linkResponse, http.StatusCreated)
 
 	})
 
@@ -798,4 +805,36 @@ func GetTotalLinks(repo links.ILinksRepository, logger *log.Logger) http.Handler
 		response.Object(w, count, http.StatusOK)
 
 	})
+}
+
+// QrCodeHandler http handler generation qr code for a provided link
+func QrCodeHandler(repo links.ILinksRepository, urlCache cache.UrlCache, logger *log.Logger) http.HandlerFunc {
+
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		shortURL := strings.TrimPrefix(r.URL.Path, "/qr/")
+
+		_, ok := urlCache.Load(shortURL)
+		if !ok {
+			response.Text(w, "url not found", http.StatusBadRequest)
+			return
+		}
+
+		urlScheme := "http"
+		if r.URL.Scheme != "" {
+			urlScheme = r.URL.Scheme
+		}
+
+		qrURL := strings.Replace(urlScheme+"://"+r.Host+r.URL.String(), "/qr", "", -1)
+		fmt.Println(qrURL)
+		png, err := qrcode.Encode(qrURL, qrcode.Medium, 256)
+		if err != nil {
+			response.Text(w, "qr code generate error", http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Content-Type", "image/png")
+		w.Header().Set("Content-Length", fmt.Sprintf("%v", len(png)))
+		_, _ = w.Write(png)
+	}
 }

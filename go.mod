@@ -35,6 +35,7 @@ require (
 	github.com/prometheus/client_golang v0.9.3
 	github.com/russross/blackfriday v2.0.0+incompatible // indirect
 	github.com/securego/gosec v0.0.0-20200129084146-17df5b370244 // indirect
+	github.com/skip2/go-qrcode v0.0.0-20191027152451-9434209cb086
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.6.1
 	github.com/stripe/stripe-go v68.4.0+incompatible
