@@ -46,3 +46,30 @@ func Text(w http.ResponseWriter, str string, statusCode int) {
 	w.WriteHeader(statusCode)
 	fmt.Fprint(w, str)
 }
+
+// Shortcuts for typical response types
+
+// 201
+func Created(w http.ResponseWriter, resp interface{}) {
+	Object(w, resp, http.StatusCreated)
+}
+
+// 204
+func Deleted(w http.ResponseWriter) {
+	Object(w, nil, http.StatusNoContent)
+}
+
+// 404
+func NotFound(w http.ResponseWriter, str string) {
+	Error(w, str, http.StatusNotFound)
+}
+
+// Bad is the shortcut for a response with 400 status code
+func Bad(w http.ResponseWriter, str string) {
+	Error(w, str, http.StatusBadRequest)
+}
+
+// InternalError is the shortcut for a response with 500 status code
+func InternalError(w http.ResponseWriter, str string) {
+	Error(w, str, http.StatusInternalServerError)
+}

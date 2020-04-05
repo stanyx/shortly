@@ -113,8 +113,19 @@ type CampaignClickData struct {
 	Data        []data.CounterData
 }
 
+type ChannelClickData struct {
+	ChannelID   int64
+	ChannelName string
+	Count       int64
+}
+
+type CampaignData struct {
+	ChannelsData []ChannelClickData
+	LinkData     []CampaignClickData
+}
+
 // GetCampaignClicksData ...
-func (r *Repository) GetCampaignClicksData(accountID, campaignID int64, startTime, endTime time.Time) ([]CampaignClickData, error) {
+func (r *Repository) GetCampaignClicksData(accountID, campaignID int64, startTime, endTime time.Time) (*CampaignData, error) {
 
 	query := `select l.id, l.short_url, cl.channel_id, chs.name
 		from campaigns cmp
@@ -137,25 +148,48 @@ func (r *Repository) GetCampaignClicksData(accountID, campaignID int64, startTim
 		return nil, err
 	}
 
-	var list []CampaignClickData
+	var linkData []CampaignClickData
+	var channelData []ChannelClickData
+
+	aggregateMap := make(map[int64]*ChannelClickData)
 
 	for rows.Next() {
 		var linkID int64
 		var shortURL string
-		if err := rows.Scan(&linkID, &shortURL); err != nil {
+		var channelID int64
+		var channelName string
+
+		if err := rows.Scan(&linkID, &shortURL, &channelID, &channelName); err != nil {
 			return nil, err
 		}
-		data, err := r.HistoryDB.GetClicksData(accountID, shortURL, startTime, endTime)
+		clickData, err := r.HistoryDB.GetClicksData(accountID, shortURL, startTime, endTime)
 		if err != nil {
 			return nil, err
 		}
-		list = append(list, CampaignClickData{
-			ShortURL: shortURL,
-			Data:     data.Clicks,
+		linkData = append(linkData, CampaignClickData{
+			ShortURL:    shortURL,
+			ChannelID:   channelID,
+			ChannelName: channelName,
+			Data:        clickData.Clicks,
 		})
+
+		if _, ok := aggregateMap[channelID]; !ok {
+			aggregateMap[channelID] = &ChannelClickData{ChannelID: channelID, ChannelName: channelName, Count: 0}
+		}
+
+		for _, d := range clickData.Clicks {
+			aggregateMap[channelID].Count += d.Count
+		}
 	}
 
-	return list, nil
+	for _, data := range aggregateMap {
+		channelData = append(channelData, *data)
+	}
+
+	return &CampaignData{
+		ChannelsData: channelData,
+		LinkData:     linkData,
+	}, nil
 }
 
 // CreateCampaign ...
@@ -173,6 +207,17 @@ func (r *Repository) CreateCampaign(cmp Campaign) (int64, error) {
 	}
 
 	return rowID, nil
+}
+
+// UpdateCampaign ...
+func (r *Repository) UpdateCampaign(campaignID int64, cmp Campaign) error {
+
+	_, err := r.DB.Exec(`
+		update "campaigns" set name = $1, description = $2 where id = $3 and account_id = $4`,
+		cmp.Name, cmp.Description, campaignID, cmp.AccountID,
+	)
+
+	return err
 }
 
 // StartCampaign ...
@@ -287,6 +332,14 @@ func (r *Repository) CreateChannel(accountID int64, row *Channel) (int64, error)
 	var rowID int64
 	query := "insert into channels(account_id, name) values ($1, $2) returning id"
 	err := r.DB.QueryRow(query, accountID, row.Name).Scan(&rowID)
+	return rowID, err
+}
+
+// UpdateChannel ...
+func (r *Repository) UpdateChannel(id, accountID int64, row *Channel) (int64, error) {
+	var rowID int64
+	query := "update channels name = $1 where id = $2 and account_id = $3 returning id"
+	err := r.DB.QueryRow(query, row.Name, id, accountID).Scan(&rowID)
 	return rowID, err
 }
 

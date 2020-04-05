@@ -2,7 +2,11 @@ FROM golang:alpine as builder
 RUN mkdir /build
 ADD . /build/
 WORKDIR /build
-RUN go build -o main .
+RUN GIT_SHA=$(git rev-parse --short HEAD) && \ 
+    CGO_ENABLED=0 GOARCH=amd64 GOOS=linux \
+    go build -a \
+    -ldflags "-extflags '-static' -w -s -X main.appSha=$GIT_SHA" \  
+    -o main .
 
 FROM alpine
 RUN adduser -S -D -H -h /app appuser

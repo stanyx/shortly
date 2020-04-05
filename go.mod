@@ -14,6 +14,7 @@ require (
 	github.com/creack/pty v1.1.9 // indirect
 	github.com/cychiuae/casbin-pg-adapter v0.0.4
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
+	github.com/docker/docker v0.7.3-0.20190817195342-4760db040282
 	github.com/gin-gonic/gin v1.5.0 // indirect
 	github.com/go-chi/chi v4.0.2+incompatible
 	github.com/go-openapi/spec v0.19.6 // indirect
@@ -29,6 +30,7 @@ require (
 	github.com/lib/pq v1.2.0
 	github.com/mailru/easyjson v0.7.0 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
+	github.com/memcachier/mc v2.0.1+incompatible
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/oschwald/geoip2-golang v1.4.0
 	github.com/pkg/errors v0.8.1
@@ -36,6 +38,7 @@ require (
 	github.com/russross/blackfriday v2.0.0+incompatible // indirect
 	github.com/securego/gosec v0.0.0-20200129084146-17df5b370244 // indirect
 	github.com/skip2/go-qrcode v0.0.0-20191027152451-9434209cb086
+	github.com/speps/go-hashids v2.0.0+incompatible
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.6.1
 	github.com/stripe/stripe-go v68.4.0+incompatible

@@ -14,7 +14,7 @@ import (
 	"shortly/app/rbac"
 )
 
-// CampaignRoutes ...
+// CampaignRoutes http handlers for campaigns application
 func CampaignRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.HandlerFunc, repo *campaigns.Repository, logger *log.Logger) {
 	r.Get("/api/v1/campaigns", http.HandlerFunc(auth(
 		rbac.NewPermission("/api/v1/campaigns", "read_campaigns", "GET"),
@@ -23,6 +23,10 @@ func CampaignRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.
 	r.Post("/api/v1/campaigns", http.HandlerFunc(auth(
 		rbac.NewPermission("/api/v1/campaigns", "create_campaign", "POST"),
 		CreateCampaign(repo, logger),
+	)))
+	r.Put("/api/v1/campaigns/{id}", http.HandlerFunc(auth(
+		rbac.NewPermission("/api/v1/campaigns/{id}", "update_campaign", "PUT"),
+		UpdateCampaign(repo, logger),
 	)))
 	r.Post("/api/v1/campaigns/start", http.HandlerFunc(auth(
 		rbac.NewPermission("/api/v1/campaigns/start", "start_campaign", "POST"),
@@ -170,7 +174,7 @@ func CreateCampaign(repo *campaigns.Repository, logger *log.Logger) http.Handler
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 			logError(logger, err)
-			response.Error(w, "decode form error", http.StatusBadRequest)
+			response.Bad(w, "decode form error")
 			return
 		}
 
@@ -183,7 +187,7 @@ func CreateCampaign(repo *campaigns.Repository, logger *log.Logger) http.Handler
 		rowID, err := repo.CreateCampaign(row)
 		if err != nil {
 			logError(logger, err)
-			response.Error(w, "create campaign error", http.StatusBadRequest)
+			response.InternalError(w, "create campaign error")
 			return
 		}
 
@@ -192,6 +196,60 @@ func CreateCampaign(repo *campaigns.Repository, logger *log.Logger) http.Handler
 			Name:        row.Name,
 			Description: row.Description,
 		}, http.StatusOK)
+	})
+}
+
+// UpdateCampaignForm ...
+type UpdateCampaignForm struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+// UpdateCampaign ...
+func UpdateCampaign(repo *campaigns.Repository, logger *log.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		claims := r.Context().Value("user").(*JWTClaims)
+		accountID := claims.AccountID
+
+		idArg := chi.URLParam(r, "id")
+		if idArg == "" {
+			response.Bad(w, "id parameter is required")
+			return
+		}
+
+		id, err := strconv.ParseInt(idArg, 0, 64)
+		if err != nil {
+			response.Bad(w, "id is not a number")
+			return
+		}
+
+		if id == 0 {
+			response.Bad(w, "id must be greater than zero")
+			return
+		}
+
+		var form UpdateCampaignForm
+
+		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
+			logError(logger, err)
+			response.Bad(w, "decode form error")
+			return
+		}
+
+		row := campaigns.Campaign{
+			Name:        form.Name,
+			Description: form.Description,
+			AccountID:   accountID,
+		}
+
+		if err := repo.UpdateCampaign(id, row); err != nil {
+			logError(logger, err)
+			response.InternalError(w, "update campaign error")
+			return
+		}
+
+		response.Ok(w)
 	})
 }
 
@@ -551,7 +609,7 @@ func GetLinkDataForCampaign(repo *campaigns.Repository, logger *log.Logger) http
 			return
 		}
 
-		rows, err := repo.GetCampaignClicksData(accountID, campaignID, startTime, endTime)
+		campaignData, err := repo.GetCampaignClicksData(accountID, campaignID, startTime, endTime)
 		if err != nil {
 			logError(logger, err)
 			response.Error(w, "(get link data) - internal error", http.StatusInternalServerError)
@@ -559,7 +617,7 @@ func GetLinkDataForCampaign(repo *campaigns.Repository, logger *log.Logger) http
 		}
 
 		var list []CampaignClickDataResponse
-		for _, l := range rows {
+		for _, l := range campaignData.LinkData {
 
 			var data []ClickDataResponse
 			for _, linkData := range l.Data {

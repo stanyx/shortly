@@ -29,7 +29,7 @@ func (repo *MockLinksRepository) GetAllLinks() ([]links.Link, error) {
 	}, nil
 }
 
-func (repo *MockLinksRepository) GenerateLink() string {
+func (repo *MockLinksRepository) GenerateLink(_ int64) string {
 	return "ABCDE"
 }
 
@@ -39,6 +39,10 @@ func (repo *MockLinksRepository) UnshortenURL(shortURL string) (string, error) {
 
 func (repo *MockLinksRepository) CreateLink(*links.Link) error {
 	return nil
+}
+
+func (repo *MockLinksRepository) CreateLinkTx(_ sql.Tx, _ *links.Link) (int64, error) {
+	return 0, nil
 }
 
 func (repo *MockLinksRepository) GetLinkByID(_ int64) (links.Link, error) {

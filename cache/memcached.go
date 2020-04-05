@@ -1,56 +1,62 @@
 package cache
 
 import (
+	"fmt"
 	"log"
 
-	"github.com/bradfitz/gomemcache/memcache"
+	"github.com/memcachier/mc"
 )
 
+type MemcacheCredentials struct {
+	Username string
+	Password string
+}
+
 type MemcachedCache struct {
-	c      *memcache.Client
+	c      *mc.Client
 	logger *log.Logger
 }
 
-func NewMemcachedCache(serverList []string, logger *log.Logger) *MemcachedCache {
+func NewMemcachedCache(serverList string, logger *log.Logger, credentials MemcacheCredentials) (*MemcachedCache, error) {
+
+	mc := mc.NewMC(serverList, credentials.Username, credentials.Password)
+
 	return &MemcachedCache{
-		c:      memcache.New(serverList...),
+		c:      mc,
 		logger: logger,
-	}
+	}, nil
 }
 
 func (ch *MemcachedCache) Close() error {
+	ch.c.Quit()
 	return nil
 }
 
 func (ch *MemcachedCache) Load(key interface{}) (interface{}, bool) {
-	url, err := ch.c.Get(key.(string))
+	val, _, _, err := ch.c.Get(key.(string))
 	if err != nil {
 		ch.logger.Printf("cache get(key=%v) error, cause: %+v\n", key, err)
 		return nil, false
 	}
-	return string(url.Value), true
+	return val, true
 }
 
 func (ch *MemcachedCache) Store(key interface{}, value interface{}) {
-	err := ch.c.Set(&memcache.Item{Key: key.(string), Value: []byte(value.(string))})
+	_, err := ch.c.Set(key.(string), value.(string), 0, 0, 0)
 	if err != nil {
 		ch.logger.Printf("cache set(key=%v) error, cause: %+v\n", key, err)
 	}
 }
 
 func (ch *MemcachedCache) StoreExp(key interface{}, value interface{}, ttl int) {
-	err := ch.c.Set(&memcache.Item{
-		Key:        key.(string),
-		Value:      []byte(value.(string)),
-		Expiration: int32(ttl),
-	})
+	_, err := ch.c.Set(key.(string), value.(string), 0, uint32(ttl), 0)
 	if err != nil {
 		ch.logger.Printf("cache set(key=%v) error, cause: %+v\n", key, err)
 	}
 }
 
 func (ch *MemcachedCache) Delete(key interface{}) {
-	err := ch.c.Delete(key.(string))
+	err := ch.c.Del(key.(string))
 	if err != nil {
 		ch.logger.Printf("cache delete(key=%s) error, cause: %+v\n", key, err)
 	}
@@ -62,5 +68,7 @@ func (ch *MemcachedCache) Range(f func(key interface{}, value interface{}) bool)
 }
 
 func (ch *MemcachedCache) Ping() error {
-	return ch.c.Ping()
+	stats, err := ch.c.Stats()
+	fmt.Printf("cache stats: %+v, err: %v\n", stats, err)
+	return err
 }

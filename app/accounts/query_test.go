@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+
+	"shortly/app/users"
 )
 
 func TestCreateAccount(t *testing.T) {
@@ -17,7 +19,7 @@ func TestCreateAccount(t *testing.T) {
 
 	accountID := int64(10)
 
-	u := User{
+	u := users.User{
 		AccountID: accountID,
 		Username:  "test",
 		Password:  "", // no password to testing purposes (no encryption)
@@ -44,7 +46,7 @@ func TestCreateAccount(t *testing.T) {
 	).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(testUserID))
 	mock.ExpectExec("insert into audit").WithArgs("users", testUserID).WillReturnResult(sqlmock.NewResult(1, 1))
 
-	repo := &UsersRepository{DB: db}
+	repo := &AccountsRepository{DB: db}
 
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{})
 	if err != nil {
@@ -55,7 +57,6 @@ func TestCreateAccount(t *testing.T) {
 		t.Errorf("error create account: %s", err)
 	}
 
-	// we make sure that all expectations were met
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled expectations: %s", err)
 	}

@@ -28,6 +28,13 @@ type HealthCheckResponse struct {
 	Errors []string
 }
 
+var healthChecks = make(map[string]HealthCheckFunc)
+
+func NewHealthCheck(name string, f func(context.Context) error) HealthCheckFunc {
+	healthChecks[name] = HealthCheckFunc(f)
+	return healthChecks[name]
+}
+
 // HealthCheck ...
 func HealthCheck(checkers []HealthChecker, logger *log.Logger) http.HandlerFunc {
 
@@ -36,10 +43,10 @@ func HealthCheck(checkers []HealthChecker, logger *log.Logger) http.HandlerFunc 
 		var wg sync.WaitGroup
 		var errorsMap sync.Map
 
-		for i, ck := range checkers {
+		for serviceName, ck := range healthChecks {
 			wg.Add(1)
 
-			go func(serviceID int, checker HealthChecker) {
+			go func(serviceName string, checker HealthChecker) {
 				ctx, cancel := context.WithTimeout(r.Context(), time.Duration(10)*time.Second)
 				defer cancel()
 				defer wg.Done()
@@ -49,14 +56,13 @@ func HealthCheck(checkers []HealthChecker, logger *log.Logger) http.HandlerFunc 
 					checkDone <- checker.Check(ctx)
 				}()
 
-				key := fmt.Sprintf("service_%d", serviceID)
 				select {
 				case err := <-checkDone:
-					errorsMap.Store(key, err)
+					errorsMap.Store(serviceName, err)
 				case <-ctx.Done():
-					errorsMap.Store(key, fmt.Errorf("check(%d) timeout\n", serviceID))
+					errorsMap.Store(serviceName, fmt.Errorf("check(%s) timeout\n", serviceName))
 				}
-			}(i, ck)
+			}(serviceName, ck)
 		}
 
 		wg.Wait()

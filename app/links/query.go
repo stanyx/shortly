@@ -8,8 +8,7 @@ import (
 	"time"
 
 	"github.com/lib/pq"
-
-	"shortly/utils"
+	"github.com/speps/go-hashids"
 )
 
 // ILinksRepository ...
@@ -18,7 +17,7 @@ type ILinksRepository interface {
 	GetLinkByID(int64) (Link, error)
 	UpdateUserLink(int64, int64, *Link) (*sql.Tx, error)
 	GetAllLinks() ([]Link, error)
-	GenerateLink() string
+	GenerateLink(int64) string
 	CreateLink(*Link) error
 	CreateUserLink(accountID int64, link *Link) (*sql.Tx, int64, error)
 	DeleteUserLink(accountID int64, linkID int64) (*sql.Tx, int64, error)
@@ -114,11 +113,50 @@ func (repo *LinksRepository) GetAllLinks() ([]Link, error) {
 	return list, nil
 }
 
+// createLinkTx ...
+func (repo *LinksRepository) createLinkTx(tx *sql.Tx, link *Link) (int64, error) {
+	var rowID int64
+	err := tx.QueryRow(`
+		INSERT INTO "links" (long_url, description) VALUES ( $1, $2 ) RETURNING id
+	`, link.Short, link.Long, link.Description).Scan(&rowID)
+	return rowID, err
+}
+
 // CreateLink ...
 func (repo *LinksRepository) CreateLink(link *Link) error {
+
+	tx, err := repo.DB.Begin()
+	if err != nil {
+		return err
+	}
+
+	linkID, err := repo.createLinkTx(tx, link)
+	if err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+
+	shortURL := repo.GenerateLink(linkID)
+
+	if err := repo.setLinkShortURL(tx, linkID, shortURL); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	link.Short = shortURL
+
+	return err
+}
+
+// setLinkShortURL ...
+func (repo *LinksRepository) setLinkShortURL(tx *sql.Tx, linkID int64, shortURL string) error {
 	_, err := repo.DB.Exec(`
-		insert into "links" (short_url, long_url, description) VALUES ( $1, $2, $3 )
-	`, link.Short, link.Long, link.Description)
+		UPDATE "links" SET short_url = $1 WHERE id = $2
+	`, shortURL, linkID)
 	return err
 }
 
@@ -273,8 +311,19 @@ func (repo *LinksRepository) GetUserLinksCount(accountID int64, createdStartTime
 }
 
 // GenerateLink ...
-func (repo *LinksRepository) GenerateLink() string {
-	return utils.RandomString(5)
+func (repo *LinksRepository) GenerateLink(linkID int64) string {
+	hd := hashids.NewData()
+
+	// TODO - to config
+	hd.Salt = ";8D!z8;5]S2GupGQTt %HDRNfHn2Y5;_d&6pQ)oKo#>~jVR>nKCY{1e0ygO=K0.B"
+	h, err := hashids.NewWithData(hd)
+
+	var id string
+	if err == nil {
+		id, _ = h.EncodeInt64([]int64{linkID})
+	}
+
+	return id
 }
 
 // CreateUserLink ...
@@ -285,12 +334,20 @@ func (repo *LinksRepository) CreateUserLink(accountID int64, link *Link) (*sql.T
 		return nil, 0, err
 	}
 	err = tx.QueryRow(
-		"insert into links (short_url, long_url, account_id, created_at) values ($1, $2, $3, now()) returning id",
+		"insert into links (long_url, account_id, created_at) values ($1, $2, now()) returning id",
 		link.Short, link.Long, accountID,
 	).Scan(&rowID)
 	if err != nil {
 		return nil, 0, err
 	}
+
+	shortURL := repo.GenerateLink(rowID)
+
+	if err := repo.setLinkShortURL(tx, rowID, shortURL); err != nil {
+		return tx, 0, err
+	}
+
+	link.Short = shortURL
 
 	repo.callback("Create", accountID, link)
 	return tx, rowID, err
@@ -345,7 +402,12 @@ func (repo *LinksRepository) DeleteUrlFromGroup(groupID, linkID int64) error {
 // BulkCreateLinks ...
 func (repo *LinksRepository) BulkCreateLinks(accountID int64, links []string) ([]Link, error) {
 
-	query := "insert into links (short_url, long_url, account_id) values "
+	tx, err := repo.DB.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	query := "insert into links (long_url, account_id) values "
 	var queryArgs []interface{}
 
 	var createdLinks []Link
@@ -355,17 +417,50 @@ func (repo *LinksRepository) BulkCreateLinks(accountID int64, links []string) ([
 		}
 		query += fmt.Sprintf("($%v, $%v, $%v)", i*3+1, i*3+2, i*3+3)
 
-		shortURL := repo.GenerateLink()
 		queryArgs = append(queryArgs, []interface{}{
-			shortURL, l, accountID,
+			l, accountID,
 		}...)
 		createdLinks = append(createdLinks, Link{
-			Short: shortURL,
-			Long:  l,
+			Long: l,
 		})
 	}
 
-	_, err := repo.DB.Exec(query, queryArgs...)
+	query += " returning id"
+	rows, err := tx.Query(query, queryArgs...)
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var index int64
+	for rows.Next() {
+		var rowID int64
+		if err := rows.Scan(&rowID); err != nil {
+			return nil, err
+		}
+		shortURL := repo.GenerateLink(rowID)
+		createdLinks[index].ID = rowID
+		createdLinks[index].Short = shortURL
+		index++
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	for _, l := range createdLinks {
+		if err := repo.setLinkShortURL(tx, l.ID, l.Short); err != nil {
+			_ = tx.Rollback()
+			return nil, err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
 	return createdLinks, err
 }
 

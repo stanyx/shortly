@@ -14,6 +14,7 @@ func NewPermission(url, name, method string) Permission {
 // Role ...
 type Role struct {
 	ID          int64
+	AccountID   int64
 	Name        string
 	Description string
 }

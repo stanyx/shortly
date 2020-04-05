@@ -6,5 +6,6 @@ CREATE TABLE public.audit
     action character varying NOT NULL COLLATE pg_catalog."default",
     "timestamp" timestamp with time zone,
     snapshot jsonb,
+    diff     jsonb,
     CONSTRAINT audit_pk PRIMARY KEY (id)
 );

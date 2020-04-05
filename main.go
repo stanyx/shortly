@@ -37,10 +37,12 @@ import (
 	"shortly/app/clicks"
 	"shortly/app/dashboards"
 	"shortly/app/data"
+	"shortly/app/groups"
 	"shortly/app/links"
 	"shortly/app/maintance"
 	"shortly/app/rbac"
 	"shortly/app/tags"
+	"shortly/app/users"
 	"shortly/app/webhooks"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -49,6 +51,10 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
 	_ "shortly/docs"
+)
+
+var (
+	appSha string
 )
 
 func LoadCacheFromDatabase(repo *links.LinksRepository, urlCache cache.UrlCache) error {
@@ -258,7 +264,25 @@ func main() {
 		urlCache = cache.NewMemoryCache()
 	case "memcached":
 		log.Println("CACHE: use MEMCACHED")
-		urlCache = cache.NewMemcachedCache(cacheConfig.Memcached.ServerList, logger)
+		envMcServers := os.Getenv("MEMCACHIER_SERVERS")
+		if envMcServers == "" {
+			envMcServers = cacheConfig.Memcached.Server
+		}
+		envMcUsername := os.Getenv("MEMCACHIER_USERNAME")
+		if envMcUsername == "" {
+			envMcUsername = cacheConfig.Memcached.Username
+		}
+		envMcPassword := os.Getenv("MEMCACHIER_PASSWORD")
+		if envMcPassword == "" {
+			envMcPassword = cacheConfig.Memcached.Password
+		}
+		urlCache, err = cache.NewMemcachedCache(envMcServers, logger, cache.MemcacheCredentials{
+			Username: envMcUsername,
+			Password: envMcPassword,
+		})
+		if err != nil {
+			logger.Fatal(err)
+		}
 	case "boltdb":
 		log.Println("CACHE: use BOLT_DB")
 		urlDataStorage, err := bolt.Open(cacheConfig.BoltDB.Dir+"/urls.db", 0666, nil)
@@ -353,10 +377,10 @@ func main() {
 
 	r.Get("/health", utils.HealthCheck(
 		[]utils.HealthChecker{
-			utils.HealthCheckFunc(func(_ context.Context) error {
+			utils.NewHealthCheck("database", func(_ context.Context) error {
 				return database.Ping()
 			}),
-			utils.HealthCheckFunc(func(_ context.Context) error {
+			utils.NewHealthCheck("cache", func(_ context.Context) error {
 				return urlCache.Ping()
 			}),
 		},
@@ -408,6 +432,11 @@ func main() {
 		api.AddTagToLink(tagsRepository, logger),
 	))
 
+	r.Put("/api/v1/tags/{tagName}", auth(
+		rbac.NewPermission("/api/v1/tags/{tagName}", "update_tag", "PUT"),
+		api.UpdateTagName(tagsRepository, logger),
+	))
+
 	r.Delete("/api/v1/tags/{linkID}/{tagName}", auth(
 		rbac.NewPermission("/api/v1/tags/{linkID}/{tagName}", "delete_tag", "POST"),
 		api.DeleteTagFromLink(tagsRepository, logger),
@@ -417,27 +446,24 @@ func main() {
 	api.LinksRoutes(r, auth, linksRepository, logger, historyDB)
 
 	// account api
-	usersRepository := &accounts.UsersRepository{DB: database}
+	accountsRepository := &accounts.AccountsRepository{DB: database}
+	usersRepository := &users.UsersRepository{DB: database}
+	groupsRepository := &groups.GroupsRepository{DB: database}
 
-	r.Post("/api/v1/registration", api.RegisterAccount(usersRepository, billingRepository, billingLimiter, logger))
-	r.Get("/api/v1/users", auth(
-		rbac.NewPermission("/api/v1/users", "read_users", "GET"),
-		api.GetUsers(usersRepository, logger),
-	))
-	r.Post("/api/v1/users/create", auth(
-		rbac.NewPermission("/api/v1/users/create", "create_user", "POST"),
-		api.AddUser(usersRepository, logger),
-	))
-	r.Post("/api/v1/login", api.Login(usersRepository, logger, appConfig.Auth))
-	r.Get("/api/v1/user", api.GetLoggedInUser(usersRepository, logger, appConfig.Auth))
-	r.Get("/api/v1/profile", auth(
-		rbac.NewPermission("/api/v1/profile", "read_profile", "GET"),
-		api.GetProfile(usersRepository, rbacRepository, billingRepository, billingLimiter, logger),
-	))
+	r.Post("/api/v1/registration", api.RegisterAccount(accountsRepository, usersRepository, billingRepository, billingLimiter, logger))
 
+	api.UsersRoutes(r, auth, permissionRegistry, accountsRepository, usersRepository, billingRepository,
+		rbacRepository, billingLimiter, *appConfig, logger)
+
+	// TODO - move to links file
 	r.Post("/api/v1/users/links/create", auth(
 		rbac.NewPermission("/api/v1/users/links/create", "create_link", "POST"),
 		urlBillingLimit(api.CreateUserLink(linksRepository, historyDB, urlCache, billingLimiter, logger)),
+	))
+
+	r.Put("/api/v1/users/links/{id}", auth(
+		rbac.NewPermission("/api/v1/users/links/{id}", "update_link", "POST"),
+		api.UpdateUserLink(linksRepository, urlCache, logger),
 	))
 
 	r.Post("/api/v1/links/{id}/hide", auth(
@@ -460,37 +486,45 @@ func main() {
 		api.DeleteUserLink(linksRepository, urlCache, billingLimiter, logger),
 	))
 
+	// TODO - move to groups file
 	r.Get("/api/v1/groups", auth(
 		rbac.NewPermission("/api/v1/groups", "read_groups", "GET"),
-		api.GetGroups(usersRepository, logger),
+		api.GetGroups(groupsRepository, logger),
 	))
 
 	r.Post("/api/v1/groups/create", auth(
 		rbac.NewPermission("/api/v1/groups/create", "create_group", "POST"),
-		api.AddGroup(usersRepository, logger),
+		api.AddGroup(groupsRepository, logger),
 	))
 
-	r.Delete("/api/v1/groups/{groupID}", auth(
-		rbac.NewPermission("/api/v1/groups/{groupID}", "delete_group", "DELETE"),
-		api.DeleteGroup(usersRepository, logger),
+	r.Put("/api/v1/groups/{id}", auth(
+		rbac.NewPermission("/api/v1/groups/{id}", "update_group", "PUT"),
+		api.UpdateGroup(groupsRepository, logger),
+	))
+
+	r.Delete("/api/v1/groups/{id}", auth(
+		rbac.NewPermission("/api/v1/groups/{id}", "delete_group", "DELETE"),
+		api.DeleteGroup(groupsRepository, logger),
 	))
 
 	r.Post("/api/v1/users/groups/add_user", auth(
 		rbac.NewPermission("/api/v1/users/groups/add_user", "add_group_user", "POST"),
-		api.AddUserToGroup(usersRepository, logger),
+		api.AddUserToGroup(usersRepository, groupsRepository, logger),
 	))
 
 	r.Delete("/api/v1/users/groups/delete_user", auth(
 		rbac.NewPermission("/api/v1/users/groups/delete_user", "delete_group_user", "DELETE"),
-		api.DeleteUserFromGroup(usersRepository, logger),
+		api.DeleteUserFromGroup(usersRepository, groupsRepository, logger),
 	))
 
+	// TODO - refactor to services
 	api.RbacRoutes(r, auth, permissionRegistry, usersRepository, rbacRepository, logger)
 	api.CampaignRoutes(r, auth, campaignsRepository, logger)
 	api.WebhooksRoutes(r, auth, webhooksRepository, logger)
 	api.DashboardsRoutes(r, auth, dashboardsRepository, logger)
 	api.ClicksRoutes(r, auth, clicksRepository, historyDB, billingLimiter, logger)
 
+	// MAINTANCE SERVICE
 	basicAuth := func(next http.Handler) func(w http.ResponseWriter, r *http.Request) {
 		return func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
@@ -514,6 +548,7 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// TODO - move to Maintance file
 	r.Post("/maintance/upload_geoip_db", basicAuth(api.UpdateGeoIPDatabase(
 		database, appConfig.GeoIP.DownloadURL, appConfig.GeoIP.DatabasePath, appConfig.GeoIP.LicenseKey, logger,
 	)))
@@ -538,24 +573,28 @@ func main() {
 	r.Get("/*", totalRedirectsPromMiddleware(api.Redirect(
 		linksRepository, dbLogger, historyDB, urlCache, logger, appConfig.GeoIP.DatabasePath)))
 	var srv *http.Server
-	// server running
+
+	// start the http server
 	go func() {
 		srv = &http.Server{
-			Addr:    fmt.Sprintf("0.0.0.0:%v", serverPort),
-			Handler: r,
+			Addr:         fmt.Sprintf("0.0.0.0:%v", serverPort),
+			Handler:      r,
+			ReadTimeout:  15 * time.Second,
+			WriteTimeout: 15 * time.Second,
 		}
-		logger.Printf("starting web server at port: %v, tls: %v\n", serverConfig.Port, appConfig.Server.UseTLS)
+		logger.Printf("start a web server at port: %v, tls: %v\n", serverConfig.Port, appConfig.Server.UseTLS)
+		var err error
 		if appConfig.Server.UseTLS {
-			if err := srv.ListenAndServeTLS("./server.crt", "./server.key"); err != nil && err != http.ErrServerClosed {
-				logger.Printf("server stop unexpectedly, cause: %+v\n", err)
-			}
+			err = srv.ListenAndServeTLS("./server.crt", "./server.key")
 		} else {
-			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				logger.Printf("server stop unexpectedly, cause: %+v\n", err)
-			}
+			err = srv.ListenAndServe()
+		}
+		if err != nil && err != http.ErrServerClosed {
+			logger.Printf("server stop unexpectedly, cause: %+v\n", err)
 		}
 	}()
 
+	// wait for a shutdown
 	shutdownCh := make(chan os.Signal)
 	doneCh := make(chan struct{})
 
@@ -563,9 +602,6 @@ func main() {
 
 	go func() {
 		<-shutdownCh
-		if err := database.Close(); err != nil {
-			logger.Printf("database close error, cause: %+v", err)
-		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
@@ -574,8 +610,12 @@ func main() {
 			logger.Printf("server shutdown error, cause: %+v", err)
 		}
 
+		if err := database.Close(); err != nil {
+			logger.Printf("database close error, cause: %+v", err)
+		}
+
 		if err := billingDataStorage.Close(); err != nil {
-			logger.Printf("billing data storage close with error: %v", err)
+			logger.Printf("billing data storage close error: %v", err)
 		}
 
 		if err := urlCache.Close(); err != nil {
@@ -587,5 +627,5 @@ func main() {
 
 	<-doneCh
 
-	logger.Println("server exit normally")
+	logger.Println("application successfully stopped")
 }

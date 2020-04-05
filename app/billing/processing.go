@@ -13,8 +13,8 @@ func CheckSubscription(acc AccountBillingPlan) error {
 	return nil
 }
 
-// SubsriptionCheck ...
-func SubsriptionCheck(repo *BillingRepository, billingLimiter *BillingLimiter, logger *log.Logger) {
+// SubscriptionCheck ...
+func SubscriptionCheck(repo *BillingRepository, billingLimiter *BillingLimiter, logger *log.Logger) {
 
 	go func() {
 
@@ -51,4 +51,16 @@ func SubsriptionCheck(repo *BillingRepository, billingLimiter *BillingLimiter, l
 
 	}()
 
+}
+
+func SyncSubscriptionInformation() {
+
+	go func() {
+
+		for {
+
+			time.Sleep(time.Second)
+		}
+
+	}()
 }

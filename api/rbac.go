@@ -11,12 +11,12 @@ import (
 
 	"shortly/api/response"
 
-	"shortly/app/accounts"
 	"shortly/app/rbac"
+	"shortly/app/users"
 )
 
 // RbacRoutes ...
-func RbacRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.HandlerFunc, permissions map[string]rbac.Permission, userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) {
+func RbacRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.HandlerFunc, permissions map[string]rbac.Permission, userRepo *users.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) {
 
 	r.Get("/api/v1/roles", auth(
 		rbac.NewPermission("/api/v1/roles", "read_roles", "GET"),
@@ -56,7 +56,7 @@ func RbacRoutes(r chi.Router, auth func(rbac.Permission, http.Handler) http.Hand
 }
 
 // GetUserRoles ...
-func GetUserRoles(userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
+func GetUserRoles(userRepo *users.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		accountID := r.Context().Value("user").(*JWTClaims).AccountID
@@ -136,6 +136,79 @@ func CreateUserRole(repo rbac.IRbacRepository, logger *log.Logger) http.HandlerF
 	})
 }
 
+type UpdateRoleForm struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+// UpdateUserRole ...
+func UpdateUserRole(repo rbac.IRbacRepository, logger *log.Logger) http.HandlerFunc {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		accountID := r.Context().Value("user").(*JWTClaims).AccountID
+
+		idArg := chi.URLParam(r, "id")
+		if idArg == "" {
+			response.Bad(w, "id parameter is required")
+			return
+		}
+
+		id, err := strconv.ParseInt(idArg, 0, 64)
+		if err != nil {
+			response.Bad(w, "id is not a number")
+			return
+		}
+
+		if id == 0 {
+			response.Bad(w, "id must be greater than zero")
+			return
+		}
+
+		role, err := repo.GetRole(id)
+		if err != nil {
+			logError(logger, err)
+			response.InternalError(w, "get role error")
+			return
+		}
+
+		if role.AccountID != accountID {
+			response.NotFound(w, "record not found")
+			return
+		}
+
+		var form UpdateRoleForm
+
+		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
+			logError(logger, err)
+			response.Bad(w, "decode form error")
+			return
+		}
+
+		v := validator.New()
+		if err := v.Struct(form); err != nil {
+			response.Bad(w, err.Error())
+			return
+		}
+
+		role.Name = form.Name
+		role.Description = form.Description
+
+		err = repo.UpdateRole(accountID, role)
+		if err != nil {
+			logError(logger, err)
+			response.Error(w, "create role error", http.StatusInternalServerError)
+			return
+		}
+
+		response.Object(w, RoleResponse{
+			ID:          id,
+			Name:        role.Name,
+			Description: role.Description,
+		}, http.StatusOK)
+	})
+}
+
 // ChangeRoleForm ...
 type ChangeRoleForm struct {
 	UserID int64 `json:"userID"`
@@ -143,7 +216,7 @@ type ChangeRoleForm struct {
 }
 
 // ChangeUserRole ...
-func ChangeUserRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
+func ChangeUserRole(userRepo *users.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var form ChangeRoleForm
@@ -205,7 +278,7 @@ type DeleteRoleForm struct {
 }
 
 // DeleteUserRole ...
-func DeleteUserRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
+func DeleteUserRole(userRepo *users.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var form DeleteRoleForm
@@ -258,7 +331,7 @@ type GrantRoleForm struct {
 }
 
 // GrantAccessForRole ...
-func GrantAccessForRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
+func GrantAccessForRole(userRepo *users.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var form GrantRoleForm
 
@@ -293,7 +366,7 @@ type RevokeRoleForm struct {
 }
 
 // RevokeAccessForRole ...
-func RevokeAccessForRole(userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
+func RevokeAccessForRole(userRepo *users.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var form RevokeRoleForm
 
@@ -329,7 +402,7 @@ type PermissionResponse struct {
 }
 
 // GetAllPermissions ...
-func GetAllPermissions(permissions map[string]rbac.Permission, userRepo *accounts.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
+func GetAllPermissions(permissions map[string]rbac.Permission, userRepo *users.UsersRepository, repo *rbac.RbacRepository, logger *log.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		roleIDArg := chi.URLParam(r, "roleID")

@@ -9,7 +9,9 @@ import (
 )
 
 type MemcachedConfig struct {
-	ServerList []string
+	Server   string
+	Username string
+	Password string
 }
 
 type BoltDBConfig struct {

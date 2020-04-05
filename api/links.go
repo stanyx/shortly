@@ -190,7 +190,7 @@ type CreateLinkForm struct {
 	Description string `json:"description"`
 }
 
-// CreateLink http handler creates a short link for a long url provided via POST form
+// CreateLink returns http handler that creates a short link for a long url provided via POST form
 // @Summary CreateLink creates a short link for a long url
 // @Tags Links
 // @ID create-short-link
@@ -205,12 +205,12 @@ func CreateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *lo
 		var form CreateLinkForm
 
 		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
-			response.Error(w, "form body is not json", http.StatusBadRequest)
+			response.Bad(w, "form body is not json")
 			return
 		}
 
 		if form.Url == "" {
-			response.Error(w, "url parameter is required", http.StatusBadRequest)
+			response.Bad(w, "url parameter is required")
 			return
 		}
 
@@ -218,20 +218,18 @@ func CreateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *lo
 
 		validLongURL, err := url.Parse(longURL)
 		if err != nil {
-			response.Error(w, "url has incorrect format", http.StatusBadRequest)
+			response.Bad(w, "url has incorrect format")
 			return
 		}
 
 		link := &links.Link{
-			Short:       repo.GenerateLink(),
 			Long:        validLongURL.String(),
 			Description: form.Description,
 		}
 
-		err = repo.CreateLink(link)
-		if err != nil {
+		if err := repo.CreateLink(link); err != nil {
 			logError(logger, err)
-			response.Error(w, "internal error", http.StatusInternalServerError)
+			response.InternalError(w, "create link error")
 			return
 		}
 
@@ -262,8 +260,87 @@ type UpdateLinkForm struct {
 	Description string `json:"description"`
 }
 
-// UpdateLink ...
-func UpdateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *log.Logger) http.HandlerFunc {
+// CreateUserLink shortens a private link for a current user account
+func CreateUserLink(repo *links.LinksRepository, historyDB *data.HistoryDB, urlCache cache.UrlCache, billingLimiter *billing.BillingLimiter, logger *log.Logger) http.HandlerFunc {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		claims := r.Context().Value("user").(*JWTClaims)
+		accountID := claims.AccountID
+
+		var form CreateLinkForm
+
+		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
+			response.Error(w, "decode form error", http.StatusBadRequest)
+			return
+		}
+
+		if form.Url == "" {
+			response.Error(w, "url parameter is required", http.StatusBadRequest)
+			return
+		}
+
+		validLongURL, err := url.Parse(form.Url)
+		if err != nil {
+			response.Error(w, "long url has incorrect format", http.StatusBadRequest)
+			return
+		}
+
+		link := &links.Link{
+			Long:        validLongURL.String(),
+			Description: form.Description,
+		}
+
+		l := billingLimiter.Lock(accountID)
+		defer l.Unlock()
+
+		tx, linkID, err := repo.CreateUserLink(accountID, link)
+		if err != nil {
+			logError(logger, err)
+			response.Error(w, "(create link) - internal error", http.StatusInternalServerError)
+			return
+		}
+
+		if err := billingLimiter.Reduce("url_limit", accountID); err != nil {
+			_ = tx.Rollback()
+			logError(logger, err)
+			response.Error(w, "(create link) - internal error", http.StatusInternalServerError)
+			return
+		}
+
+		if err := historyDB.InsertDetail(link.Short, accountID); err != nil {
+			_ = tx.Rollback()
+			logError(logger, err)
+			response.Error(w, "(create link) - internal error", http.StatusInternalServerError)
+			return
+		}
+
+		if err := tx.Commit(); err != nil {
+			_ = billingLimiter.Reset("url_limit", accountID)
+			logError(logger, err)
+			response.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		urlCache.Store(link.Short, link.Long)
+
+		urlScheme := "http"
+		if r.URL.Scheme != "" {
+			urlScheme = r.URL.Scheme
+		}
+
+		response.Object(w, &LinkResponse{
+			ID:          linkID,
+			Short:       urlScheme + "://" + r.Host + "/" + link.Short,
+			Long:        link.Long,
+			Description: link.Description,
+		}, http.StatusOK)
+	})
+
+}
+
+// UpdateUserLink ...
+func UpdateUserLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *log.Logger) http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -327,91 +404,6 @@ func UpdateLink(repo links.ILinksRepository, urlCache cache.UrlCache, logger *lo
 			Description: link.Description,
 		}, http.StatusOK)
 
-	})
-
-}
-
-// CreateUserLink ...
-func CreateUserLink(repo *links.LinksRepository, historyDB *data.HistoryDB, urlCache cache.UrlCache, billingLimiter *billing.BillingLimiter, logger *log.Logger) http.HandlerFunc {
-
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		claims := r.Context().Value("user").(*JWTClaims)
-		accountID := claims.AccountID
-
-		var form CreateLinkForm
-
-		if r.Method != "POST" {
-			response.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
-			response.Error(w, "decode form error", http.StatusBadRequest)
-			return
-		}
-
-		if form.Url == "" {
-			response.Error(w, "url parameter is required", http.StatusBadRequest)
-			return
-		}
-
-		validLongURL, err := url.Parse(form.Url)
-		if err != nil {
-			response.Error(w, "long url has incorrect format", http.StatusBadRequest)
-			return
-		}
-
-		link := &links.Link{
-			Short:       utils.RandomString(5),
-			Long:        validLongURL.String(),
-			Description: form.Description,
-		}
-
-		l := billingLimiter.Lock(accountID)
-		defer l.Unlock()
-
-		tx, linkID, err := repo.CreateUserLink(accountID, link)
-		if err != nil {
-			logError(logger, err)
-			response.Error(w, "(create link) - internal error", http.StatusInternalServerError)
-			return
-		}
-
-		if err := billingLimiter.Reduce("url_limit", accountID); err != nil {
-			_ = tx.Rollback()
-			logError(logger, err)
-			response.Error(w, "(create link) - internal error", http.StatusInternalServerError)
-			return
-		}
-
-		if err := historyDB.InsertDetail(link.Short, accountID); err != nil {
-			_ = tx.Rollback()
-			logError(logger, err)
-			response.Error(w, "(create link) - internal error", http.StatusInternalServerError)
-			return
-		}
-
-		if err := tx.Commit(); err != nil {
-			_ = billingLimiter.Reset("url_limit", accountID)
-			logError(logger, err)
-			response.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-
-		urlCache.Store(link.Short, link.Long)
-
-		urlScheme := "http"
-		if r.URL.Scheme != "" {
-			urlScheme = r.URL.Scheme
-		}
-
-		response.Object(w, &LinkResponse{
-			ID:          linkID,
-			Short:       urlScheme + "://" + r.Host + "/" + link.Short,
-			Long:        link.Long,
-			Description: link.Description,
-		}, http.StatusOK)
 	})
 
 }
@@ -826,7 +818,7 @@ func QrCodeHandler(repo links.ILinksRepository, urlCache cache.UrlCache, logger 
 		}
 
 		qrURL := strings.Replace(urlScheme+"://"+r.Host+r.URL.String(), "/qr", "", -1)
-		fmt.Println(qrURL)
+
 		png, err := qrcode.Encode(qrURL, qrcode.Medium, 256)
 		if err != nil {
 			response.Text(w, "qr code generate error", http.StatusBadRequest)

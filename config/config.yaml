@@ -5,10 +5,9 @@ Database:
   Password: 1
   Database: shortly
 Cache:
-  CacheType: "boltdb"
+  CacheType: "memcached"
   Memcached:
-    ServerList:
-      - localhost:11211
+    Server: localhost:11211
   BoltDB:
     Dir: .
 Auth:

@@ -11,6 +11,7 @@ import (
 // IRbacRepository ...
 type IRbacRepository interface {
 	CreateRole(accountID int64, role Role) (int64, error)
+	UpdateRole(accountID int64, role Role) error
 	GetRole(roleID int64) (Role, error)
 }
 
@@ -25,8 +26,8 @@ type RbacRepository struct {
 func (repo *RbacRepository) GetRole(roleID int64) (Role, error) {
 	var row Role
 	err := repo.DB.QueryRow(`
-		select id, name, description from roles where id = $1
-	`, roleID).Scan(&row.ID, &row.Name, &row.Description)
+		select id, account_id, name, description from roles where id = $1
+	`, roleID).Scan(&row.ID, &row.AccountID, &row.Name, &row.Description)
 	return row, err
 }
 
@@ -68,6 +69,14 @@ func (repo *RbacRepository) CreateRole(accountID int64, r Role) (int64, error) {
 	).Scan(&roleID)
 
 	return roleID, err
+}
+
+// UpdateRole ...
+func (repo *RbacRepository) UpdateRole(accountID int64, role Role) error {
+	_, err := repo.DB.Exec(`
+		update roles set name = $1, description = $2 where account_id = $3 and id = $4
+	`, role.Name, role.Description, accountID, role.ID)
+	return err
 }
 
 // DeleteRole ...
